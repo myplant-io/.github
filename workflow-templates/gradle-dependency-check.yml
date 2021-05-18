@@ -51,7 +51,7 @@ jobs:
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "VERSION: ${{ env.VERSION }}"
           echo "depdendency.track.projectname: ${GITHUB_REPOSITORY}"
-          echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"s
+          echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
       - name: Prepare gradle properties
         shell: bash

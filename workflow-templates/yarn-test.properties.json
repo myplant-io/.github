@@ -1,0 +1,11 @@
+{
+    "name": "Test on PR",
+    "description": "Test pull requests for JavaScript/Yarn projects",
+    "iconName": "icon-yarn",
+    "categories": [
+        "JavaScript"
+    ],
+    "filePatterns": [
+        "yarn.lock"
+    ]
+}

@@ -1,0 +1,106 @@
+name: Dependency check
+
+on:
+  schedule:
+    # at 00:00 every sunday (on the default branch 'develop')
+    - cron: '0 0 * * SUN'
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+env:
+  SECURITY_LEVEL: 'moderate'
+
+jobs:
+  dependencyCheck:
+    name: 'Job: Dependency check'
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [12.x]
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout github actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.4.0
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Log details
+        run: |
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "depdendency.track.projectname: ${GITHUB_REPOSITORY}"
+          echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
+
+      - name: Prepare node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Create/restore cache for node_modules
+        uses: actions/cache@v2
+        id: node_modules-cache
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Add registry credentials
+        shell: bash
+        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
+      - name: Install dependencies (if not previously cached)
+        run: yarn install --frozen-lockfile
+
+      - name: Install html report
+        run: npm install --no-package-lock --no-save yarn-audit-html
+
+      - name: Perform audit
+        run: yarn audit --groups dependencies --level ${SECURITY_LEVEL} --json | npx --no-install yarn-audit-html
+
+      - name: Upload audit report artifact
+        uses: actions/upload-artifact@v2
+        with:
+          if-no-files-found: error
+          name: audit-report
+          path: yarn-audit.html
+
+      - name: Install cyclonedex
+        run: npm install --no-package-lock --no-save @cyclonedx/bom
+
+      - name: Create SBOM using cyclonedex
+        run: ./node_modules/@cyclonedx/bom/bin/cyclonedx-bom
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v2
+        with:
+          if-no-files-found: error
+          name: SBOM
+          path: bom.xml
+
+      - name: Publish dependency check result to tracker
+        id: upload-dependency-track
+        uses: ./.github/actions/upload-dependency-track
+        with:
+          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          bomfilename: './bom.xml'
+          projectname: ${GITHUB_REPOSITORY}
+          projectversion: ${{ env.BRANCH_NAME }}

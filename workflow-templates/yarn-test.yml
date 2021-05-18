@@ -1,0 +1,61 @@
+name: Validate and Test
+
+on:
+  pull_request:
+    branches: [develop]
+
+jobs:
+  validateAndTest:
+    name: 'Job: Validate and Test'
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [12.x]
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Log details
+        run: |
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "RELEASE INFO: ${{ join(github.event.release, '\n') }}"
+
+      - name: Prepare node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Add registry credentials
+        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
+      - name: Create/restore cache for node_modules
+        uses: actions/cache@v2
+        id: node_modules-cache
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install dependencies
+        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' }}
+        run: yarn install --frozen-lockfile
+
+      - name: Validate
+        run: yarn validate
+
+      - name: Run tests
+        run: yarn test
