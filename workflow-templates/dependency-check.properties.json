@@ -1,0 +1,13 @@
+{
+    "name": "Dependency-track integration",
+    "description": "Integration with dependency-dev.myplant.io for Java/Kotlin projects",
+    "iconName": "dependency-track",
+    "categories": [
+        "Java",
+	"Kotlin"
+    ],
+    "filePatterns": [
+        "build.gradle",
+	"build.gradle.kts"
+    ]
+}
