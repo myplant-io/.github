@@ -1,7 +1,7 @@
 {
     "name": "Dependency-track integration",
     "description": "Integration with dependency-dev.myplant.io for Java/Kotlin projects",
-    "iconName": "dependency-track",
+    "iconName": "icon-dependency-track",
     "categories": [
         "Java",
 	"Kotlin"

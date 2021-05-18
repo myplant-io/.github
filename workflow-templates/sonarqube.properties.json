@@ -1,0 +1,13 @@
+{
+    "name": "Sonarqube integration",
+    "description": "Sonarqube for Java/Kotlin projects",
+    "iconName": "icon-sonarqube",
+    "categories": [
+        "Java",
+	"Kotlin"
+    ],
+    "filePatterns": [
+        "build.gradle",
+	"build.gradle.kts"
+    ]
+}

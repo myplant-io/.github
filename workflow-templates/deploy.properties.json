@@ -1,0 +1,14 @@
+{
+    "name": "Deploy (with gradle)",
+    "description": "Build and deploy for Java/Kotlin projects (using a deployment repo)",
+    "iconName": "icon-gradle",
+    "categories": [
+	"Deployment",
+        "Java",
+	"Kotlin"
+    ],
+    "filePatterns": [
+        "build.gradle",
+	"build.gradle.kts"
+    ]
+}

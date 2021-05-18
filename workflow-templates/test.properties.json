@@ -1,0 +1,13 @@
+{
+    "name": "Test on PR (with gradle)",
+    "description": "Test pull requests for Java/Kotlin projects",
+    "iconName": "icon-gradle",
+    "categories": [
+        "Java",
+	"Kotlin"
+    ],
+    "filePatterns": [
+        "build.gradle",
+	"build.gradle.kts"
+    ]
+}
