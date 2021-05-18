@@ -3,6 +3,7 @@
     "description": "Integration with dependency-dev.myplant.io for Java/Kotlin projects",
     "iconName": "icon-dependency-track",
     "categories": [
+	"Gradle",
         "Java",
 	"Kotlin"
     ],

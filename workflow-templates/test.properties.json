@@ -3,6 +3,7 @@
     "description": "Test pull requests for Java/Kotlin projects",
     "iconName": "icon-gradle",
     "categories": [
+	"Gradle",
         "Java",
 	"Kotlin"
     ],

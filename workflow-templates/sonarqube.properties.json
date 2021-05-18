@@ -3,6 +3,7 @@
     "description": "Sonarqube for Java/Kotlin projects",
     "iconName": "icon-sonarqube",
     "categories": [
+	"Gradle",
         "Java",
 	"Kotlin"
     ],
