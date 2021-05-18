@@ -1,14 +1,7 @@
 {
-    "name": "Test on PR",
-    "description": "Test pull requests for Java/Kotlin projects",
-    "iconName": "icon-gradle",
-    "categories": [
-	"Gradle",
-        "Java",
-	"Kotlin"
-    ],
-    "filePatterns": [
-        "build.gradle",
-	"build.gradle.kts"
-    ]
+  "name": "Test on PR",
+  "description": "Test pull requests for Java/Kotlin projects",
+  "iconName": "icon-gradle",
+  "categories": ["Gradle", "Java", "Kotlin"],
+  "filePatterns": ["build.gradle", "build.gradle.kts"]
 }

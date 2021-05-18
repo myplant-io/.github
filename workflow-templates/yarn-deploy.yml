@@ -3,7 +3,7 @@ name: Build and Deploy
 on:
   create:
   push:
-    branches: [master, develop, release/**, hotfix/**]
+    branches: [develop, release/**, hotfix/**]
   release:
     types: [created, edited, released, published]
   workflow_dispatch:
@@ -41,7 +41,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: myplant-io/github-actions
-          ref: v0.3.2
+          ref: v0.4.0
           token: ${{ secrets.CI_PAT }}
           path: .github/actions
 
@@ -81,21 +81,17 @@ jobs:
       - name: Set env 'DEPLOY_TARGETS' for CI (to staging)
         if: github.event_name == 'push' && github.event.release.prerelease == false && github.event.pull_request.draft == false && env.PUSH_DEPLOY_TARGET != 'none'
         shell: bash
-        run: echo DEPLOY_TARGETS=${PUSH_DEPLOY_TARGET} >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=${PUSH_DEPLOY_TARGET} >> ${GITHUB_ENV} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for pre-release
         if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/') && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
         shell: bash
-        run: echo DEPLOY_TARGETS=${PRE_RELEASE_DEPLOY_TARGET} >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=${PRE_RELEASE_DEPLOY_TARGET} >> ${GITHUB_ENV} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for release
         if: github.event_name == 'release' && !github.event.release.prerelease && env.RELEASE_DEPLOY_TARGET != 'none'
         shell: bash
-        run: echo DEPLOY_TARGETS=${RELEASE_DEPLOY_TARGET} >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
-        if: github.ref == 'refs/heads/master'
-        run: echo "DEPLOY_TARGETS=none" >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=${RELEASE_DEPLOY_TARGET} >> ${GITHUB_ENV} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Log details
         run: |

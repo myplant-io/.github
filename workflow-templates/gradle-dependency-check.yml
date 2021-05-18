@@ -3,18 +3,18 @@ name: Dependency check
 on:
   schedule:
     # at 00:00 every sunday (on the default branch - develop)
-    - cron:  '0 0 * * SUN'
+    - cron: "0 0 * * SUN"
   push:
     branches: [master]
   workflow_dispatch:
 
 env:
-  GRADLE_TASK: 'cyclonedx dependencyCheckAnalyze'
+  GRADLE_TASK: "cyclonedx dependencyCheckAnalyze"
   JAVA_VERSION: 11
 
 jobs:
   dependencyCheck:
-    name: 'Job: Dependency check'
+    name: "Job: Dependency check"
     runs-on: ubuntu-latest
 
     steps:
@@ -86,6 +86,6 @@ jobs:
         uses: ./.github/actions/upload-dependency-track
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          bomfilename: 'build/reports/bom.xml'
+          bomfilename: "build/reports/bom.xml"
           projectname: ${GITHUB_REPOSITORY}
           projectversion: ${{ env.BRANCH_NAME }}

@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
 
 env:
-  GRADLE_TASK: 'test'
+  GRADLE_TASK: "test"
   JAVA_VERSION: 11
   REPORT_DIR: auto
 
 jobs:
   validateAndTest:
-    name: 'Job: Test and validate'
+    name: "Job: Test and validate"
     runs-on: ubuntu-latest
 
     steps:

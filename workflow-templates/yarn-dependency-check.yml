@@ -3,17 +3,17 @@ name: Dependency check
 on:
   schedule:
     # at 00:00 every sunday (on the default branch 'develop')
-    - cron: '0 0 * * SUN'
+    - cron: "0 0 * * SUN"
   push:
     branches: [master]
   workflow_dispatch:
 
 env:
-  SECURITY_LEVEL: 'moderate'
+  SECURITY_LEVEL: "moderate"
 
 jobs:
   dependencyCheck:
-    name: 'Job: Dependency check'
+    name: "Job: Dependency check"
     runs-on: ubuntu-latest
 
     strategy:
@@ -58,7 +58,7 @@ jobs:
         uses: actions/cache@v2
         id: node_modules-cache
         with:
-          path: '**/node_modules'
+          path: "**/node_modules"
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Add registry credentials
@@ -101,6 +101,6 @@ jobs:
         uses: ./.github/actions/upload-dependency-track
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          bomfilename: './bom.xml'
+          bomfilename: "./bom.xml"
           projectname: ${GITHUB_REPOSITORY}
           projectversion: ${{ env.BRANCH_NAME }}

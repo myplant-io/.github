@@ -8,12 +8,12 @@ on:
   workflow_dispatch:
 
 env:
-  GRADLE_TASK: 'sonarqube -x test'
+  GRADLE_TASK: "sonarqube -x test"
   JAVA_VERSION: 11
 
 jobs:
   sonarqube:
-    name: 'Job: Sonarqube'
+    name: "Job: Sonarqube"
     runs-on: ubuntu-latest
 
     steps:
