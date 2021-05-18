@@ -1,10 +1,9 @@
 {
-    "name": "Deploy (with gradle)",
-    "description": "Build and deploy for Java/Kotlin projects (using a deployment repo)",
+    "name": "Test on PR",
+    "description": "Test pull requests for Java/Kotlin projects",
     "iconName": "icon-gradle",
     "categories": [
 	"Gradle",
-	"Deployment",
         "Java",
 	"Kotlin"
     ],
