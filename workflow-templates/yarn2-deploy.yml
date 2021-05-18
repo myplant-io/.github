@@ -156,7 +156,7 @@ jobs:
 
       - name: Install dependencies (if not previously cached)
         if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
-        run: yarn 
+        run: yarn
 
       - name: Build application
         if: steps.check-docker-registry.outputs.imageExists == 'false'
@@ -199,6 +199,10 @@ jobs:
             "component_name": "${{ env.COMPONENT_NAME }}",
             "deployment_files": ${{ env.DEPLOY_TARGETS }}
           }'
+
+      - name: Merging release changes to master
+        if: github.event_name == 'release' && !github.event.release.prerelease
+        uses: ./.github/actions/merge-branch
 
       - name: restore full-cache (for next build)
         if: ${{ steps.check-docker-registry.outputs.imageExists == 'false' }}

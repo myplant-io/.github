@@ -204,6 +204,6 @@ jobs:
             "git_sha": "${{ env.SHA }}"
           }'
 
-      - name: Putting release changes to master
+      - name: Merging release changes to master
         if: github.event_name == 'release' && !github.event.release.prerelease
-        uses: ./.github/actions/merge-back-to
+        uses: ./.github/actions/merge-branch

@@ -171,6 +171,6 @@ jobs:
             "deployment_files": ${{ env.DEPLOY_TARGETS }}
           }'
 
-      - name: Putting release changes to master
+      - name: Merging release changes to master
         if: github.event_name == 'release' && !github.event.release.prerelease
-        uses: ./.github/actions/merge-back-to
+        uses: ./.github/actions/merge-branch
