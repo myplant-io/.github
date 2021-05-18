@@ -1,7 +1,7 @@
 {
   "name": "Build and Deploy",
-  "description": "Build and deploy for JavaScript/Yarn projects (using a deployment repo)",
+  "description": "Build and deploy for JavaScript/Yarn1 projects (using a deployment repo)",
   "iconName": "icon-yarn",
   "categories": ["Deployment", "JavaScript"],
-  "filePatterns": ["node_modules"]
+  "filePatterns": ["yarn.lock"]
 }
