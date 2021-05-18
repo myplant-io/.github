@@ -1,0 +1,116 @@
+name: Dependency check
+
+on:
+  schedule:
+    # at 00:00 every sunday (on the default branch)
+    - cron: "0 0 * * SUN"
+  push:
+    branches: [release/**, hotfix/**]
+  workflow_dispatch:
+
+env:
+  SECURITY_LEVEL: "moderate"
+
+jobs:
+  dependencyCheck:
+    name: "Job: Dependency check"
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [12.x]
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout github actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.4.0
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Set env 'COMPONENT_NAME'
+        run: echo COMPONENT_NAME=${{ github.event.repository.name }} >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME=${GITHUB_REF/refs\/heads\//} >> ${GITHUB_ENV}
+
+      - name: Set 'DEPENDENCY_TRACKER_VERSION' to current branch name
+        run: echo DEPENDENCY_TRACKER_VERSION=${{ env.BRANCH_NAME }} >> ${GITHUB_ENV}
+
+      - name: Log details
+        run: |
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "VERSION: ${{ env.VERSION }}"
+
+      - name: Prepare node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Create/restore cache for yarn
+        uses: actions/cache@v2
+        id: yarn-cache
+        with:
+          path: .yarn
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: ${{ runner.os }}-yarn-
+
+      - name: Add registry credentials
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> $GITHUB_ENV
+
+      - name: Install dependencies (if not previously cached)
+        run: yarn install --immutable
+
+      - name: Install html report
+        run: npm install --no-package-lock --no-save npm-audit-html
+
+      - name: Perform audit
+        continue-on-error: true
+        run: yarn npm audit --environment production --severity ${SECURITY_LEVEL} --json | npx --no-install npm-audit-html
+
+      - name: Upload audit report artifact
+        uses: actions/upload-artifact@v2
+        with:
+          if-no-files-found: error
+          name: audit-report
+          path: npm-audit.html
+## Skipping SBOM part for now (no support for yarn2 yet)
+#      - name: Install cyclonedex
+#        run: npm install --no-package-lock --no-save @cyclonedx/bom
+
+#      - name: Create SBOM using cyclonedex
+#        run: ./node_modules/@cyclonedx/bom/bin/cyclonedx-bom
+
+#      - name: Upload SBOM artifact
+#        uses: actions/upload-artifact@v2
+#        with:
+#          if-no-files-found: error
+#          name: SBOM
+#          path: bom.xml
+
+#      - name: Publish dependency check result to tracker
+#        id: upload-dependency-track
+#        uses: ./.github/actions/upload-dependency-track
+#        with:
+#          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+#          bomfilename: "./bom.xml"
+#          projectname: ${{ env.COMPONENT_NAME }}
+#          projectversion: ${{ env.DEPENDENCY_TRACKER_VERSION }}
+

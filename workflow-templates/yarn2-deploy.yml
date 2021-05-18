@@ -1,0 +1,205 @@
+name: Build and Deploy
+
+on:
+  create:
+  push:
+    branches: [develop, release/**, hotfix/**]
+  release:
+    types: [released, published]
+  workflow_dispatch:
+
+env:
+  COMPONENT_NAME: auto
+  DEPLOYMENT_REPO: "myplant-io/deployment"
+  DOCKER_TAG_PREFIX: auto
+  PUSH_DEPLOY_TARGET: '["alpha-io/web-services/${COMPONENT_NAME}.yaml"]'
+  PRE_RELEASE_DEPLOY_TARGET: '["beta-io/web-services/${COMPONENT_NAME}.yaml"]'
+  RELEASE_DEPLOY_TARGET: '["production-io/web-services/${COMPONENT_NAME}.yaml"]'
+
+jobs:
+  buildAndDeploy:
+    name: "Job: Build and Deploy"
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [14.x]
+
+    steps:
+      - name: Set git to use LF
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout github actions repo
+        uses: actions/checkout@v2
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.4.0
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        shell: bash
+        run: echo COMPONENT_NAME=${{ github.event.repository.name }} >> ${GITHUB_ENV}
+
+      - name: Set env 'DOCKER_TAG_PREFIX'
+        if: env.DOCKER_TAG_PREFIX == 'auto'
+        shell: bash
+        run: echo DOCKER_TAG_PREFIX="${COMPONENT_NAME}_" >> ${GITHUB_ENV}
+
+      - name: Set env 'SHA'
+        shell: bash
+        run: echo SHA=$(echo ${GITHUB_SHA} | cut -c1-7) >> ${GITHUB_ENV}
+
+      - name: Set env 'VERSION' to SHA (for untagged deployments)
+        if: startsWith(github.ref, 'refs/tags/') != true
+        shell: bash
+        run: echo VERSION=${{ env.SHA }} >> ${GITHUB_ENV}
+
+      - name: Set env 'TAG' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: echo TAG=${GITHUB_REF/refs\/tags\//} >> ${GITHUB_ENV}
+
+      - name: Set 'VERSION' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: echo VERSION=${TAG#v} >> ${GITHUB_ENV}
+
+      - name: Initialize 'DEPLOY_TARGETS'
+        shell: bash
+        run: echo DEPLOY_TARGETS=none >> $GITHUB_ENV
+
+      - name: Set env 'DEPLOY_TARGETS' for CI (to staging)
+        if: github.event_name == 'push' && github.event.release.prerelease == false && github.event.pull_request.draft == false && env.PUSH_DEPLOY_TARGET != 'none'
+        shell: bash
+        run: echo DEPLOY_TARGETS=${PUSH_DEPLOY_TARGET} >> ${GITHUB_ENV} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+
+      - name: Set env 'DEPLOY_TARGETS' for pre-release
+        if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/') && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
+        shell: bash
+        run: echo DEPLOY_TARGETS=${PRE_RELEASE_DEPLOY_TARGET} >> ${GITHUB_ENV} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+
+      - name: Set env 'DEPLOY_TARGETS' for release
+        if: github.event_name == 'release' && !github.event.release.prerelease && env.RELEASE_DEPLOY_TARGET != 'none'
+        shell: bash
+        run: echo DEPLOY_TARGETS=${RELEASE_DEPLOY_TARGET} >> ${GITHUB_ENV} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+
+      - name: Log details
+        run: |
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "RELEASE INFO: ${{ join(github.event.release, '\n') }}"
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "DEPLOYMENT_REPO: ${{ env.DEPLOYMENT_REPO }}"
+          echo "DEPLOY_TARGETS: ${{ env.DEPLOY_TARGETS }}"
+          echo "DOCKER_TAG_PREFIX: ${{ env.DOCKER_TAG_PREFIX }}"
+          echo "TAG: ${{ env.TAG }}"
+          echo "VERSION: ${{ env.VERSION }}"
+          echo "sonar.github.repository: ${GITHUB_REPOSITORY}"
+          echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
+
+      - name: Prepare node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
+          aws-region: us-east-1
+
+      - name: Check docker registry
+        id: check-docker-registry
+        uses: ./.github/actions/check-docker-registry
+        with:
+          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
+          version: ${{ env.VERSION }}
+          sha: ${{ env.SHA }}
+
+      - name: Create/restore cache for webpack
+        uses: actions/cache@v2
+        id: webpack-cache
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        with:
+          path: '.cache'
+          key: ${{ runner.os }}-webpack-${{ env.VERSION }}
+          restore-keys: ${{ runner.os }}-webpack-
+
+      - name: Create/restore cache for yarn
+        uses: actions/cache@v2
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        with:
+          path: .yarn
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: ${{ runner.os }}-yarn-
+
+      - name: Add registry credentials
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> $GITHUB_ENV
+        shell: bash
+
+      - name: Install dependencies (if not previously cached)
+        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
+        run: yarn 
+
+      - name: Build application
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        run: yarn build
+
+      - name: Login to Amazon ECR
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        id: aws-login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Set up QEMU
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/setup-qemu-action@v1.0.1
+
+      - name: Set up Docker Buildx
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/setup-buildx-action@v1.0.3
+
+      - name: Build and push docker image
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/build-push-action@v2.2.0
+        env:
+          DOCKER_BUILDKIT: 1
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.aws-login-ecr.outputs.registry }}/myplant-io:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
+
+      - name: Deploy service
+        if: env.DEPLOY_TARGETS != 'none'
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.CI_PAT }}
+          repository: myplant-io/ci-deploy-action
+          event-type: deploy
+          client-payload: '{
+            "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
+            "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
+            "version": "${{ env.VERSION }}",
+            "component_name": "${{ env.COMPONENT_NAME }}",
+            "deployment_files": ${{ env.DEPLOY_TARGETS }}
+          }'
+
+      - name: restore full-cache (for next build)
+        if: ${{ steps.check-docker-registry.outputs.imageExists == 'false' }}
+        run: yarn build:unshrink
