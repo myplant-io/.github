@@ -1,4 +1,4 @@
-name: Build and deploy
+name: Build, deploy and publish
 
 on:
   push:
@@ -13,6 +13,7 @@ env:
   DOCKER_TAG_PREFIX: auto
   GRADLE_BUILD_TASK: "build test"
   GRADLE_DEPLOY_TASK: "dockerPushAndDeleteLocal -x test"
+  GRADLE_PUBLISH_TASK: "publish -x test"
   JAVA_VERSION: 11
   PUSH_DEPLOY_TARGET: '["alpha-io/web-services/${COMPONENT_NAME}.yaml"]'
   PRE_RELEASE_DEPLOY_TARGET: '["beta-io/web-services/${COMPONENT_NAME}.yaml"]'
@@ -20,8 +21,8 @@ env:
   REPORT_DIR: auto
 
 jobs:
-  buildAndDeploy:
-    name: "Job: Build and deploy"
+  buildDeployAndPublish:
+    name: "Job: Build, deploy and publish"
     runs-on: ubuntu-latest
 
     steps:
@@ -125,9 +126,9 @@ jobs:
           echo "VERSION: ${{ env.VERSION }}"
 
       - name: Prepare gradle properties
+        run: printf "\n$GRADLE_PROPS" >> gradle.properties
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
-        run: printf "\n$GRADLE_PROPS" >> gradle.properties
 
       - name: Prepare Java
         uses: actions/setup-java@v1
@@ -188,6 +189,11 @@ jobs:
             "deployment_files": ${{ env.DEPLOY_TARGETS }},
             "git_sha": "${{ env.SHA }}"
           }'
+
+      - name: Publish artifacts to nexus repo
+        uses: eskatos/gradle-command-action@v1
+        with:
+          arguments: ${{ env.GRADLE_PUBLISH_TASK }} -Pversion=${{ env.VERSION }}
 
       - name: Merging release changes to master
         if: github.event_name == 'release' && !github.event.release.prerelease

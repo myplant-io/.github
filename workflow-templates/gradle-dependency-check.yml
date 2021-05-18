@@ -19,7 +19,6 @@ jobs:
 
     steps:
       - name: Set git to use LF
-        shell: bash
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
@@ -31,19 +30,15 @@ jobs:
           fetch-depth: 0
 
       - name: Set env 'BRANCH_NAME'
-        shell: bash
         run: echo BRANCH_NAME=${GITHUB_REF/refs\/heads\//} >> ${GITHUB_ENV}
 
       - name: Set env 'SHA'
-        shell: bash
         run: echo SHA=$(echo ${GITHUB_SHA} | cut -c1-7) >> ${GITHUB_ENV}
 
       - name: Set 'VERSION' to SHA
-        shell: bash
         run: echo VERSION=${{ env.SHA }} >> ${GITHUB_ENV}
 
       - name: Log details
-        shell: bash
         run: |
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
           echo "GITHUB_REPO: ${{ github.event.repository.name }}"
@@ -54,10 +49,9 @@ jobs:
           echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
       - name: Prepare gradle properties
-        shell: bash
+        run: printf "\n$GRADLE_PROPS" >> gradle.properties
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
-        run: printf "\n$GRADLE_PROPS" >> gradle.properties
 
       - name: Prepare Java
         uses: actions/setup-java@v1
@@ -78,7 +72,6 @@ jobs:
             -Pcyclonedx.includeBomSerialNumber=false
 
       - name: Post process dependency check bom
-        shell: bash
         run: sed -i "s/type=jar//g" build/reports/bom.xml
 
       - name: Publish dependency check result to tracker

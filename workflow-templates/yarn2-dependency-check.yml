@@ -71,9 +71,9 @@ jobs:
           restore-keys: ${{ runner.os }}-yarn-
 
       - name: Add registry credentials
+        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> $GITHUB_ENV
         env:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
-        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> $GITHUB_ENV
 
       - name: Install dependencies (if not previously cached)
         run: yarn install --immutable
