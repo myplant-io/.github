@@ -5,7 +5,7 @@ on:
   push:
     branches: [develop, release/**, hotfix/**]
   release:
-    types: [created, edited, released, published]
+    types: [edited, published]
   workflow_dispatch:
 
 env:

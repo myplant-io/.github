@@ -5,7 +5,7 @@ on:
   push:
     branches: [develop, release/**, hotfix/**]
   release:
-    types: [released, published]
+    types: [edited, published]
   workflow_dispatch:
 
 env:
@@ -23,7 +23,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [14.x]
+        node-version: [12.x]
 
     steps:
       - name: Set git to use LF
