@@ -53,7 +53,7 @@ jobs:
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "VERSION: ${{ env.VERSION }}"
-          echo "depdendency.track.projectname: ${GITHUB_REPOSITORY}"
+          echo "depdendency.track.projectname: ${{ github.repository }}"
           echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
       - name: Prepare node.js ${{ matrix.node-version }}
@@ -110,6 +110,6 @@ jobs:
 #        with:
 #          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
 #          bomfilename: "./bom.xml"
-#          projectname: ${{ env.COMPONENT_NAME }}
+#          projectname: ${{ github.repository }}
 #          projectversion: ${{ env.BRANCH_NAME }}
 
