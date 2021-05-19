@@ -9,6 +9,7 @@ on:
   workflow_dispatch:
 
 env:
+  COMPONENT_NAME: auto
   GRADLE_TASK: "cyclonedx dependencyCheckAnalyze"
   JAVA_VERSION: 11
 
@@ -29,6 +30,29 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
+      - name: Check setting file existence
+        id: check_settings_file
+        if: env.COMPONENT_NAME == 'auto'
+        uses: andstor/file-existence-action@v1
+        with:
+          allow_failure: true
+          files: ./settings.gradle
+
+      - name: Read settings file
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
+        id: gradle_settings
+        uses: juliangruber/read-file-action@v1
+        with:
+          path: ./settings.gradle
+
+      - name: Set env 'COMPONENT_NAME' (settings are present)
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
+        run: echo COMPONENT_NAME=$(echo -n "${{ steps.gradle_settings.outputs.content }}" | grep "rootProject.name" | cut -d'=' -f2 | sed  s/[\'\\t\ ]*//g) >> ${GITHUB_ENV}
+
+      - name: Set env 'COMPONENT_NAME' (no settings found)
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'false'
+        run: echo COMPONENT_NAME=${{ github.event.repository.name }} >> ${GITHUB_ENV}
+
       - name: Set env 'BRANCH_NAME'
         run: echo BRANCH_NAME=${GITHUB_REF/refs\/heads\//} >> ${GITHUB_ENV}
 
@@ -45,7 +69,7 @@ jobs:
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "VERSION: ${{ env.VERSION }}"
-          echo "depdendency.track.projectname: ${{ github.repository }}"
+          echo "depdendency.track.projectname: ${{ env.COMPONENT_NAME }}"
           echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
       - name: Prepare gradle properties
@@ -80,5 +104,5 @@ jobs:
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           bomfilename: "build/reports/bom.xml"
-          projectname: ${{ github.repository }}
+          projectname: ${{ env.COMPONENT_NAME }}
           projectversion: ${{ env.BRANCH_NAME }}
