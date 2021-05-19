@@ -40,6 +40,9 @@ jobs:
           token: ${{ secrets.CI_PAT }}
           path: .github/actions
 
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME=${GITHUB_REF/refs\/heads\//} >> ${GITHUB_ENV}
+
       - name: Log details
         run: |
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
