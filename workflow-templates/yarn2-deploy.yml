@@ -1,7 +1,6 @@
 name: Build and Deploy
 
 on:
-  create:
   push:
     branches: [develop, release/**, hotfix/**]
   release:
