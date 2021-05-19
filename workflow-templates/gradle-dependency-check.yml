@@ -38,20 +38,21 @@ jobs:
           allow_failure: true
           files: ./settings.gradle
 
-      - name: Read settings file
-        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
-        id: gradle_settings
-        uses: juliangruber/read-file-action@v1
+      - name: Check setting file existence
+        id: check_settings_file
+        if: env.COMPONENT_NAME == 'auto'
+        uses: andstor/file-existence-action@v1
         with:
-          path: ./settings.gradle
+          allow_failure: true
+          files: ./settings.gradle
 
       - name: Set env 'COMPONENT_NAME' (settings are present)
         if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
-        run: echo COMPONENT_NAME=$(echo -n "${{ steps.gradle_settings.outputs.content }}" | grep "rootProject.name" | cut -d'=' -f2 | sed  s/[\'\\t\ ]*//g) >> ${GITHUB_ENV}
+        run: echo COMPONENT_NAME="$(grep 'rootProject.name' settings.gradle | cut -d '=' -f 2 | tr -d '\r' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
 
       - name: Set env 'COMPONENT_NAME' (no settings found)
         if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'false'
-        run: echo COMPONENT_NAME=${{ github.event.repository.name }} >> ${GITHUB_ENV}
+        run: echo COMPONENT_NAME="${{ github.event.repository.name }}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
         run: echo BRANCH_NAME=${GITHUB_REF/refs\/heads\//} >> ${GITHUB_ENV}

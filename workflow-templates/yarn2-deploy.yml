@@ -46,7 +46,7 @@ jobs:
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
-        run: echo COMPONENT_NAME=${{ github.event.repository.name }} >> ${GITHUB_ENV}
+        run: echo COMPONENT_NAME="${{ github.event.repository.name }}" >> ${GITHUB_ENV}
 
       - name: Set env 'DOCKER_TAG_PREFIX'
         if: env.DOCKER_TAG_PREFIX == 'auto'
