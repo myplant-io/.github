@@ -12,6 +12,7 @@ env:
 
 jobs:
   sonarqube:
+    name: "Job: Sonarqube"
     runs-on: ubuntu-latest
 
     steps:
