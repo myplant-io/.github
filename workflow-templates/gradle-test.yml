@@ -1,7 +1,8 @@
 name: Test and validate
 
 on:
-  pull_request:
+  # see https://github.com/dependabot/dependabot-core/issues/3253 why this is pull_request_taget and not pull_request
+  pull_request_target:
     branches: [develop]
   workflow_dispatch:
 
@@ -26,6 +27,7 @@ jobs:
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set env 'VERSION' to SHA (for untagged deployments)
         if: startsWith(github.ref, 'refs/tags/') != true
