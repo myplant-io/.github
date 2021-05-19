@@ -73,15 +73,15 @@ jobs:
 
       - name: Set env 'DEPLOY_TARGETS' for CI (to staging)
         if: github.event_name == 'push' && github.event.release.prerelease == false && github.event.pull_request.draft == false && env.PUSH_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=${PUSH_DEPLOY_TARGET} >> ${GITHUB_ENV} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for pre-release
         if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/') && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=${PRE_RELEASE_DEPLOY_TARGET} >> ${GITHUB_ENV} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for release
         if: github.event_name == 'release' && !github.event.release.prerelease && env.RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=${RELEASE_DEPLOY_TARGET} >> ${GITHUB_ENV} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Log details
         run: |
