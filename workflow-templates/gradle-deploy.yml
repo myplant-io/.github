@@ -12,8 +12,8 @@ env:
   DEPLOYMENT_REPO: "myplant-io/deployment"
   DOCKER_TAG_PREFIX: auto
   GRADLE_BUILD_TASK: "build test"
+  # GRADLE_DEPLOY_TASK: none
   GRADLE_DEPLOY_TASK: "dockerPushAndDeleteLocal -x test"
-  # GRADLE_DEPLOY_TASK: "none"
   GRADLE_PUBLISH_TASK: none
   # GRADLE_PUBLISH_TASK: "publish -x test"
   JAVA_VERSION: 11
