@@ -46,9 +46,6 @@ jobs:
       - name: Set env 'BRANCH_NAME'
         run: echo BRANCH_NAME=${GITHUB_REF/refs\/heads\//} >> ${GITHUB_ENV}
 
-      - name: Set 'DEPENDENCY_TRACKER_VERSION' to current branch name
-        run: echo DEPENDENCY_TRACKER_VERSION=${{ env.BRANCH_NAME }} >> ${GITHUB_ENV}
-
       - name: Log details
         run: |
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
@@ -56,6 +53,8 @@ jobs:
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "VERSION: ${{ env.VERSION }}"
+          echo "depdendency.track.projectname: ${GITHUB_REPOSITORY}"
+          echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
       - name: Prepare node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v2
@@ -112,5 +111,5 @@ jobs:
 #          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
 #          bomfilename: "./bom.xml"
 #          projectname: ${{ env.COMPONENT_NAME }}
-#          projectversion: ${{ env.DEPENDENCY_TRACKER_VERSION }}
+#          projectversion: ${{ env.BRANCH_NAME }}
 

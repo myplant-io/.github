@@ -54,7 +54,6 @@ jobs:
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "TAG: ${{ env.TAG }}"
           echo "VERSION: ${{ env.VERSION }}"
-          echo "sonar.github.repository: ${GITHUB_REPOSITORY}"
           echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
           echo "sonar.github.repository: ${{ github.repository }}"
           echo "sonar.pullrequest.base: ${{ github.base_ref }}"
