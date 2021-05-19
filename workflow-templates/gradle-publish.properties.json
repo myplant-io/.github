@@ -1,7 +1,0 @@
-{
-  "name": "Build, deploy and publish",
-  "description": "Build, deploy and publish for Java/Kotlin projects (using a deployment repo)",
-  "iconName": "icon-gradle",
-  "categories": ["Gradle", "Deployment", "Java", "Kotlin"],
-  "filePatterns": ["build.gradle", "build.gradle.kts"]
-}
