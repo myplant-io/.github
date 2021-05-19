@@ -96,8 +96,6 @@ jobs:
           echo "DOCKER_TAG_PREFIX: ${{ env.DOCKER_TAG_PREFIX }}"
           echo "TAG: ${{ env.TAG }}"
           echo "VERSION: ${{ env.VERSION }}"
-          echo "sonar.github.repository: ${GITHUB_REPOSITORY}"
-          echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
 
       - name: Prepare node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v2
