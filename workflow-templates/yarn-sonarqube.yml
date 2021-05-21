@@ -1,7 +1,8 @@
 name: Sonarqube
 
 on:
-  pull_request:
+  # see https://github.com/dependabot/dependabot-core/issues/3253 why this is pull_request_taget and not pull_request
+  pull_request_target:
     branches: [develop]
   push:
     branches: [master, develop, release/**, hotfix/**]
@@ -16,11 +17,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
       - name: Checkout git repository
+        if: github.event_name != 'pull_request'
         uses: actions/checkout@v2
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+
+      - name: Checkout git repository (on PR)
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'

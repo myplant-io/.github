@@ -15,7 +15,13 @@ jobs:
         node-version: [12.x]
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v2
 
       - name: Prepare node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v2
@@ -36,7 +42,10 @@ jobs:
           restore-keys: ${{ runner.os }}-yarn-
 
       - name: Install dependencies
-        run: yarn
+        run: yarn install --immutable
 
-      - name: Run validate and test
-        run: yarn validate & yarn test
+      - name: Run validations
+        run: yarn validate
+
+      - name: Run tests
+        run: yarn test
