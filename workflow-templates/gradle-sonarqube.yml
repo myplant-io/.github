@@ -28,6 +28,7 @@ jobs:
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set env 'BRANCH_NAME'
         run: echo BRANCH_NAME=${GITHUB_REF/refs\/heads\//} >> ${GITHUB_ENV}
