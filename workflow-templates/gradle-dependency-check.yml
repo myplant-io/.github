@@ -38,14 +38,6 @@ jobs:
           allow_failure: true
           files: ./settings.gradle
 
-      - name: Check setting file existence
-        id: check_settings_file
-        if: env.COMPONENT_NAME == 'auto'
-        uses: andstor/file-existence-action@v1
-        with:
-          allow_failure: true
-          files: ./settings.gradle
-
       - name: Set env 'COMPONENT_NAME' (settings are present)
         if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
         run: echo COMPONENT_NAME="$(grep 'rootProject.name' settings.gradle | cut -d '=' -f 2 | tr -d '\r' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
