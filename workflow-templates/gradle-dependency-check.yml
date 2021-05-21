@@ -99,6 +99,13 @@ jobs:
       - name: Post process dependency check bom
         run: sed -i "s/type=jar//g" build/reports/bom.xml
 
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v2
+        with:
+          if-no-files-found: error
+          name: SBOM
+          path: "build/reports/bom.xml"
+
       - name: Publish dependency check result to tracker
         id: upload-dependency-track
         uses: ./.github/actions/upload-dependency-track
