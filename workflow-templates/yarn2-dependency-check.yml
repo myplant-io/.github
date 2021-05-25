@@ -2,7 +2,7 @@ name: Dependency check
 
 on:
   schedule:
-    # at 00:00 every sunday (on the default branch)
+    # at 00:00 every sunday (on the default branch - develop)
     - cron: "0 0 * * SUN"
   push:
     branches: [release/**, hotfix/**]
