@@ -11,12 +11,15 @@ on:
 env:
   COMPONENT_NAME: auto
   GRADLE_TASK: "cyclonedx dependencyCheckAnalyze"
-  JAVA_VERSION: 11
 
 jobs:
   dependencyCheck:
     name: "Job: Dependency check"
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [11]
 
     steps:
       - name: Set git to use LF
@@ -78,11 +81,11 @@ jobs:
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
-      - name: Prepare Java
+      - name: Prepare java ${{ matrix.java-version }}
         uses: actions/setup-java@v2
         with:
           distribution: "adopt"
-          java-version: ${{ env.JAVA_VERSION }}
+          java-version: ${{ matrix.java-version }}
 
       - name: Validate gradle wrapper
         uses: gradle/wrapper-validation-action@v1

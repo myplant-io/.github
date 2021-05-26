@@ -1,8 +1,7 @@
 name: Sonarqube
 
 on:
-  # see https://github.com/dependabot/dependabot-core/issues/3253 why this is pull_request_taget and not pull_request
-  pull_request_target:
+  pull_request:
     branches: [develop]
   push:
     branches: [master, develop, release/**, hotfix/**]
@@ -10,12 +9,16 @@ on:
 
 env:
   GRADLE_TASK: "sonarqube -x test"
-  JAVA_VERSION: 11
 
 jobs:
   sonarqube:
     name: "Job: Sonarqube"
+    if: contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [11]
 
     steps:
       - name: Set git to use LF
@@ -24,27 +27,13 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        if: startsWith(github.event_name , 'pull_request') == false
         uses: actions/checkout@v2
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
-
-      - name: Checkout git repository (on PR)
-        if: startsWith(github.event_name , 'pull_request')
-        uses: actions/checkout@v2
-        with:
-          # Disabling shallow clone is recommended for improving relevancy of reporting
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set env 'SHA'
-        if: startsWith(github.event_name , 'pull_request') == false
         run: echo SHA=$(echo ${GITHUB_SHA} | cut -c1-7) >> ${GITHUB_ENV}
-
-      - name: Set env 'SHA' (on PR)
-        if: startsWith(github.event_name , 'pull_request')
-        run: echo SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) >> ${GITHUB_ENV}
 
       - name: Set env 'VERSION' to SHA (for untagged deployments)
         if: startsWith(github.ref, 'refs/tags/') == false
@@ -76,11 +65,11 @@ jobs:
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
-      - name: Prepare Java
+      - name: Prepare java ${{ matrix.java-version }}
         uses: actions/setup-java@v2
         with:
           distribution: "adopt"
-          java-version: ${{ env.JAVA_VERSION }}
+          java-version: ${{ matrix.java-version }}
 
       - name: Validate gradle wrapper
         uses: gradle/wrapper-validation-action@v1

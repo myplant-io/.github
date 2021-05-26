@@ -16,7 +16,6 @@ env:
   GRADLE_DEPLOY_TASK: "dockerPushAndDeleteLocal -x test"
   GRADLE_PUBLISH_TASK: none
   # GRADLE_PUBLISH_TASK: "publish -x test"
-  JAVA_VERSION: 11
   PUSH_DEPLOY_TARGET: '["alpha-io/web-services/${COMPONENT_NAME}.yaml"]'
   PRE_RELEASE_DEPLOY_TARGET: '["beta-io/web-services/${COMPONENT_NAME}.yaml"]'
   RELEASE_DEPLOY_TARGET: '["production-io/web-services/${COMPONENT_NAME}.yaml"]'
@@ -26,6 +25,10 @@ jobs:
   buildAndDeploy:
     name: "Job: Build and deploy"
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [11]
 
     steps:
       - name: Set git to use LF
@@ -125,11 +128,11 @@ jobs:
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
-      - name: Prepare Java
+      - name: Prepare java ${{ matrix.java-version }}
         uses: actions/setup-java@v2
         with:
-          distribution: 'adopt'
-          java-version: ${{ env.JAVA_VERSION }}
+          distribution: "adopt"
+          java-version: ${{ matrix.java-version }}
 
       - name: Validate gradle wrapper
         uses: gradle/wrapper-validation-action@v1

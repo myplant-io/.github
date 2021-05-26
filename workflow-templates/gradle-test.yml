@@ -8,13 +8,16 @@ on:
 
 env:
   GRADLE_TASK: "test"
-  JAVA_VERSION: 11
   REPORT_DIR: auto
 
 jobs:
   testAndValidate:
     name: "Job: Test and validate"
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [11]
 
     steps:
       - name: Set git to use LF
@@ -54,16 +57,16 @@ jobs:
           echo "REPORT_DIR: ${{ env.REPORT_DIR }}"
           echo "VERSION: ${{ env.VERSION }}"
 
-      - name: Prepare Gradle properties
+      - name: Prepare gradle properties
         run: printf "\n$GRADLE_PROPS" >> gradle.properties
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
-      - name: Prepare Java
+      - name: Prepare java ${{ matrix.java-version }}
         uses: actions/setup-java@v2
         with:
           distribution: "adopt"
-          java-version: ${{ env.JAVA_VERSION }}
+          java-version: ${{ matrix.java-version }}
 
       - name: Validate gradle wrapper
         uses: gradle/wrapper-validation-action@v1
