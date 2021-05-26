@@ -24,14 +24,14 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        if: github.event_name != 'pull_request'
+        if: startsWith(github.event_name , 'pull_request') == false
         uses: actions/checkout@v2
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (on PR)
-        if: github.event_name == 'pull_request'
+        if: startsWith(github.event_name , 'pull_request')
         uses: actions/checkout@v2
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
@@ -88,14 +88,14 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Sonarqube with gradle
+        if: startsWith(github.event_name , 'pull_request') == false
         uses: eskatos/gradle-command-action@v1
-        if: github.event_name != 'pull_request'
         with:
           arguments: ${{ env.GRADLE_TASK }} -Pversion=${{ env.VERSION }}
 
       - name: Sonarqube with gradle (on PR)
+        if: startsWith(github.event_name , 'pull_request')
         uses: eskatos/gradle-command-action@v1
-        if: github.event_name == 'pull_request'
         with:
           arguments: |
             ${{ env.GRADLE_TASK }} -Pversion=${{ env.VERSION }}
