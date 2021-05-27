@@ -2,7 +2,7 @@ name: Build and deploy
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, release/**, hotfix/**]
   release:
     types: [edited, published]
   workflow_dispatch:
@@ -92,8 +92,8 @@ jobs:
       - name: Initialize 'DEPLOY_TARGETS'
         run: echo DEPLOY_TARGETS="none" >> $GITHUB_ENV
 
-      - name: Set env 'DEPLOY_TARGETS' for CI (to staging)
-        if: github.event_name == 'push' && env.PUSH_DEPLOY_TARGET != 'none'
+      - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && env.PUSH_DEPLOY_TARGET != 'none'
         run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for pre-release
