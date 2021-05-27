@@ -58,13 +58,13 @@ jobs:
         run: echo COMPONENT_NAME="${{ github.event.repository.name }}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
-        run: echo BRANCH_NAME=${GITHUB_REF/refs\/heads\//} >> ${GITHUB_ENV}
+        run: echo BRANCH_NAME="${GITHUB_REF/refs\/heads\//}" >> ${GITHUB_ENV}
 
       - name: Set env 'SHA'
-        run: echo SHA=$(echo ${GITHUB_SHA} | cut -c1-7) >> ${GITHUB_ENV}
+        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
 
       - name: Set 'VERSION' to SHA
-        run: echo VERSION=${{ env.SHA }} >> ${GITHUB_ENV}
+        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
 
       - name: Log details
         run: |
