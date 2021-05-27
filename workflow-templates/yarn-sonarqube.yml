@@ -13,7 +13,7 @@ env:
 jobs:
   sonarqube:
     name: "Job: Sonarqube"
-    if: contains(github.event.pull_request.labels.*.name, 'dependencies') == false
+    if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: ubuntu-latest
 
     steps:
