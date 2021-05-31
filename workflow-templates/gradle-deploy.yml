@@ -4,7 +4,9 @@ on:
   push:
     branches: [develop, release/**, hotfix/**]
   release:
-    types: [edited, published]
+    types: [published]
+  repository_dispatch:
+    types: [autoRelease]
   workflow_dispatch:
 
 env:

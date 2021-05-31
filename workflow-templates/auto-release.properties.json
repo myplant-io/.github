@@ -1,0 +1,7 @@
+{
+  "name": "Auto deploy",
+  "description": "Auto deploy tags to deployment-repos",
+  "iconName": "",
+  "categories": ["Gradle", "Java", "JavaScript", "Kotlin"],
+  "filePatterns": [".yarn", "build.gradle", "build.gradle.kts", "yarn.lock"]
+}
