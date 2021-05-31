@@ -1,4 +1,4 @@
-name: Create pre-release from tag
+name: AutoRelease
 
 on:
   push:
@@ -12,8 +12,8 @@ env:
   CREATE_DRAFTS_ONLY: false
 
 jobs:
-  createPreReleaseFromTag:
-    name: 'Job: Create pre-release from tag'
+  autoRelease:
+    name: 'Job: AutoRelease'
     runs-on: ubuntu-latest
 
     steps:
