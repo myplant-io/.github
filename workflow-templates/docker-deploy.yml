@@ -1,0 +1,117 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [develop, release/**, hotfix/**]
+  release:
+    types: [published]
+  repository_dispatch:
+    types: [autoRelease]
+  workflow_dispatch:
+
+env:
+  COMPONENT_NAME: auto
+  DOCKER_TAG_PREFIX: auto
+
+jobs:
+  buildAndDeploy:
+    name: "Job: Build and Deploy"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout github actions repo
+        uses: actions/checkout@v2
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.4.0
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo "COMPONENT_NAME=${{ github.event.repository.name }}" >> $GITHUB_ENV
+
+      - name: Set env 'DOCKER_TAG_PREFIX'
+        if: env.DOCKER_TAG_PREFIX == 'auto'
+        run: echo "DOCKER_TAG_PREFIX=$(echo "${COMPONENT_NAME}_")" >> $GITHUB_ENV
+
+      - name: Set env 'SHA'
+        run: echo "SHA=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Set env 'VERSION' to SHA (for untagged deployments)
+        if: startsWith(github.ref, 'refs/tags/') != true
+        run: echo "VERSION=${{ env.SHA }}" >> $GITHUB_ENV
+
+      - name: Set env 'TAG' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo "TAG=${GITHUB_REF/refs\/tags\//}"  >> $GITHUB_ENV
+
+      - name: Set 'VERSION' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo "VERSION=${TAG#v}" >> $GITHUB_ENV
+
+      - name: Log details
+        run: |
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "RELEASE INFO: ${{ join(github.event.release, '\n') }}"
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "DOCKER_TAG_PREFIX: ${{ env.DOCKER_TAG_PREFIX }}"
+          echo "TAG: ${{ env.TAG }}"
+          echo "VERSION: ${{ env.VERSION }}"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
+          aws-region: us-east-1
+
+      - name: Check docker registry
+        id: check-docker-registry
+        uses: ./.github/actions/check-docker-registry
+        with:
+          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
+          version: ${{ env.VERSION }}
+          sha: ${{ env.SHA }}
+
+      - name: Login to Amazon ECR
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        id: aws-login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Login to ECR
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ steps.aws-login-ecr.outputs.registry }}
+
+      - name: Set up QEMU
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build and push docker image
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/build-push-action@v2
+        env:
+          DOCKER_BUILDKIT: 1
+        with:
+          push: true
+          tags: ${{ steps.aws-login-ecr.outputs.registry }}/myplant-io:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}

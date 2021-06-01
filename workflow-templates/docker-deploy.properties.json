@@ -1,0 +1,7 @@
+{
+  "name": "Build and Deploy",
+  "description": "Build and deploy docker container",
+  "iconName": "icon-docker",
+  "categories": ["Dockerfile"],
+  "filePatterns": ["Dockerfile"]
+}
