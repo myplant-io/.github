@@ -97,6 +97,6 @@ jobs:
             "draft": ${{ env.CREATE_DRAFTS_ONLY }},
             "pre-release": ${{ env.IS_PRERELEASE }},
             "release": ${{ env.IS_RELEASE }},
-            "sha": "${{ env.SHA }}"
+            "sha": "${{ env.SHA }}",
             "tag": "${{ env.TAG }}"
           }'
