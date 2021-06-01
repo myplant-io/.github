@@ -28,6 +28,9 @@ jobs:
           exclude_types: "draft"
           view_top: 1
 
+      - name: Set env 'SHA'
+        run: echo "SHA=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_ENV
+
       - name: Set env 'LATEST_RELEASE'
         run: echo LATEST_RELEASE="${{ steps.latest_release.outputs.tag_name }}" >> ${GITHUB_ENV}
 
@@ -62,6 +65,7 @@ jobs:
           echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
           echo "IS_PRERELEASE: ${{ env.IS_PRERELEASE }}"
           echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
+          echo "SHA: ${{ env.SHA }}"
           echo "TAG: ${{ env.TAG }}"
           echo "LATEST_RELEASE: ${{ env.LATEST_RELEASE }}"
 
@@ -93,5 +97,6 @@ jobs:
             "draft": ${{ env.CREATE_DRAFTS_ONLY }},
             "pre-release": ${{ env.IS_PRERELEASE }},
             "release": ${{ env.IS_RELEASE }},
+            "sha": "${{ env.SHA }}"
             "tag": "${{ env.TAG }}"
           }'
