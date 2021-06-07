@@ -56,7 +56,7 @@ jobs:
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
-        run: echo COMPONENT_NAME="${{ github.event.repository.name }}" >> ${GITHUB_ENV}
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
       - name: Set env 'DOCKER_TAG_PREFIX'
         if: env.DOCKER_TAG_PREFIX == 'auto'
@@ -116,7 +116,7 @@ jobs:
         run: |
           echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "RELEASE INFO: ${{ join(github.event.release, '\n') }}"

@@ -51,7 +51,7 @@ jobs:
         run: |
           echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "TAG: ${{ env.TAG }}"

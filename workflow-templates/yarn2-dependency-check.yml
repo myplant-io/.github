@@ -41,9 +41,9 @@ jobs:
           token: ${{ secrets.CI_PAT }}
           path: .github/actions
 
-#      - name: Set env 'COMPONENT_NAME'
-#        if: env.COMPONENT_NAME == 'auto'
-#        run: echo COMPONENT_NAME="${{ github.event.repository.name }}" >> ${GITHUB_ENV}
+      #      - name: Set env 'COMPONENT_NAME'
+      #        if: env.COMPONENT_NAME == 'auto'
+      #        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
         run: echo BRANCH_NAME="${GITHUB_REF/refs\/heads\//}" >> ${GITHUB_ENV}
@@ -52,12 +52,12 @@ jobs:
         run: |
           echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "VERSION: ${{ env.VERSION }}"
-          echo "depdendency.track.projectname: ${{ env.COMPONENT_NAME }}"
-          echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
+      #          echo "depdendency.track.projectname: ${{ env.COMPONENT_NAME }}"
+      #          echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
       - name: Prepare node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v2
