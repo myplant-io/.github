@@ -1,0 +1,73 @@
+name: Sonarqube
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [master, develop, release/**, hotfix/**]
+  workflow_dispatch:
+
+env:
+  COMPONENT_NAME: auto
+
+jobs:
+  sonarqube:
+    name: "Job: Sonarqube"
+    if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME="${GITHUB_REF/refs\/heads\//}" >> ${GITHUB_ENV}
+
+      - name: Log details
+        run: |
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "COMPONENT_NAME: ${COMPONENT_NAME}"
+          echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
+          echo "sonar.github.repository: ${{ github.repository }}"
+          echo "sonar.pullrequest.base: ${{ github.base_ref }}"
+          echo "sonar.pullrequest.branch: ${{ github.head_ref }}"
+          echo "sonar.pullrequest.key: ${{ github.event.number }}"
+
+      - name: Setup sonarqube
+        uses: warchant/setup-sonar-scanner@v3
+
+      - name: Run sonarqube
+        if: startsWith(github.event_name , 'pull_request') == false
+        run: sonar-scanner
+          -Dsonar.host.url=${{ secrets.SONAR_URL }}
+          -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.projectKey=${COMPONENT_NAME}
+          -Dsonar.branch.name=${BRANCH_NAME}
+
+      - name: Run sonarqube (on PR)
+        if: startsWith(github.event_name , 'pull_request')
+        run: sonar-scanner
+          -Dsonar.host.url=${{ secrets.SONAR_URL }}
+          -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.projectKey=${COMPONENT_NAME}
+          -Dsonar.pullrequest.github.endpoint=https://api.github.com
+          -Dsonar.pullrequest.github.repository=${{ github.repository }}
+          -Dsonar.pullrequest.base=${{ github.base_ref }}
+          -Dsonar.pullrequest.branch=${{ github.head_ref }}
+          -Dsonar.pullrequest.key=${{ github.event.number }}
