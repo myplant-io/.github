@@ -167,7 +167,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Build with gradle (incl. test and sonar)
+      - name: Build with gradle (incl. test)
         uses: eskatos/gradle-command-action@v1
         with:
           arguments: ${{ env.GRADLE_BUILD_TASK }} -Pversion=${{ env.VERSION }}
