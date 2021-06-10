@@ -1,0 +1,7 @@
+{
+  "name": "Sonarqube integration",
+  "description": "Sonarqube for dotnet/csharp projects",
+  "iconName": "icon-sonarqube",
+  "categories": ["csharp"],
+  "filePatterns": ["*.sln", "*.csproj"]
+}

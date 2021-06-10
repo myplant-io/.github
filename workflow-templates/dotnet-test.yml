@@ -1,0 +1,65 @@
+name: Test (with dotnet directly)
+
+on:
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+env:
+  COMPONENT_NAME: auto
+
+jobs:
+  test:
+    name: "Job: Test (with dotnet directly)"
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        dotnet-version: ["5.0.x"]
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        if: github.event_name != 'repository_dispatch'
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v2
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: "refs/tags/${{ github.event.client_payload.tag }}"
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Log details
+        run: |
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "RELEASE INFO: ${{ join(github.event.release, '\n') }}"
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+
+      - name: Prepare dotnet environment
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Test code
+        run: |
+          dotnet test "${{ env.COMPONENT_NAME }}/${{ env.COMPONENT_NAME }}.csproj" \
+            --no-restore \
+            --verbosity normal

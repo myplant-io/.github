@@ -1,0 +1,129 @@
+name: Build and deploy
+
+on:
+  release:
+    types: [released, published]
+  push:
+    branches: [develop, release/**, hotfix/**]
+  repository_dispatch:
+    types: [autoRelease]
+  workflow_dispatch:
+
+env:
+  COMPONENT_NAME: auto
+  PUBLISH_AS_SELF_CONTAINED: false
+
+jobs:
+  buildAndDeploy:
+    name: "Job: Build and deploy"
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        dotnet-version: ["5.0.x"]
+        dotnet-rid: ["win-x64"]
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        if: github.event_name != 'repository_dispatch'
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v2
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: "refs/tags/${{ github.event.client_payload.tag }}"
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SHA'
+        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
+
+      - name: Set env 'SHA' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo SHA="${{ github.event.client_payload.sha }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'TAG' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo TAG="${GITHUB_REF/refs\/tags\//}" >> ${GITHUB_ENV}
+
+      - name: Set env 'TAG' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo TAG="${{ github.event.client_payload.tag }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'MY_VERSION' to SHA (for untagged deployments)
+        if: startsWith(github.ref, 'refs/tags/') == false
+        run: echo MY_VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
+
+      - name: Set 'MY_VERSION' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'repository_dispatch'
+        run: |
+          echo MY_VERSION="${TAG#v}" >> ${GITHUB_ENV}
+          echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
+
+      - name: Log details
+        run: |
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "RELEASE INFO: ${{ join(github.event.release, '\n') }}"
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "TAG: ${{ env.TAG }}"
+          echo "MY_VERSION: ${{ env.MY_VERSION }}"
+          echo "VERSION: ${{ env.VERSION }}"
+
+      - name: Prepare dotnet environment
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+
+      - name: Install dependencies
+        run: dotnet restore -r ${{ matrix.dotnet-rid }}
+
+      - name: Publish application
+        run: |
+          dotnet publish "${{ env.COMPONENT_NAME }}/${{ env.COMPONENT_NAME }}.csproj" \
+            --no-restore \
+            -c Release \
+            -r ${{ matrix.dotnet-rid }} \
+            -p:PublishSingleFile=true \
+            --self-contained ${{ env.PUBLISH_AS_SELF_CONTAINED }} \
+            -o "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          if-no-files-found: error
+          name: Release (${{ matrix.dotnet-version }} - ${{ matrix.dotnet-rid }})
+          path: "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}/"
+
+      - name: Create release artifact archive
+        if: github.event_name == 'release' && github.event.release.prerelease == false
+        uses: vimtor/action-zip@v1
+        with:
+          files: "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-rid }}_${{ matrix.dotnet-rid }}"
+          dest: "${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip"
+
+      - name: Upload release artifact (as assets)
+        if: github.event_name == 'release' && github.event.release.prerelease == false
+        uses: AButler/upload-release-assets@v2.0
+        with:
+          files: "${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip"
+          release-tag: ${{ env.TAG }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merging release changes to master
+        if: github.event_name == 'release' && github.event.release.prerelease == false
+        uses: ./.github/actions/merge-branch
