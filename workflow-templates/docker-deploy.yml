@@ -89,7 +89,7 @@ jobs:
         run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for release
-        if: github.event_name == 'release' && !github.event.release.prerelease && env.RELEASE_DEPLOY_TARGET != 'none'
+        if: github.event_name == 'release' && github.event.release.prerelease ==false && env.RELEASE_DEPLOY_TARGET != 'none'
         run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' dispatched release
@@ -174,5 +174,5 @@ jobs:
           }'
 
       - name: Merging release changes to master
-        if: github.event_name == 'release' && !github.event.release.prerelease
+        if: github.event_name == 'release' && github.event.release.prerelease == false
         uses: ./.github/actions/merge-branch

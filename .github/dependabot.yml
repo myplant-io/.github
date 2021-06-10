@@ -1,0 +1,7 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actiosn"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
