@@ -1,5 +1,5 @@
 {
-  "name": "Build and Deploy",
+  "name": "Build and deploy",
   "description": "Build and deploy for dotnet/csharp projects",
   "iconName": "",
   "categories": ["csharp"],

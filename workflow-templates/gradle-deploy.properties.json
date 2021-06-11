@@ -1,5 +1,5 @@
 {
-  "name": "Build and Deploy",
+  "name": "Build and deploy",
   "description": "Build and deploy for Java/Kotlin projects (using a deployment repo)",
   "iconName": "icon-gradle",
   "categories": ["Gradle", "Deployment", "Java", "Kotlin"],

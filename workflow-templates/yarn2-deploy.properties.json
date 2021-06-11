@@ -1,5 +1,5 @@
 {
-  "name": "Build and Deploy",
+  "name": "Build and deploy",
   "description": "Build and deploy for JavaScript/Yarn2 projects (using a deployment repo)",
   "iconName": "icon-yarn",
   "categories": ["Deployment", "JavaScript"],
