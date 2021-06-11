@@ -42,7 +42,6 @@ jobs:
           echo "GITHUB_REPO: ${{ github.event.repository.name }}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "RELEASE INFO: ${{ join(github.event.release, '\n') }}"
           echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
 
       - name: Prepare dotnet environment
