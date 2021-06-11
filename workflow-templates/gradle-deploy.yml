@@ -113,11 +113,11 @@ jobs:
 
       - name: Set env 'IS_PRERELEASE' (on manual release)
         if: env.IS_MANUAL_RELEASE == 'true'
-        run: echo IS_PRERELEASE=${{ steps.latest_release.outputs.draft == false && steps.latest_release.outputs.prerelease }} >> ${GITHUB_ENV}
+        run: echo IS_PRERELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'true' }} >> ${GITHUB_ENV}
 
       - name: Set env 'IS_RELEASE' (on manual release)
         if: env.IS_MANUAL_RELEASE == 'true'
-        run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == false && steps.latest_release.outputs.prerelease == false }} >> ${GITHUB_ENV}
+        run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'false' }} >> ${GITHUB_ENV}
 
       - name: Initialize 'DEPLOY_TARGETS'
         run: echo DEPLOY_TARGETS=none >> $GITHUB_ENV
