@@ -1,7 +1,0 @@
-{
-  "name": "Auto release",
-  "description": "Auto release tags to deployment-repos",
-  "iconName": "",
-  "categories": ["Deployment", "Gradle", "Java", "JavaScript", "Kotlin"],
-  "filePatterns": [".yarn", "build.gradle", "build.gradle.kts", "yarn.lock"]
-}

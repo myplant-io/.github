@@ -3,10 +3,9 @@ name: Build and deploy
 on:
   push:
     branches: [develop, release/**, hotfix/**]
-  release:
-    types: [published]
-  repository_dispatch:
-    types: [autoRelease]
+    tags:
+      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
+      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
   workflow_dispatch:
 
 env:
@@ -19,7 +18,7 @@ env:
 
 jobs:
   buildAndDeploy:
-    name: "Job: Build and Deploy"
+    name: "Job: Build and deploy"
     runs-on: ubuntu-latest
 
     steps:
@@ -53,47 +52,60 @@ jobs:
       - name: Set env 'SHA'
         run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
 
-      - name: Set env 'SHA' (for dispatched runs)
-        if: github.event_name == 'repository_dispatch'
-        run: echo SHA="${{ github.event.client_payload.sha }}" >> ${GITHUB_ENV}
-
       - name: Set env 'TAG' (for tagged deployment)
         if: startsWith(github.ref, 'refs/tags/')
         run: echo TAG="${GITHUB_REF/refs\/tags\//}" >> ${GITHUB_ENV}
-
-      - name: Set env 'TAG' (for dispatched runs)
-        if: github.event_name == 'repository_dispatch'
-        run: echo TAG="${{ github.event.client_payload.tag }}" >> ${GITHUB_ENV}
 
       - name: Set env 'VERSION' to SHA (for untagged deployments)
         if: startsWith(github.ref, 'refs/tags/') == false
         run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
 
       - name: Set 'VERSION' (for tagged deployment)
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'repository_dispatch'
+        if: startsWith(github.ref, 'refs/tags/')
         run: echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
+
+      - name: Determine latest (pre-)release
+        id: latest_release
+        uses: InsonusK/get-latest-release@v1.0.1
+        with:
+          myToken: ${{ github.token }}
+          view_top: 1
+
+      - name: Set env 'IS_AUTO_RELEASE' (a.k.a release triggered by tag)
+        run: echo IS_AUTO_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name != env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on auto release)
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_PRERELEASE=${{ contains(env.TAG, '-') == true }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE'
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_RELEASE=${{ contains(env.TAG, '-') == false && startsWith(github.ref, 'refs/tags/') }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github)
+        run: echo IS_MANUAL_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on manual release)
+        if: env.IS_MANUAL_RELEASE == 'true'
+        run: echo IS_PRERELEASE=${{ steps.latest_release.outputs.draft == false && steps.latest_release.outputs.prerelease }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on manual release)
+        if: env.IS_MANUAL_RELEASE == 'true'
+        run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == false && steps.latest_release.outputs.release }} >> ${GITHUB_ENV}
 
       - name: Initialize 'DEPLOY_TARGETS'
         run: echo DEPLOY_TARGETS=none >> $GITHUB_ENV
 
       - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && env.PUSH_DEPLOY_TARGET != 'none'
+        if: github.ref == 'refs/heads/develop' && env.PUSH_DEPLOY_TARGET != 'none'
         run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
-      - name: Set env 'DEPLOY_TARGETS' for pre-release
-        if: github.event_name == 'release' && github.event.release.prerelease && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' dispatched pre-release
-        if: github.event_name == 'repository_dispatch' && github.event.client_payload.release != true && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
+      - name: Set env 'DEPLOY_TARGETS' pre-release
+        if: env.IS_PRERELEASE == 'true' && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
         run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for release
-        if: github.event_name == 'release' && github.event.release.prerelease ==false && env.RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' dispatched release
-        if: github.event_name == 'repository_dispatch' && github.event.client_payload.release == true && env.RELEASE_DEPLOY_TARGET != 'none'
+        if:  env.IS_RELEASE == 'true' &&  env.RELEASE_DEPLOY_TARGET != 'none'
         run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
@@ -102,18 +114,39 @@ jobs:
 
       - name: Log details
         run: |
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "DEPLOY_TARGETS: ${{ env.DEPLOY_TARGETS }}"
+          echo "DEPLOYMENT_REPO: ${{ env.DEPLOYMENT_REPO }}"
+          echo "DOCKER_TAG_PREFIX: ${{ env.DOCKER_TAG_PREFIX }}"
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "RELEASE INFO: ${{ join(github.event.release, '\n') }}"
-          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
-          echo "DEPLOYMENT_REPO: ${{ env.DEPLOYMENT_REPO }}"
-          echo "DEPLOY_TARGETS: ${{ env.DEPLOY_TARGETS }}"
-          echo "DOCKER_TAG_PREFIX: ${{ env.DOCKER_TAG_PREFIX }}"
+          echo "IS_AUTO_RELEASE: ${{ env.IS_AUTO_RELEASE }}"
+          echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
+          echo "IS_PRERELEASE: ${{ env.IS_PRERELEASE }}"
+          echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
           echo "TAG: ${{ env.TAG }}"
-          echo "SHA: ${{ env.SHA }}"
           echo "VERSION: ${{ env.VERSION }}"
+
+      - name: Create new pre-release
+        if: env.IS_AUTO_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          token: '${{ secrets.GITHUB_TOKEN }}'
+          allowUpdates: true
+          draft: false
+          prerelease: true
+
+      - name: Create new release
+        if: env.IS_AUTO_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          token: '${{ secrets.GITHUB_TOKEN }}'
+          allowUpdates: true
+          draft: false
+          prerelease: false
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -174,5 +207,5 @@ jobs:
           }'
 
       - name: Merging release changes to master
-        if: github.event_name == 'release' && github.event.release.prerelease == false
+        if: env.IS_RELEASE == 'true'
         uses: ./.github/actions/merge-branch

@@ -1,12 +1,11 @@
 name: Build and deploy
 
 on:
-  release:
-    types: [released, published]
   push:
     branches: [develop, release/**, hotfix/**]
-  repository_dispatch:
-    types: [autoRelease]
+    tags:
+      - "v?[0-9]+.[0-9]+.[0-9]+" # release
+      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
   workflow_dispatch:
 
 env:
@@ -31,17 +30,9 @@ jobs:
 
       - name: Checkout git repository
         uses: actions/checkout@v2
-        if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
-
-      - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v2
-        if: github.event_name == 'repository_dispatch'
-        with:
-          fetch-depth: 0
-          ref: "refs/tags/${{ github.event.client_payload.tag }}"
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
@@ -50,39 +41,82 @@ jobs:
       - name: Set env 'SHA'
         run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
 
-      - name: Set env 'SHA' (for dispatched runs)
-        if: github.event_name == 'repository_dispatch'
-        run: echo SHA="${{ github.event.client_payload.sha }}" >> ${GITHUB_ENV}
-
       - name: Set env 'TAG' (for tagged deployment)
         if: startsWith(github.ref, 'refs/tags/')
         run: echo TAG="${GITHUB_REF/refs\/tags\//}" >> ${GITHUB_ENV}
-
-      - name: Set env 'TAG' (for dispatched runs)
-        if: github.event_name == 'repository_dispatch'
-        run: echo TAG="${{ github.event.client_payload.tag }}" >> ${GITHUB_ENV}
 
       - name: Set env 'MY_VERSION' to SHA (for untagged deployments)
         if: startsWith(github.ref, 'refs/tags/') == false
         run: echo MY_VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
 
       - name: Set 'MY_VERSION' (for tagged deployment)
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'repository_dispatch'
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           echo MY_VERSION="${TAG#v}" >> ${GITHUB_ENV}
           echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
 
+      - name: Determine latest (pre-)release
+        id: latest_release
+        uses: InsonusK/get-latest-release@v1.0.1
+        with:
+          myToken: ${{ github.token }}
+          view_top: 1
+
+      - name: Set env 'IS_AUTO_RELEASE' (a.k.a release triggered by tag)
+        run: echo IS_AUTO_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name != env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on auto release)
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_PRERELEASE=${{ contains(env.TAG, '-') == true }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE'
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_RELEASE=${{ contains(env.TAG, '-') == false && startsWith(github.ref, 'refs/tags/') }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github)
+        run: echo IS_MANUAL_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on manual release)
+        if: env.IS_MANUAL_RELEASE == 'true'
+        run: echo IS_PRERELEASE=${{ steps.latest_release.outputs.draft == false && steps.latest_release.outputs.prerelease }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on manual release)
+        if: env.IS_MANUAL_RELEASE == 'true'
+        run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == false && steps.latest_release.outputs.release }} >> ${GITHUB_ENV}
+
       - name: Log details
         run: |
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "RELEASE INFO: ${{ join(github.event.release, '\n') }}"
-          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "IS_AUTO_RELEASE: ${{ env.IS_AUTO_RELEASE }}"
+          echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
+          echo "IS_PRERELEASE: ${{ env.IS_PRERELEASE }}"
+          echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
           echo "TAG: ${{ env.TAG }}"
-          echo "MY_VERSION: ${{ env.MY_VERSION }}"
           echo "VERSION: ${{ env.VERSION }}"
+          echo "MY_VERSION: ${{ env.MY_VERSION }}"
+
+      - name: Create new pre-release
+        if: env.IS_AUTO_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          token: "${{ secrets.GITHUB_TOKEN }}"
+          allowUpdates: true
+          draft: false
+          prerelease: true
+
+      - name: Create new release
+        if: env.IS_AUTO_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          token: "${{ secrets.GITHUB_TOKEN }}"
+          allowUpdates: true
+          draft: false
+          prerelease: false
 
       - name: Prepare dotnet environment
         uses: actions/setup-dotnet@v1
@@ -125,5 +159,5 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Merging release changes to master
-        if: github.event_name == 'release' && github.event.release.prerelease == false
+        if: env.IS_RELEASE == 'true'
         uses: ./.github/actions/merge-branch
