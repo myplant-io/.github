@@ -152,7 +152,7 @@ jobs:
           path: "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}/"
 
       - name: Create release artifact archive
-        if: env.IS_RELEASE == 'false'
+        if: env.IS_RELEASE == 'true'
         uses: vimtor/action-zip@v1
         with:
           files: "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-rid }}_${{ matrix.dotnet-rid }}"
