@@ -34,6 +34,14 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
+      - name: Checkout github actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.4.0
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
