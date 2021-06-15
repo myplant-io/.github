@@ -152,17 +152,17 @@ jobs:
           path: "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}/"
 
       - name: Create release artifact archive
-        if: github.event_name == 'release' && github.event.release.prerelease == false
+        if: env.IS_RELEASE == 'false'
         uses: vimtor/action-zip@v1
         with:
           files: "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-rid }}_${{ matrix.dotnet-rid }}"
           dest: "${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip"
 
       - name: Upload release artifact (as assets)
-        if: github.event_name == 'release' && github.event.release.prerelease == false
+        if: env.IS_RELEASE == 'true'
         uses: AButler/upload-release-assets@v2.0
         with:
-          files: "${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip"
+          files: "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip"
           release-tag: ${{ env.TAG }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
