@@ -157,6 +157,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Add registry credentials
+        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -171,11 +176,6 @@ jobs:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
           version: ${{ env.VERSION }}
           sha: ${{ env.SHA }}
-
-      - name: Add registry credentials
-        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
-        env:
-          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Login to Amazon ECR
         if: steps.check-docker-registry.outputs.imageExists == 'false'

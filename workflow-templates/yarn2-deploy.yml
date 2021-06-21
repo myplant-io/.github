@@ -157,6 +157,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Add registry credentials
+        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> $GITHUB_ENV
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -189,11 +194,6 @@ jobs:
           path: .yarn
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: ${{ runner.os }}-yarn-
-
-      - name: Add registry credentials
-        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> $GITHUB_ENV
-        env:
-          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Install dependencies (if not previously cached)
         if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
