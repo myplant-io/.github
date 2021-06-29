@@ -5,6 +5,8 @@ on:
     branches: [develop]
   push:
     branches: [master, develop, release/**, hotfix/**]
+  repository_dispatch:
+    types: [sonarqube]
   workflow_dispatch:
 
 env:
@@ -28,9 +30,17 @@ jobs:
 
       - name: Checkout git repository
         uses: actions/checkout@v2
+        if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v2
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: "${{ github.event.client_payload.branch }}"
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'

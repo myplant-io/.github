@@ -245,6 +245,26 @@ jobs:
         if: env.IS_RELEASE == 'true'
         uses: ./.github/actions/merge-branch
 
-      - name: restore full-cache (for next build)
+      - name: Check master after merge (sonarqube)
+        if: env.IS_AUTO_RELEASE == 'true'
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: sonarqube
+          client-payload: '{
+            "branch": "master"
+          }'
+
+      - name: Check master after merge (dependencyCheck)
+        if: env.IS_AUTO_RELEASE == 'true'
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: dependencyCheck
+          client-payload: '{
+            "branch": "master"
+          }'
+
+      - name: Restore full-cache (for next build)
         if: ${{ steps.check-docker-registry.outputs.imageExists == 'false' }}
         run: yarn build:unshrink
