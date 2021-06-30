@@ -7,7 +7,9 @@ on:
       - 'v?[0-9]+.[0-9]+.[0-9]+' # release
       - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
 #  release:
-#    types: [published] # relase and pre-release
+#    types: 
+#      - released
+#      - prereleased
   workflow_dispatch:
 
 env:
@@ -106,11 +108,11 @@ jobs:
 
       - name: Set env 'IS_PRERELEASE' (on manual release - release based)
         if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
-        run: echo IS_PRERELEASE=${{ github.event.release.prerelease == 'true' }} >> ${GITHUB_ENV}
+        run: echo IS_PRERELEASE=${{ github.event.release.draft == 'false' && github.event.release.prerelease == 'true' }} >> ${GITHUB_ENV}
 
       - name: Set env 'IS_RELEASE' (on manual release - release based)
         if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
-        run: echo IS_RELEASE=${{ github.event.release.prerelease == 'false' }} >> ${GITHUB_ENV}
+        run: echo IS_RELEASE=${{ github.event.release.draft == 'false' && github.event.release.prerelease == 'false' }} >> ${GITHUB_ENV}
 
       - name: Initialize 'DEPLOY_TARGETS'
         run: echo DEPLOY_TARGETS=none >> $GITHUB_ENV
