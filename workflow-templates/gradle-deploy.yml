@@ -61,7 +61,7 @@ jobs:
         uses: andstor/file-existence-action@v1
         with:
           allow_failure: true
-          files: ./settings.gradle
+          files: "settings.gradle"
 
       - name: Set env 'COMPONENT_NAME' (settings are present)
         if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
