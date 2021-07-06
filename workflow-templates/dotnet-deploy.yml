@@ -86,28 +86,28 @@ jobs:
         run: echo IS_RELEASE=${{ contains(env.TAG, '-') == false && startsWith(github.ref, 'refs/tags/') }} >> ${GITHUB_ENV}
 
       - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - tag based)
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
 
       - name: Set env 'IS_PRERELEASE' (on manual release - tag based)
-        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/')
+        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_PRERELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'true' }} >> ${GITHUB_ENV}
 
       - name: Set env 'IS_RELEASE' (on manual release - tag based)
-        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/')
+        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'false' }} >> ${GITHUB_ENV}
 
       - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - release based)
         if: github.event_name == 'release'
-        run: echo IS_MANUAL_RELEASE=true
+        run: echo IS_MANUAL_RELEASE=true >> ${GITHUB_ENV}
 
       - name: Set env 'IS_PRERELEASE' (on manual release - release based)
         if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
-        run: echo IS_PRERELEASE=${{ github.event.release.draft == 'false' && github.event.release.prerelease == 'true' }} >> ${GITHUB_ENV}
+        run: echo IS_PRERELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == true }} >> ${GITHUB_ENV}
 
       - name: Set env 'IS_RELEASE' (on manual release - release based)
         if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
-        run: echo IS_RELEASE=${{ github.event.release.draft == 'false' && github.event.release.prerelease == 'false' }} >> ${GITHUB_ENV}
+        run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
 
       - name: Log details
         run: |
