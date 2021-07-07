@@ -92,7 +92,7 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: ${{ runner.os }}-yarn-
 
-      - name: Install dependencies (if not previously cached)
+      - name: Install dependencies
         run: yarn install --immutable
 
       - name: Install html report

@@ -91,7 +91,7 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Install dependencies (if not previously cached)
-        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
+        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' }}
         run: yarn install --frozen-lockfile
 
       - name: Install html report
