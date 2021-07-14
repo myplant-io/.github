@@ -60,7 +60,8 @@ jobs:
         if: env.COMPONENT_NAME == 'auto'
         uses: andstor/file-existence-action@v1
         with:
-          allow_failure: true
+          # see https://github.com/andstor/file-existence-action/issues/7
+          allow_failure: false
           files: "settings.gradle"
 
       - name: Set env 'COMPONENT_NAME' (settings are present)
