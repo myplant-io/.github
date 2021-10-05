@@ -1,7 +1,7 @@
 {
   "name": "Test on PR",
   "description": "Test pull requests for dotnet/csharp projects",
-  "iconName": "",
+  "iconName": "icon-csharp",
   "categories": ["csharp"],
   "filePatterns": ["*.sln", "*.csproj"]
 }

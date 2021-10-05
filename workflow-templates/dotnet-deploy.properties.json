@@ -1,7 +1,7 @@
 {
   "name": "Build and deploy",
   "description": "Build and deploy for dotnet/csharp projects",
-  "iconName": "",
+  "iconName": "icon-csharp",
   "categories": ["csharp"],
   "filePatterns": ["*.sln", "*.csproj"]
 }
