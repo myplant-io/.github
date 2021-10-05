@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [develop]
   push:
-    branches: [master, develop, release/**, hotfix/**]
+    branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
   repository_dispatch:
     types: [sonarqube]
   workflow_dispatch:
