@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  GRADLE_TASK: "sonarqube -x test"
+  GRADLE_TASK: "test sonarqube"
 
 jobs:
   sonarqube:
