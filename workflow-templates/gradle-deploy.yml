@@ -216,6 +216,13 @@ jobs:
           folders=$(./gradlew tasks --all | grep ":assemble" | cut -d: -f1 | sort -u | sed 's#$#/build/reports/tests#' | xargs)
           zip -qq -r test-results.zip $folders
 
+      - name: Upload test results
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-result
+          path: test-results.zip
+
       - name: Configure AWS credentials
         if: env.GRADLE_DEPLOY_TASK != 'none'
         uses: aws-actions/configure-aws-credentials@v1
