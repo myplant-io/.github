@@ -18,7 +18,7 @@ env:
   DOCKER_TAG_PREFIX: auto
   PUSH_DEPLOY_TARGET: '["alpha-io/web-services/${COMPONENT_NAME}.yaml"]'
   PRE_RELEASE_DEPLOY_TARGET: '["beta-io/web-services/${COMPONENT_NAME}.yaml"]'
-  RELEASE_DEPLOY_TARGET: '["production-io/web-services/${COMPONENT_NAME}.yaml"]'
+  RELEASE_DEPLOY_TARGET: '["beta-io/web-services/${COMPONENT_NAME}.yaml", "production-io/web-services/${COMPONENT_NAME}.yaml"]'
 
 jobs:
   buildAndDeploy:
