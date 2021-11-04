@@ -1,7 +1,7 @@
 {
   "name": "Sonarqube integration",
-  "description": "Sonarqube for non gradle projects (like JavaScript/Python)",
+  "description": "Sonarqube for non gradle projects (like Python)",
   "iconName": "icon-sonarqube",
-  "categories": ["JavaScript", "Python"],
-  "filePatterns": [".yarn", "yarn.lock", "poetry.lock"]
+  "categories": ["Python"],
+  "filePatterns": ["poetry.lock"]
 }

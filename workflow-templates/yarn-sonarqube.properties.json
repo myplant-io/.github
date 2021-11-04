@@ -1,0 +1,7 @@
+{
+  "name": "Sonarqube integration",
+  "description": "Sonarqube for javascript projects",
+  "iconName": "icon-sonarqube",
+  "categories": ["JavaScript"],
+  "filePatterns": [".yarn", "yarn.lock"]
+}
