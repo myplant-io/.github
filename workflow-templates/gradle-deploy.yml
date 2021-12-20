@@ -213,15 +213,26 @@ jobs:
         with:
           arguments: ${{ env.GRADLE_BUILD_TASK }} -Pversion=${{ env.VERSION }}
 
-      - name: Compress test report folders
-        if: ${{ failure() }}
-        id: report-dir
+      - name: Determine number of gradle (sub)projects
+        id: gradle-project-stats
+        if: failure()
+        run: echo '::set-output project-count=$(./gradlew tasks --all | grep ":assemble" | cut -d ":" -f 1 | wc -l)'
+
+      - name: Compress and upload test report folders
+        if: failure() && steps.gradle-project-stats.outputs.project-count == "0"
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-result
+          path: "build/reports/tests"
+
+      - name: Compress test report folders (for multirepo)
+        if: failure() && steps.gradle-project-stats.outputs.project-count != "0"
         run: |
-          folders=$(./gradlew tasks --all | grep ":assemble" | cut -d: -f1 | sort -u | sed 's#$#/build/reports/tests#' | xargs)
+          folders=$(./gradlew tasks --all | grep ":assemble" | cut -d ':' -f 1 | sort -u | sed 's#$#/build/reports/tests#' | xargs)
           zip -qq -r test-results.zip $folders
 
-      - name: Upload test results
-        if: ${{ failure() }}
+      - name: Upload test results (for multirepo)
+        if: failure() && steps.gradle-project-stats.outputs.project-count != "0"
         uses: actions/upload-artifact@v2
         with:
           name: test-result
