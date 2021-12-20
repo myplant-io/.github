@@ -67,6 +67,9 @@ jobs:
           echo MY_VERSION="${TAG#v}" >> ${GITHUB_ENV}
           echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
 
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
       - name: Determine latest (pre-)release
         id: latest_release
         uses: InsonusK/get-latest-release@v1.0.1
@@ -111,6 +114,7 @@ jobs:
 
       - name: Log details
         run: |
+          echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
           echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
           echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"

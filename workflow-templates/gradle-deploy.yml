@@ -90,6 +90,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
 
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
       - name: Determine latest (pre-)release
         id: latest_release
         uses: InsonusK/get-latest-release@v1.0.1
@@ -136,7 +139,7 @@ jobs:
         run: echo DEPLOY_TARGETS=none >> $GITHUB_ENV
 
       - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
-        if: github.ref == 'refs/heads/develop' && env.PUSH_DEPLOY_TARGET != 'none'
+        if: env.BRANCH_NAME == 'develop'  && env.PUSH_DEPLOY_TARGET != 'none'
         run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' pre-release
@@ -148,11 +151,12 @@ jobs:
         run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
-        if: github.ref == 'refs/heads/master'
+        if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
       - name: Log details
         run: |
+          echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
           echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
           echo "DEPLOY_TARGETS: ${{ env.DEPLOY_TARGETS }}"
           echo "DEPLOYMENT_REPO: ${{ env.DEPLOYMENT_REPO }}"
