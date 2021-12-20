@@ -1,0 +1,5 @@
+{
+  "name": "Auto merging branches (with or without PRs)",
+  "description": "Merges branches (using PRs or fully automated) when releasing",
+  "iconName": "icon-merge"
+}
