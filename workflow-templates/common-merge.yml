@@ -128,7 +128,7 @@ jobs:
         with:
           source_branch: "${{ env.SOURCE_BRANCH }}"
           destination_branch: "${{ env.TARGET_BRANCH }}"
-          pr_title: "Merging ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}"
+          pr_title: "chore(release): merge ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}"
           pr_body: "Merging changes from ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}"
           pr_label: "automatically created"
           pr_draft: false
