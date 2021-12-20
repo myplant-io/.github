@@ -224,21 +224,27 @@ jobs:
           }'
 
       - name: Merging release changes to master
-        if: env.IS_RELEASE == 'true'
-        uses: ./.github/actions/merge-branch
-
-      - name: Check master after merge (sonarqube)
-        if: env.IS_RELEASE == 'true'
+        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.CI_PAT }}
-          event-type: sonarqube
-          client-payload: '{"branch": "master"}'
+          event-type: merge
+          client-payload: '{
+            "commitish": "${{ github.event.release.target_commitish }}",
+            "source_branch": "${{ env.BRANCH_NAME }}",
+            "target_branch": "master",
+            "tag": "${{ env.TAG }}"
+          }'
 
-      - name: Check master after merge (dependencyCheck)
-        if: env.IS_RELEASE == 'true'
+      # target_commitish can be "develop" for releases that are solely based on tags
+      - name: Merging release changes to master (not using develop commitish, but tag ref)
+        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.CI_PAT }}
-          event-type: dependencyCheck
-          client-payload: '{"branch": "master"}'
+          event-type: merge
+          client-payload: '{
+            "source_branch": "${{ env.BRANCH_NAME }}",
+            "target_branch": "master",
+            "tag": "${{ env.TAG }}"
+          }'
