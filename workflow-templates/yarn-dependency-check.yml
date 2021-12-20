@@ -18,6 +18,9 @@ jobs:
   dependencyCheck:
     name: "Job: Dependency check"
     runs-on: [self-hosted, linux]
+    concurrency:
+      group: "dependencyCheck_${{ github.ref }}"
+      cancel-in-progress: true
 
     strategy:
       matrix:

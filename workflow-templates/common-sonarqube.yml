@@ -16,7 +16,10 @@ jobs:
   sonarqube:
     name: "Job: Sonarqube"
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: "sonarqube_${{ github.ref }}"
+      cancel-in-progress: true
 
     steps:
       - name: Set git to use LF
