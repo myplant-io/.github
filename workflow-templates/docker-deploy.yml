@@ -233,9 +233,7 @@ jobs:
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: sonarqube
-          client-payload: '{
-            "branch": "master"
-          }'
+          client-payload: '{"branch": "master"}'
 
       - name: Check master after merge (dependencyCheck)
         if: env.IS_RELEASE == 'true'
@@ -243,6 +241,4 @@ jobs:
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: dependencyCheck
-          client-payload: '{
-            "branch": "master"
-          }'
+          client-payload: '{"branch": "master"}'

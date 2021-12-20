@@ -4,7 +4,7 @@ on:
   push:
     branches: [develop, release/**, bugfix/**, hotfix/**]
 #    tags:
-#      - "v?[0-9]+.[0-9]+.[0-9]+" # release
+#      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
 #      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
   release:
     types:
@@ -193,9 +193,7 @@ jobs:
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: sonarqube
-          client-payload: '{
-            "branch": "master"
-          }'
+          client-payload: '{"branch": "master"}'
 
       - name: Check master after merge (dependencyCheck)
         if: env.IS_RELEASE == 'true'
@@ -203,6 +201,4 @@ jobs:
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: dependencyCheck
-          client-payload: '{
-            "branch": "master"
-          }'
+          client-payload: '{"branch": "master"}'
