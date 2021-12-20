@@ -60,7 +60,7 @@ jobs:
       #
       #      - name: Set env 'BRANCH_NAME'
       #        if: github.event_name != 'repository_dispatch'
-      #        run: echo BRANCH_NAME="${GITHUB_REF/refs\/heads\//}" >> ${GITHUB_ENV}
+      #        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
       #
       #      - name: Set env 'BRANCH_NAME' (for dispatched runs)
       #        if: github.event_name == 'repository_dispatch'

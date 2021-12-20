@@ -80,7 +80,7 @@ jobs:
 
       - name: Set env 'TAG' (for tagged deployment)
         if: startsWith(github.ref, 'refs/tags/')
-        run: echo TAG="${GITHUB_REF/refs\/tags\//}" >> ${GITHUB_ENV}
+        run: echo TAG="${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
 
       - name: Set env 'VERSION' to SHA (for untagged deployments)
         if: startsWith(github.ref, 'refs/tags/') == false
