@@ -139,7 +139,7 @@ jobs:
         run: echo DEPLOY_TARGETS=none >> $GITHUB_ENV
 
       - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
-        if: env.BRANCH_NAME == 'develop'  && env.PUSH_DEPLOY_TARGET != 'none'
+        if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
         run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' pre-release
