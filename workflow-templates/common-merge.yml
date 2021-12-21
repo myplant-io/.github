@@ -102,7 +102,7 @@ jobs:
           script: core.setFailed('Started in detached head and could not find source branch!')
 
       - name: Check that source branch is not develop
-        if: env.SOURCE_BRANCH == 'develop' && env.SOURCE_BRANCH != 'refs/heads/develop'
+        if: env.SOURCE_BRANCH == 'develop' || env.SOURCE_BRANCH == 'refs/heads/develop'
         uses: actions/github-script@v5
         with:
           script: core.setFailed('Not merging develop into other branches automatically. Please use release/hotfix/bugfix branches!')
