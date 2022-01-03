@@ -39,6 +39,14 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Set env 'SHA'
+        if: startsWith(github.event_name , 'pull_request') == false
+        run: echo SHA=$(echo ${GITHUB_SHA} | cut -c1-7) >> ${GITHUB_ENV}
+
+      - name: Set env 'SHA' (on PR)
+        if: startsWith(github.event_name , 'pull_request')
+        run: echo SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) >> ${GITHUB_ENV}
+
       - name: Set env 'VERSION' to SHA
         run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
 
