@@ -93,13 +93,13 @@ jobs:
 
       - name: Sonarqube with gradle
         if: startsWith(github.event_name, 'pull_request') == false
-        uses: eskatos/gradle-command-action@v1
+        uses: gradle/gradle-build-action@v2
         with:
           arguments: ${{ env.GRADLE_TASK }} -Pversion=${{ env.VERSION }}
 
       - name: Sonarqube with gradle (on PR)
         if: startsWith(github.event_name, 'pull_request')
-        uses: eskatos/gradle-command-action@v1
+        uses: gradle/gradle-build-action@v2
         with:
           arguments: |
             ${{ env.GRADLE_TASK }} -Pversion=${{ env.VERSION }}
