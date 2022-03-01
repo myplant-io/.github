@@ -24,6 +24,9 @@ jobs:
   buildAndDeploy:
     name: "Job: Build and deploy"
     runs-on: ubuntu-latest
+    concurrency:
+      group: "deploy_${{ github.ref }}"
+      cancel-in-progress: false
 
     strategy:
       matrix:
