@@ -3,7 +3,7 @@ name: Test and validate
 on:
   # see https://github.com/dependabot/dependabot-core/issues/3253 why this is pull_request_target and not pull_request
   pull_request_target:
-    branches: [develop]
+    branches: [develop, release/**, bugfix/**, hotfix/**]
   workflow_dispatch:
 
 env:
