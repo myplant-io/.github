@@ -13,6 +13,7 @@ on:
 env:
   COMPONENT_NAME: auto
   SECURITY_LEVEL: "moderate"
+  VERBOSE_ARIFACT_UPLOAD: false
 
 jobs:
   dependencyCheck:
@@ -104,6 +105,7 @@ jobs:
         run: yarn audit --groups dependencies --level ${SECURITY_LEVEL} --json | npx --no-install yarn-audit-html
 
       - name: Upload audit report artifact
+        if: ${{ env.VERBOSE_ARIFACT_UPLOAD == true }}
         uses: actions/upload-artifact@v2
         with:
           if-no-files-found: error
@@ -117,6 +119,7 @@ jobs:
         run: ./node_modules/@cyclonedx/bom/bin/cyclonedx-bom
 
       - name: Upload SBOM artifact
+        if: ${{ env.VERBOSE_ARIFACT_UPLOAD == true }}
         uses: actions/upload-artifact@v2
         with:
           if-no-files-found: error
