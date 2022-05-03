@@ -13,7 +13,7 @@ on:
 env:
   COMPONENT_NAME: auto
   GRADLE_TASK: "cyclonedx dependencyCheckAnalyze"
-  VERBOSE_ARIFACT_UPLOAD: false
+  VERBOSE_ARTIFACT_UPLOAD: false
 
 jobs:
   dependencyCheck:
@@ -125,7 +125,7 @@ jobs:
         run: sed -i "s/type=jar//g" build/reports/bom.xml
 
       - name: Upload SBOM artifact
-        if: ${{ env.VERBOSE_ARIFACT_UPLOAD == true }}
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
         uses: actions/upload-artifact@v2
         with:
           if-no-files-found: error
