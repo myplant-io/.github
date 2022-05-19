@@ -23,14 +23,14 @@ jobs:
 
       - name: Checkout git repository
         if: startsWith(github.event_name , 'pull_request') == false
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (on PR)
         if: startsWith(github.event_name , 'pull_request')
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -45,7 +45,7 @@ jobs:
           echo "GITHUB_SHA: ${GITHUB_SHA}"
 
       - name: Prepare node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -55,7 +55,7 @@ jobs:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Create/restore cache for node_modules
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: node_modules-cache
         with:
           path: "**/node_modules"

@@ -39,13 +39,13 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout github actions repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: myplant-io/github-actions
           ref: v0.4.0
@@ -177,7 +177,7 @@ jobs:
           prerelease: false
 
       - name: Prepare node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -202,7 +202,7 @@ jobs:
           sha: ${{ env.SHA }}
 
       - name: Create/restore cache for webpack
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: webpack-cache
         if: steps.check-docker-registry.outputs.imageExists == 'false'
         with:
@@ -211,7 +211,7 @@ jobs:
           restore-keys: ${{ runner.os }}-webpack-
 
       - name: Create/restore cache for yarn
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
         if: steps.check-docker-registry.outputs.imageExists == 'false'
         with:

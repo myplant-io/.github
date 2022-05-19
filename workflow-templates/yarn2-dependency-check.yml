@@ -33,21 +33,21 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
           ref: "${{ github.event.client_payload.branch }}"
 
       - name: Checkout github actions repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: myplant-io/github-actions
           ref: v0.4.0
@@ -78,7 +78,7 @@ jobs:
       #          echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
       - name: Prepare node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -88,7 +88,7 @@ jobs:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Create/restore cache for yarn
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: yarn-cache
         with:
           path: .yarn
@@ -106,7 +106,7 @@ jobs:
         run: yarn npm audit --environment production --severity ${SECURITY_LEVEL} --json | npx --no-install npm-audit-html
 
       - name: Upload audit report artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: audit-report
@@ -119,7 +119,7 @@ jobs:
 #        run: ./node_modules/@cyclonedx/bom/bin/cyclonedx-bom
 
 #      - name: Upload SBOM artifact
-#        uses: actions/upload-artifact@v2
+#        uses: actions/upload-artifact@v3
 #        with:
 #          if-no-files-found: error
 #          name: SBOM

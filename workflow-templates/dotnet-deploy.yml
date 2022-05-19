@@ -36,13 +36,13 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout github actions repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: myplant-io/github-actions
           ref: v0.4.0
@@ -151,7 +151,7 @@ jobs:
           prerelease: false
 
       - name: Prepare dotnet environment
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v2
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
 
@@ -169,7 +169,7 @@ jobs:
             -o "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: Release (${{ matrix.dotnet-version }} - ${{ matrix.dotnet-rid }})
