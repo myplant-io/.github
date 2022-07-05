@@ -1,3 +1,9 @@
+###
+# GitHub action that allows to merge branches (e.g. changes from master to
+# develop or after a release the released branch to master).
+#
+# Created by: Nikolaus Krismer
+###
 name: Merge branches
 
 on:
@@ -7,7 +13,7 @@ on:
     types: [merge]
 
 jobs:
-  merge2develop:
+  merge:
     name: "Job: Merging branches"
     runs-on: ubuntu-latest
 

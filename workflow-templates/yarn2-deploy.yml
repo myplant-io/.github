@@ -1,3 +1,11 @@
+###
+# GitHub action that builds a docker container and deploys it to AWS ECR.
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Nikolaus Krismer
+###
 name: Build and deploy
 
 on:
@@ -12,14 +20,6 @@ on:
       - prereleased
   workflow_dispatch:
 
-env:
-  COMPONENT_NAME: auto
-  DEPLOYMENT_REPO: "myplant-io/deployment"
-  DOCKER_TAG_PREFIX: auto
-  PUSH_DEPLOY_TARGET: '["alpha-io/web-services/${COMPONENT_NAME}.yaml"]'
-  PRE_RELEASE_DEPLOY_TARGET: '["beta-io/web-services/${COMPONENT_NAME}.yaml"]'
-  RELEASE_DEPLOY_TARGET: '["beta-io/web-services/${COMPONENT_NAME}.yaml", "production-io/web-services/${COMPONENT_NAME}.yaml"]'
-
 jobs:
   buildAndDeploy:
     name: "Job: Build and deploy"
@@ -30,7 +30,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [12.x]
+        node-version: [16.x]
 
     steps:
       - name: Set git to use LF
@@ -43,6 +43,17 @@ jobs:
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v1
+        with:
+          allow_failure: true
+          files: ".github/workflow-config.env"
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v1
+        with:
+          envFile: ".github/workflow-config.env"
 
       - name: Checkout github actions repo
         uses: actions/checkout@v3

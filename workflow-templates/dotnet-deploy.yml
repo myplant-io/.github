@@ -1,3 +1,11 @@
+###
+# GitHub action that builds a docker container and deploys it to AWS ECR.
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Nikolaus Krismer
+###
 name: Build and deploy
 
 on:
@@ -11,10 +19,6 @@ on:
       - released
       - prereleased
   workflow_dispatch:
-
-env:
-  COMPONENT_NAME: auto
-  PUBLISH_AS_SELF_CONTAINED: false
 
 jobs:
   buildAndDeploy:
@@ -40,6 +44,17 @@ jobs:
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v1
+        with:
+          allow_failure: true
+          files: ".github/workflow-config.env"
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v1
+        with:
+          envFile: ".github/workflow-config.env"
 
       - name: Checkout github actions repository
         uses: actions/checkout@v3

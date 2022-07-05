@@ -1,3 +1,11 @@
+###
+# GitHub action that builds a docker container and deploys it to AWS ECR.
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Daniel Hons, Nikolaus Krismer
+###
 name: Build and deploy
 
 on:
@@ -11,19 +19,6 @@ on:
       - released
       - prereleased
   workflow_dispatch:
-
-env:
-  COMPONENT_NAME: auto
-  DEPLOYMENT_REPO: "myplant-io/deployment"
-  DOCKER_TAG_PREFIX: auto
-  GRADLE_BUILD_TASK: "build test"
-  # GRADLE_DEPLOY_TASK: none
-  GRADLE_DEPLOY_TASK: "dockerPushAndDeleteLocal -x test"
-  GRADLE_PUBLISH_TASK: none
-  # GRADLE_PUBLISH_TASK: "publish -x test"
-  PUSH_DEPLOY_TARGET: '["alpha-io/web-services/${COMPONENT_NAME}.yaml"]'
-  PRE_RELEASE_DEPLOY_TARGET: '["beta-io/web-services/${COMPONENT_NAME}.yaml"]'
-  RELEASE_DEPLOY_TARGET: '["beta-io/web-services/${COMPONENT_NAME}.yaml", "production-io/web-services/${COMPONENT_NAME}.yaml"]'
 
 jobs:
   buildAndDeploy:
@@ -44,13 +39,24 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v1
+        with:
+          allow_failure: true
+          files: ".github/workflow-config.env"
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v1
+        with:
+          envFile: ".github/workflow-config.env"
+
       - name: Checkout github actions repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
         with:
           repository: myplant-io/github-actions
           ref: v0.4.0
@@ -200,7 +206,7 @@ jobs:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
       - name: Prepare java ${{ matrix.java-version }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v2
         with:
           distribution: "adopt"
           java-version: ${{ matrix.java-version }}
@@ -223,7 +229,7 @@ jobs:
 
       - name: Compress and upload test report folders
         if: failure() && steps.gradle-project-stats.outputs.project-count == '0'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: test-result
           path: "build/reports/tests"
@@ -236,7 +242,7 @@ jobs:
 
       - name: Upload test results (for multirepo)
         if: failure() && steps.gradle-project-stats.outputs.project-count != '0'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: test-result
           path: test-results.zip
@@ -293,6 +299,7 @@ jobs:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
           client-payload: '{
+            "auto_merge": "true",
             "commitish": "${{ github.event.release.target_commitish }}",
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
@@ -307,6 +314,7 @@ jobs:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
           client-payload: '{
+            "auto_merge": "true",
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
             "tag": "${{ env.TAG }}"

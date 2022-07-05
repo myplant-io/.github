@@ -1,3 +1,11 @@
+###
+# GitHub action that runs tests on the code.
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Nikolaus Krismer
+###
 name: Validate and test
 
 on:
@@ -13,7 +21,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [12.x]
+        node-version: [16.x]
 
     steps:
       - name: Set git to use LF

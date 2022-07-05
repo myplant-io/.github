@@ -1,3 +1,11 @@
+###
+# GitHub action that runs tests on the code.
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Nikolaus Krismer
+###
 name: Test (with dotnet directly)
 
 on:
@@ -5,9 +13,6 @@ on:
   pull_request_target:
     branches: [develop, release/**, bugfix/**, hotfix/**]
   workflow_dispatch:
-
-env:
-  COMPONENT_NAME: auto
 
 jobs:
   test:
@@ -38,6 +43,17 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v1
+        with:
+          allow_failure: true
+          files: ".github/workflow-config.env"
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v1
+        with:
+          envFile: ".github/workflow-config.env"
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
