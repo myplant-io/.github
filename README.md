@@ -1,8 +1,9 @@
 # Github Template Repository
 
-Include workflow templates (for github actions).
+Shared workflow templates (for github actions).
 
-** WARNING ** This is a public repo. For more info see here:  
+:warning: This is a public repo. :warning:  
+To learn why this is the case, have a look at the following issue:
 https://github.com/github/roadmap/issues/98
 
 ## Noteworthy
@@ -28,10 +29,10 @@ RELEASE_DEPLOY_TARGET=["production-io/${COMPONENT_NAME}.yaml"]
 VERBOSE_ARTIFACT_UPLOAD=false
 ```
 
+**Hints:**
 The files can slightly vary between build tools (the above one is for gradle),
 so please make sure that it contains everything that is needed.
 
-**Hint:**
-Common docker deployment (like the ones we use in python) actions require a
-DOCKER_REGISTRY variable. Yarn/Yarn2 dependency checks need a SECURITY_LEVEL
-defined.
+- Most docker deployments actions (docker-deploy.yaml, yarn/yarn2-deploy) actions
+  require a DOCKER_REGISTRY variable.
+- Yarn/Yarn2 dependency checks need a SECURITY_LEVEL defined.
