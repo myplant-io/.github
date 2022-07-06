@@ -157,7 +157,7 @@ jobs:
       # If auto_merge was used, we need to trigger some gh actions by hand
       - name: Check target branch after merge (sonarqube)
         if: env.AUTO_MERGE == 'true'
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: sonarqube
@@ -165,7 +165,7 @@ jobs:
 
       - name: Check target branch after merge (dependencyCheck)
         if: env.AUTO_MERGE == 'true' && env.TARGET_BRANCH == 'master'
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: dependencyCheck
@@ -173,7 +173,7 @@ jobs:
 
       - name: Merging changes on master branch back into develop
         if: env.AUTO_MERGE == 'true' && env.TARGET_BRANCH == 'master'
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge

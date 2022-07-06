@@ -207,7 +207,7 @@ jobs:
 
       - name: Merging release changes to master
         if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
@@ -221,7 +221,7 @@ jobs:
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
         if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge

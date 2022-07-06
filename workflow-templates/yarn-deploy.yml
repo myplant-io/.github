@@ -219,15 +219,15 @@ jobs:
 
       - name: Set up QEMU
         if: steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
         if: steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
 
       - name: Build and push docker image
         if: steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         env:
           DOCKER_BUILDKIT: 1
         with:
@@ -237,7 +237,7 @@ jobs:
 
       - name: Deploy service
         if: env.DEPLOY_TARGETS != 'none'
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.CI_PAT }}
           repository: myplant-io/ci-deploy-action
@@ -252,7 +252,7 @@ jobs:
 
       - name: Merging release changes to master
         if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
@@ -266,7 +266,7 @@ jobs:
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
         if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
