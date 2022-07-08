@@ -41,6 +41,10 @@ jobs:
           path: target
           persist-credentials: false
 
+      - name: Set env 'BRANCH_NAME'
+        if: github.event_name != 'repository_dispatch'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
       - name: Set 'SOURCE_DIR'
         run: echo SOURCE_DIR="source/workflow-templates/" >> ${GITHUB_ENV}
 
@@ -54,6 +58,7 @@ jobs:
           echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
           echo "SOURCE_DIR: ${{ env.SOURCE_DIR }}"
           echo "TARGET_DIR: ${{ env.TARGET_DIR }}"
 
@@ -76,4 +81,4 @@ jobs:
         with:
           directory: ${{ env.TARGET_DIR }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${GITHUB_REF##*/}
+          branch: ${{ env.BRANCH_NAME }}
