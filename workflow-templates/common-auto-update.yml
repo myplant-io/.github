@@ -8,7 +8,7 @@ name: Update GitHub actions
 on:
   pull_request_target:
     paths:
-      - ".github/workflows/common-auto-update.yml"
+      - ".github/workflows/*auto-update*"
 
 jobs:
   updateGitHubActions:
