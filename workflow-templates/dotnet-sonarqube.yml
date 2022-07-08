@@ -12,6 +12,8 @@ name: Sonarqube
 on:
   pull_request:
     branches: [develop]
+    paths-ignore:
+      - ".github/workflows/*auto-update*"
   push:
     branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
   repository_dispatch:
