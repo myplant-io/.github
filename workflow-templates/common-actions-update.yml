@@ -15,7 +15,7 @@ jobs:
     # if: ${{ github.actor == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     concurrency:
-      group: "distribute_${{ github.ref }}"
+      group: "update_${{ github.ref }}"
       cancel-in-progress: false
 
     steps:
@@ -32,14 +32,13 @@ jobs:
 
       - name: Checkout github actions repo
         uses: actions/checkout@v3
-        working-directory: .github/workflows
         with:
           repository: myplant-io/.github
           token: ${{ secrets.CI_PAT }}
-          path: remote
+          path: .github/workflows/remote
 
       - name: Move relevant github actions in place
-        working-directory: .github/workflows
+        working-directory: ./.github/workflows
         run: |
           mv remote/common-merge.yml merge.yaml
           mv remote/gradle-dependency-check.yml dependency-check.yaml
@@ -48,9 +47,9 @@ jobs:
           mv remote/gradle-test.yml test.yaml
 
       - name: Move relevant github actions in place
-        working-directory: .github/workflows
+        working-directory: ./.github/workflows
         run: |
           git commit -m "chore: auto-updating github actions to latest version"
 
       - name: Push changes
-        uses: ad-m/github-push-action@0.6.0
+        uses: ad-m/github-push-action@v0.6.0
