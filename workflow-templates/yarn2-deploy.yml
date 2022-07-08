@@ -259,7 +259,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REGISTRY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
+          tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
 
       - name: Deploy service
         if: env.DEPLOY_TARGETS != 'none'
