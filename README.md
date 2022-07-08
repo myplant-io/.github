@@ -6,6 +6,35 @@ Shared workflow templates (for github actions).
 To learn why this is the case, have a look at the following issue:
 https://github.com/github/roadmap/issues/98
 
+## GitHub dependabot configuration
+
+It is recommended to enable a dependabot for checking on new version of the
+actions used.
+
+A sample configuration _dependabot.yml_ could look like this:
+
+```
+version: 2
+registries:
+  maven-myplant-nexus:
+    type: maven-repository
+    url: https://nexus-dev.myplant.io/repository/maven-public
+    username: ${{secrets.NEXUS_USER_RO}}
+    password: ${{secrets.NEXUS_PW_RO}}
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    registries:
+    - maven-myplant-nexus
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+```
+
 ## Noteworthy
 
 Next to the workflow files itself (e.g. _.github/gradle-deploy.yml_) you will
