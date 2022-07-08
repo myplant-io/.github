@@ -299,7 +299,6 @@ jobs:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
           client-payload: '{
-            "auto_merge": "true",
             "commitish": "${{ github.event.release.target_commitish }}",
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
@@ -314,7 +313,6 @@ jobs:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
           client-payload: '{
-            "auto_merge": "true",
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
             "tag": "${{ env.TAG }}"
