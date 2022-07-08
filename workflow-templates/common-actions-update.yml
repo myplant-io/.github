@@ -41,7 +41,6 @@ jobs:
       - name: Move relevant github actions in place
         working-directory: .github/workflows
         run: |
-          mv remote/common-actions-update.yml actions-update.yaml
           mv remote/common-merge.yml merge.yaml
           mv remote/gradle-dependency-check.yml dependency-check.yaml
           mv remote/gradle-deploy.yml deploy.yaml
