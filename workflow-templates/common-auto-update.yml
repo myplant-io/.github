@@ -7,12 +7,11 @@ name: Update GitHub actions
 
 on:
   pull_request_target:
-  workflow_dispatch:
 
 jobs:
   updateGitHubActions:
     name: "Job: Update GH actions"
-    # if: ${{ github.actor == 'dependabot[bot]' }}
+    if: ${{ github.actor == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     concurrency:
       group: "update_${{ github.ref }}"
@@ -34,22 +33,40 @@ jobs:
           token: ${{ secrets.CI_PAT }}
           path: source
 
-      - name: Checkout github actions repo
+      - name: Checkout git repository
+        if: startsWith(github.event_name , 'pull_request') == false
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
           path: target
           persist-credentials: false
 
+      - name: Checkout git repository (on PR)
+        if: startsWith(github.event_name , 'pull_request')
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: target
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
       - name: Set env 'BRANCH_NAME'
-        if: github.event_name != 'repository_dispatch'
         run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME' (on PR)
+        if: startsWith(github.event_name , 'pull_request')
+        run: echo BRANCH_NAME="${{ github.event.pull_request.head.ref }}" >> ${GITHUB_ENV}
 
       - name: Set 'SOURCE_DIR'
         run: echo SOURCE_DIR="source/workflow-templates/" >> ${GITHUB_ENV}
 
       - name: Set 'TARGET_DIR'
         run: echo TARGET_DIR="target/.github/workflows" >> ${GITHUB_ENV}
+
+      - name: Dump GitHub context
+        run: echo "$GITHUB_CONTEXT"
+        env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
 
       - name: Log details
         run: |
@@ -79,6 +96,8 @@ jobs:
       - name: Commit and push changes
         uses: actions-js/push@v1.3
         with:
-          directory: ${{ env.TARGET_DIR }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ env.BRANCH_NAME }}
+          directory: ${{ env.TARGET_DIR }}
+          empty: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          message: "build: auto-update of GitHub actions"

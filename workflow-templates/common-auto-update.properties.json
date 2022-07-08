@@ -1,0 +1,5 @@
+{
+  "name": "Auto update for github actions",
+  "description": "Automatically updates github actions (from the template repository)",
+  "iconName": "icon-update"
+}
