@@ -24,10 +24,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
 
-      - name: Checkout github actions repo
-        uses: actions/checkout@v3
-
-      - name: Checkout github actions repository
+      - name: Allow dependabot to check for version
         uses: myplant-io/.github@v0.1.0
 
       - name: Checkout github actions repo
@@ -35,21 +32,48 @@ jobs:
         with:
           repository: myplant-io/.github
           token: ${{ secrets.CI_PAT }}
-          path: .github/workflows/remote
+          path: source
+
+      - name: Checkout github actions repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: target
+          persist-credentials: false
+
+      - name: Set 'SOURCE_DIR'
+        run: echo SOURCE_DIR="source/workflow-templates/" >> ${GITHUB_ENV}
+
+      - name: Set 'TARGET_DIR'
+        run: echo TARGET_DIR="target/.github/workflows" >> ${GITHUB_ENV}
+
+      - name: Log details
+        run: |
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "SOURCE_DIR: ${{ env.SOURCE_DIR }}"
+          echo "TARGET_DIR: ${{ env.TARGET_DIR }}"
+
+      - name: List source contents
+        run: ls ${{ env.SOURCE_DIR }}
+
+      - name: List target contents
+        run: ls ${{ env.TARGET_DIR }}
 
       - name: Move relevant github actions in place
-        working-directory: ./.github/workflows
         run: |
-          mv remote/common-merge.yml merge.yaml
-          mv remote/gradle-dependency-check.yml dependency-check.yaml
-          mv remote/gradle-deploy.yml deploy.yaml
-          mv remote/gradle-sonarqube.yml sonarqube.yaml
-          mv remote/gradle-test.yml test.yaml
+          mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.yaml
+          mv ${{ env.SOURCE_DIR}}/gradle-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.yaml
+          mv ${{ env.SOURCE_DIR}}/gradle-deploy.yml ${{ env.TARGET_DIR }}/deploy.yaml
+          mv ${{ env.SOURCE_DIR}}/gradle-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.yaml
+          mv ${{ env.SOURCE_DIR}}/gradle-test.yml ${{ env.TARGET_DIR }}/test.yaml
 
-      - name: Move relevant github actions in place
-        working-directory: ./.github/workflows
-        run: |
-          git commit -m "chore: auto-updating github actions to latest version"
-
-      - name: Push changes
-        uses: ad-m/github-push-action@v0.6.0
+      - name: Commit and push changes
+        uses: actions-js/push@v1.3
+        with:
+          directory: ${{ env.TARGET_DIR }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${GITHUB_REF##*/}
