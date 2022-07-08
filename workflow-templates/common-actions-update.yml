@@ -55,5 +55,3 @@ jobs:
 
       - name: Push changes
         uses: ad-m/github-push-action@0.6.0
-        with:
-          force_with_lease: true
