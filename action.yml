@@ -1,5 +1,5 @@
 name: 'Auto-Update'
-description: 'Auto-Update of github actions
+description: 'Auto-Update of github actions'
 outputs:
   ref:
     description: "Ref"
