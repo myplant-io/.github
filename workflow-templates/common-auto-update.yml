@@ -102,4 +102,4 @@ jobs:
           directory: ${{ env.TARGET_DIR }}
           empty: true
           github_token: ${{ secrets.CI_PAT }}
-          message: "build: auto-update of GitHub actions"
+          message: "build: auto-update of GitHub actions [skip ci]"
