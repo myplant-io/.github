@@ -110,6 +110,17 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Configure AWS credentials (to enable test to download containers)
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: aws-login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
       - name: Sonarqube with gradle
         if: startsWith(github.event_name, 'pull_request') == false
         uses: gradle/gradle-build-action@v2

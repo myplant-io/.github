@@ -49,6 +49,7 @@ DOCKER_TAG_PREFIX=auto
 GRADLE_BUILD_TASK=build test
 GRADLE_DEPENDENCY_CHECK_TASK=cyclonedx dependencyCheckAnalyze
 GRADLE_DEPLOY_TASK=dockerPushAndDeleteLocal -x test
+GRADLE_PUBLISH_SHA=false
 GRADLE_PUBLISH_TASK=none
 GRADLE_SONARQUBE_TASK=test sonarqube
 GRADLE_TEST_TASK=test
