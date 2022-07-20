@@ -212,6 +212,34 @@ jobs:
           version: ${{ env.VERSION }}
           sha: ${{ env.SHA }}
 
+      - name: Create/restore cache for node_modules
+        uses: actions/cache@v3
+        id: node_modules-cache
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        with:
+          path: "**/node_modules"
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install dependencies (if not previously cached)
+        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
+        run: yarn install --frozen-lockfile
+
+      - name: Generate config files
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        run: yarn generate:config
+
+      - name: Validate code
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        run: yarn validate
+
+      - name: Test code
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        run: yarn test
+
+      - name: Build application
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        run: yarn build
+
       - name: Login to Amazon ECR
         if: steps.check-docker-registry.outputs.imageExists == 'false'
         id: aws-login-ecr

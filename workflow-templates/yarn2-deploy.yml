@@ -234,6 +234,10 @@ jobs:
         if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
         run: yarn
 
+      - name: Generate config files
+        continue-on-error: true
+        run: yarn generate:config
+
       - name: Build application
         if: steps.check-docker-registry.outputs.imageExists == 'false'
         run: yarn build

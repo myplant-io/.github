@@ -75,6 +75,10 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Generate config files
+        continue-on-error: true
+        run: yarn generate:config
+
       - name: Run validations
         run: yarn validate
 

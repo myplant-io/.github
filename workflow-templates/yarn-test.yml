@@ -75,6 +75,10 @@ jobs:
         if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' }}
         run: yarn install --frozen-lockfile
 
+      - name: Generate config files
+        continue-on-error: true
+        run: yarn generate:config
+
       - name: Run validations
         run: yarn validate
 
