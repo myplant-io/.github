@@ -1,0 +1,98 @@
+###
+# GitHub action that creates a Software-Bill-of-Material (SBOM) and pushes the
+# result to the myplant dependency tracker (dependency-dev.myplant.io).
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Nikolaus Krismer
+###
+name: Dependency check
+
+on:
+  schedule:
+    # at 00:00 every sunday (on the default branch - develop)
+    - cron: "0 0 * * SUN"
+  push:
+    branches: [main, master]
+  repository_dispatch:
+    types: [dependencyCheck]
+  workflow_dispatch:
+
+env:
+  COMPONENT_NAME: auto
+
+jobs:
+  dependencyCheck:
+    name: "Job: Dependency check"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        if: github.event_name != 'repository_dispatch'
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v2
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: "${{ github.event.client_payload.branch }}"
+
+      - name: Checkout github actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.4.0
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME="${GITHUB_REF/refs\/heads\//}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SHA'
+        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
+
+      - name: Set 'VERSION' to SHA
+        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
+
+      - name: Log details
+        run: |
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "VERSION: ${{ env.VERSION }}"
+          echo "depdendency.track.projectname: ${{ env.COMPONENT_NAME }}"
+          echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
+
+      - name: CycloneDX Python Generate SBOM
+        uses: CycloneDX/gh-python-generate-sbom@v1.0.1
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v2
+        with:
+          if-no-files-found: error
+          name: SBOM
+          path: "./bom.xml"
+
+      - name: Publish dependency check result to tracker
+        id: upload-dependency-track
+        uses: ./.github/actions/upload-dependency-track
+        with:
+          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          bomfilename: "./bom.xml"
+          projectname: ${{ env.COMPONENT_NAME }}
+          projectversion: ${{ env.BRANCH_NAME }}
