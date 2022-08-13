@@ -5,7 +5,7 @@
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
 #
-# Created by: Nikolaus Krismer
+# Created by: Nikolaus Krismer and Nikolaus Brunner
 ###
 name: Dependency check
 
@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: myplant-io/github-actions
-          ref: v0.4.0
+          ref: v0.5.1
           token: ${{ secrets.CI_PAT }}
           path: .github/actions
 
@@ -79,7 +79,12 @@ jobs:
           echo "depdendency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
       - name: CycloneDX Python Generate SBOM
-        uses: CycloneDX/gh-python-generate-sbom@v1.0.1
+        id: python-generate-sbom
+        uses: ./.github/actions/python-generate-sbom
+        with:
+          inputfile: "./requirements.txt"
+          type: "r"
+          output: "./bom.xml"
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v2
