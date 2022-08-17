@@ -228,7 +228,25 @@ jobs:
         id: aws-login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
+      - name: Configure AWS credentials
+        if: env.GRADLE_DEPLOY_TASK != 'none'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
+          aws-region: us-east-1
+
+      - name: Check docker registry
+        id: check-docker-registry
+        if: env.GRADLE_DEPLOY_TASK != 'none'
+        uses: ./.github/actions/check-docker-registry
+        with:
+          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
+          version: ${{ env.VERSION }}
+          sha: ${{ env.SHA }}
+
       - name: Build with gradle (incl. test)
+        if: steps.check-docker-registry.outputs.imageExists == 'false' || env.GRADLE_DEPLOY_TASK == 'none'
         uses: gradle/gradle-build-action@v2
         with:
           arguments: ${{ env.GRADLE_BUILD_TASK }} -Pversion=${{ env.VERSION }}
@@ -257,23 +275,6 @@ jobs:
         with:
           name: test-result
           path: test-results.zip
-
-      - name: Configure AWS credentials
-        if: env.GRADLE_DEPLOY_TASK != 'none'
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
-          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
-          aws-region: us-east-1
-
-      - name: Check docker registry
-        id: check-docker-registry
-        if: env.GRADLE_DEPLOY_TASK != 'none'
-        uses: ./.github/actions/check-docker-registry
-        with:
-          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          version: ${{ env.VERSION }}
-          sha: ${{ env.SHA }}
 
       - name: Build and push docker image
         if: steps.check-docker-registry.outputs.imageExists == 'false' && env.GRADLE_DEPLOY_TASK != 'none'
