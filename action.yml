@@ -1,5 +1,5 @@
-name: 'Auto-Update'
-description: 'Auto-Update of github actions'
+name: "Auto-Update"
+description: "Auto-Update of github actions"
 outputs:
   ref:
     description: "Ref"
@@ -10,5 +10,5 @@ runs:
     - run: echo ${{ github.context.ref }}
       shell: bash
     - id: ref
-      run: echo "::set-output name=ref::${{ github.context.ref }}"
+      run: echo "ref=${{ github.context.ref }}" >> ${GITHUB_OUTPUT}
       shell: bash

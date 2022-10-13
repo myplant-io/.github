@@ -113,7 +113,7 @@ jobs:
       - name: Determine number of gradle (sub)projects
         id: gradle-project-stats
         if: failure()
-        run: echo "::set-output name=project-count::$(./gradlew tasks --all | grep ':assemble' | cut -d ':' -f 1 | wc -l)"
+        run: echo "project-count=$(./gradlew tasks --all | grep ':assemble' | cut -d ':' -f 1 | wc -l)" >> ${GITHUB_OUTPUT}
 
       - name: Compress and upload test report folders
         if: failure() && steps.gradle-project-stats.outputs.project-count == '0'
