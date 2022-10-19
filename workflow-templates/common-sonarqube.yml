@@ -87,7 +87,7 @@ jobs:
           echo "sonar.pullrequest.key: ${{ github.event.number }}"
 
       - name: Setup sonarqube
-        uses: warchant/setup-sonar-scanner@v3
+        uses: warchant/setup-sonar-scanner@v4
 
       - name: Run sonarqube
         if: startsWith(github.event_name , 'pull_request') == false
