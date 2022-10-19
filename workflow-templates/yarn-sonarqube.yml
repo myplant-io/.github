@@ -142,3 +142,4 @@ jobs:
           -Dsonar.pullrequest.key=${{ github.event.number }}
           -Dsonar.exclusions="**/__tests__/**, **/__mocks__/**"
           -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+          -Dsonar.qualitygate.wait=true
