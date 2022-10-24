@@ -128,11 +128,11 @@ jobs:
           name: audit-report
           path: npm-audit.html
 ## Skipping SBOM part for now (no support for yarn2 yet)
-#      - name: Install cyclonedex
-#        run: npm install --no-package-lock --no-save @cyclonedx/bom
-
-#      - name: Create SBOM using cyclonedex
-#        run: ./node_modules/@cyclonedx/bom/bin/cyclonedx-bom
+#      - name: Install cyclonedx
+#        run: npm install --no-package-lock --no-save @cyclonedx/cyclonedx-npm
+#
+#      - name: Create SBOM using cyclonedx
+#        run: npx @cyclonedx/cyclonedx-npm --output-file bom.xml
 
 #      - name: Upload SBOM artifact
 #        uses: actions/upload-artifact@v3
