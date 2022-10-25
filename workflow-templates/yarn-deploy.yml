@@ -87,7 +87,7 @@ jobs:
         run: echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
-        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
 
       - name: Determine latest (pre-)release
         id: latest_release
@@ -132,7 +132,7 @@ jobs:
         run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
 
       - name: Initialize 'DEPLOY_TARGETS'
-        run: echo DEPLOY_TARGETS=none >> $GITHUB_ENV
+        run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
@@ -224,8 +224,13 @@ jobs:
         if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
         run: yarn install --frozen-lockfile
 
-      - name: Generate config files
+      - name: Determine if config needs to be generated
+        id: npm_script_check
         if: steps.check-docker-registry.outputs.imageExists == 'false'
+        run: echo generate_config_exists=$(npm run | grep 'generate:config' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Generate config files
+        if: steps.check-docker-registry.outputs.imageExists == 'false' && steps.npm_script_check.generate_config_exists != 0
         run: yarn generate:config
 
       - name: Validate code

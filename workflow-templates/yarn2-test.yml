@@ -60,7 +60,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Add registry credentials
-        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> $GITHUB_ENV
+        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> ${GITHUB_ENV}
         env:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
@@ -75,8 +75,13 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Determine if config needs to be generated
+        id: npm_script_check
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        run: echo generate_config_exists=$(npm run | grep 'generate:config' | wc -l) >> ${GITHUB_OUTPUT}
+
       - name: Generate config files
-        continue-on-error: true
+        if: steps.check-docker-registry.outputs.imageExists == 'false' && steps.npm_script_check.generate_config_exists != 0
         run: yarn generate:config
 
       - name: Run validations

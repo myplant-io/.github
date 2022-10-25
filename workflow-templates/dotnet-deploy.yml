@@ -86,7 +86,7 @@ jobs:
           echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
-        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
 
       - name: Determine latest (pre-)release
         id: latest_release

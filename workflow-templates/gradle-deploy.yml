@@ -99,7 +99,7 @@ jobs:
         run: echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
-        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
 
       - name: Determine latest (pre-)release
         id: latest_release
@@ -144,7 +144,7 @@ jobs:
         run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
 
       - name: Initialize 'DEPLOY_TARGETS'
-        run: echo DEPLOY_TARGETS=none >> $GITHUB_ENV
+        run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
