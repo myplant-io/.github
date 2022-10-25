@@ -77,11 +77,10 @@ jobs:
 
       - name: Determine if config needs to be generated
         id: npm_script_check
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
         run: echo generate_config_exists=$(npm run | grep 'generate:config' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Generate config files
-        if: steps.check-docker-registry.outputs.imageExists == 'false' && steps.npm_script_check.generate_config_exists != 0
+        if: steps.npm_script_check.generate_config_exists != 0
         run: yarn generate:config
 
       - name: Run validations
