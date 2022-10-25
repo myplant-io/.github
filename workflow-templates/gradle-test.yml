@@ -126,7 +126,7 @@ jobs:
         if: failure() && steps.gradle-project-stats.outputs.project-count != '0'
         run: |
           folders=$(./gradlew tasks --all | grep ':assemble' | cut -d ':' -f 1 | sort -u | sed 's#$#/build/reports/tests#' | xargs)
-          zip -qq -r test-results.zip $folders
+          zip -qq -r test-results.zip $(echo ${folders})
 
       - name: Upload test results (for multirepo)
         if: failure() && steps.gradle-project-stats.outputs.project-count != '0'
