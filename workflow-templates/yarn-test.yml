@@ -80,7 +80,7 @@ jobs:
         run: echo generate_config_exists=$(npm run | grep 'generate:config' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Generate config files
-        if: steps.npm_script_check.generate_config_exists != 0
+        if: steps.npm_script_check.outputs.generate_config_exists != 0
         run: yarn generate:config
 
       - name: Run validations
