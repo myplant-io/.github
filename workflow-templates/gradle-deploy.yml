@@ -45,9 +45,9 @@ jobs:
           fetch-depth: 0
 
       - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v1
+        uses: andstor/file-existence-action@v2
         with:
-          allow_failure: true
+          fail: true
           files: ".github/workflow-config.env"
 
       - name: Load workflow config (.env file)
@@ -66,10 +66,9 @@ jobs:
       - name: Check setting file existence
         id: check_settings_file
         if: env.COMPONENT_NAME == 'auto'
-        uses: andstor/file-existence-action@v1
+        uses: andstor/file-existence-action@v2
         with:
-          # see https://github.com/andstor/file-existence-action/issues/7
-          allow_failure: false
+          fail: false
           files: "settings.gradle"
 
       - name: Set env 'COMPONENT_NAME' (settings are present)

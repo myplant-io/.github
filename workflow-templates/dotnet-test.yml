@@ -47,9 +47,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v1
+        uses: andstor/file-existence-action@v2
         with:
-          allow_failure: true
+          fail: true
           files: ".github/workflow-config.env"
 
       - name: Load workflow config (.env file)
