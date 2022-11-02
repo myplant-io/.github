@@ -89,7 +89,6 @@ jobs:
           echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "VERSION: ${{ env.VERSION }}"
           echo "dependency.track.projectname: ${{ env.COMPONENT_NAME }}"
           echo "dependency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
@@ -109,44 +108,49 @@ jobs:
         with:
           path: .yarn
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: ${{ runner.os }}-yarn-
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
-      - name: Install dependencies
+      - name: Install dependencies (if not previously cached)
+        if: ${{ steps.yarn-cache.outputs.cache-hit != 'true' }}
         run: yarn install --immutable
 
+      - name: Install yarn-add-no-save (if not already installed)
+        run: yarn add --dev yarn-add-no-save
+
       - name: Install html report
-        run: npm install --no-package-lock --no-save npm-audit-html
+        run: yarn add-no-save yarn-audit-html --ignore-optional
 
       - name: Perform audit
-        continue-on-error: true
-        run: yarn npm audit --environment production --severity ${SECURITY_LEVEL} --json | npx --no-install npm-audit-html
+        run: yarn audit --groups dependencies --level ${SECURITY_LEVEL} --json | npx --no-install yarn-audit-html
 
       - name: Upload audit report artifact
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: audit-report
-          path: npm-audit.html
-## Skipping SBOM part for now (no support for yarn2 yet)
-#      - name: Install cyclonedx
-#        run: npm install --no-package-lock --no-save @cyclonedx/cyclonedx-npm
-#
-#      - name: Create SBOM using cyclonedx
-#        run: npx @cyclonedx/cyclonedx-npm --output-file bom.xml
+          path: yarn-audit.html
 
-#      - name: Upload SBOM artifact
-#        uses: actions/upload-artifact@v3
-#        with:
-#          if-no-files-found: error
-#          name: SBOM
-#          path: bom.xml
+      - name: Install @appthreat/cdxgen
+        run: yarn add-no-save @appthreat/cdxgen --ignore-optional
 
-#      - name: Publish dependency check result to tracker
-#        id: upload-dependency-track
-#        uses: ./.github/actions/upload-dependency-track
-#        with:
-#          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-#          bomfilename: "./bom.xml"
-#          projectname: ${{ env.COMPONENT_NAME }}
-#          projectversion: ${{ env.BRANCH_NAME }}
+      - name: Create SBOM using cyclonedx
+        run: npx --no-install cdxgen --output bom.xml
 
+      - name: Upload SBOM artifact
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
+        uses: actions/upload-artifact@v3
+        with:
+          if-no-files-found: error
+          name: SBOM
+          path: bom.xml
+
+      - name: Publish dependency check result to tracker
+        id: upload-dependency-track
+        uses: ./.github/actions/upload-dependency-track
+        with:
+          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          bomfilename: "./bom.xml"
+          projectname: ${{ env.COMPONENT_NAME }}
+          projectversion: ${{ env.BRANCH_NAME }}

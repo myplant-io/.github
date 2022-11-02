@@ -111,10 +111,13 @@ jobs:
 
       - name: Install dependencies (if not previously cached)
         if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' }}
-        run: yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile --ignore-optional
+
+      - name: Install yarn-add-no-save (if not already installed)
+        run: yarn add --dev yarn-add-no-save
 
       - name: Install html report
-        run: npm install --no-package-lock --no-save yarn-audit-html
+        run: yarn add-no-save yarn-audit-html --ignore-optional
 
       - name: Perform audit
         run: yarn audit --groups dependencies --level ${SECURITY_LEVEL} --json | npx --no-install yarn-audit-html
@@ -127,11 +130,11 @@ jobs:
           name: audit-report
           path: yarn-audit.html
 
-      - name: Install cyclonedx
-        run: npm install --no-package-lock --no-save @cyclonedx/cyclonedx-npm
+      - name: Install @appthreat/cdxgen
+        run: yarn add-no-save @appthreat/cdxgen --ignore-optional
 
       - name: Create SBOM using cyclonedx
-        run: npx @cyclonedx/cyclonedx-npm --output-file bom.xml
+        run: npx --no-install cdxgen --output bom.xml
 
       - name: Upload SBOM artifact
         if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
