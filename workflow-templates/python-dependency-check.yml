@@ -87,7 +87,7 @@ jobs:
           output: "./bom.xml"
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: SBOM
