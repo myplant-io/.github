@@ -114,12 +114,13 @@ jobs:
       - name: Install dependencies (if not previously cached)
         if: ${{ steps.yarn-cache.outputs.cache-hit != 'true' }}
         run: yarn install --immutable
-      - name: Install html report
-        run: npm install --no-package-lock --no-save npm-audit-html
+
+      #      - name: Install html report
+      #        run: npm install --no-package-lock --no-save npm-audit-html
 
       - name: Perform audit
         continue-on-error: true
-        run: yarn npm audit --environment production --severity ${SECURITY_LEVEL} --json | npx --no-install npm-audit-html
+        run: yarn npm audit --environment production --severity ${SECURITY_LEVEL} --json | yarn npm-audit-html
 
       - name: Upload audit report artifact
         uses: actions/upload-artifact@v3
