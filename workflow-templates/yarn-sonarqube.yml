@@ -68,7 +68,7 @@ jobs:
 
       - name: Apply SONAR_PREFIX to COMPONENT_NAME
         if: "${{ env.SONAR_PREFIX != '' }}"
-        run: echo COMPONENT_NAME="${{ env.SONAR_PREFIX }}:${{ env.COMPONENT_NAME }}"
+        run: echo COMPONENT_NAME="${{ env.SONAR_PREFIX }}:${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
         if: github.event_name != 'repository_dispatch'
