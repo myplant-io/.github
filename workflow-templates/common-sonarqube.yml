@@ -64,9 +64,12 @@ jobs:
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
-      - name: Apply SONAR_PREFIX to COMPONENT_NAME
+      - name: Set env SONAR_KEY
+        run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
+
+      - name: Apply SONAR_PREFIX to SONAR_KEY
         if: "${{ env.SONAR_PREFIX != '' }}"
-        run: echo COMPONENT_NAME="${{ env.SONAR_PREFIX }}:${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
+        run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
         if: github.event_name != 'repository_dispatch'
@@ -83,7 +86,8 @@ jobs:
           echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "COMPONENT_NAME: ${COMPONENT_NAME}"
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "sonar.projectKey: ${{ env.SONAR_KEY }}"
           echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
           echo "sonar.github.repository: ${{ github.repository }}"
           echo "sonar.pullrequest.base: ${{ github.base_ref }}"
@@ -98,15 +102,17 @@ jobs:
         run: sonar-scanner
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
           -Dsonar.login=${{ secrets.SONAR_LOGIN }}
-          -Dsonar.projectKey=${COMPONENT_NAME}
-          -Dsonar.branch.name=${BRANCH_NAME}
+          -Dsonar.projectKey=${{ env.SONAR_KEY }}
+          -Dsonar.projectName=${{ env.COMPONENT_NAME }}
+          -Dsonar.branch.name=${{ env.BRANCH_NAME }}
 
       - name: Run sonarqube (on PR)
         if: startsWith(github.event_name , 'pull_request')
         run: sonar-scanner
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
           -Dsonar.login=${{ secrets.SONAR_LOGIN }}
-          -Dsonar.projectKey=${COMPONENT_NAME}
+          -Dsonar.projectKey=${{ env.SONAR_KEY }}
+          -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.pullrequest.github.endpoint=https://api.github.com
           -Dsonar.pullrequest.github.repository=${{ github.repository }}
           -Dsonar.pullrequest.base=${{ github.base_ref }}
