@@ -112,11 +112,11 @@ jobs:
             ${{ runner.os }}-yarn-
 
       - name: Install dependencies (if not previously cached)
-        if: ${{ steps.yarn-cache.outputs.cache-hit != 'true' }}
+#        if: ${{ steps.yarn-cache.outputs.cache-hit != 'true' }}
         run: yarn install --immutable
 
-      #      - name: Install html report
-      #        run: npm install --no-package-lock --no-save npm-audit-html
+#      - name: Install html report
+#        run: npm install --no-package-lock --no-save npm-audit-html
 
       - name: Perform audit
         continue-on-error: true
@@ -129,10 +129,10 @@ jobs:
           name: audit-report
           path: npm-audit.html
 
-      # needs to be added by hand for now
-      #      - name: Install @appthreat/cdxgen
-      #        run: yarn add-no-save @appthreat/cdxgen --ignore-optional
-      # or:       run: yarn add --dev @appthreat/cdxgen
+# needs to be added by hand for now
+#      - name: Install @appthreat/cdxgen
+#        run: yarn add-no-save @appthreat/cdxgen --ignore-optional
+# or:       run: yarn add --dev @appthreat/cdxgen
 
       - name: Create SBOM using cyclonedx
         run: yarn cdxgen --output bom.xml
