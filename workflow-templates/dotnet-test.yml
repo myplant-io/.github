@@ -53,7 +53,7 @@ jobs:
           files: ".github/workflow-config.env"
 
       - name: Load workflow config (.env file)
-        uses: cardinalby/export-env-action@v1
+        uses: cardinalby/export-env-action@v2
         with:
           envFile: ".github/workflow-config.env"
 
