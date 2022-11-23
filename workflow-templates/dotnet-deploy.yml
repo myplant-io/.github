@@ -166,7 +166,7 @@ jobs:
           prerelease: false
 
       - name: Prepare dotnet environment
-        uses: actions/setup-dotnet@v2
+        uses: actions/setup-dotnet@v3
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
 

@@ -77,7 +77,7 @@ jobs:
           echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
 
       - name: Prepare dotnet environment
-        uses: actions/setup-dotnet@v2
+        uses: actions/setup-dotnet@v3
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
 
