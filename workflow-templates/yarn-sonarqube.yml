@@ -22,7 +22,7 @@ jobs:
   sonarqube:
     name: "Job: Sonarqube"
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     concurrency:
       group: "sonarqube_${{ github.ref }}"
       cancel-in-progress: true
