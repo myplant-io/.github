@@ -26,7 +26,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Allow dependabot to check for version
-        uses: myplant-io/.github@v0.5.0
+        uses: myplant-io/.github@v0.6.0
 
       - name: Checkout github actions repo
         uses: actions/checkout@v3
@@ -70,6 +70,33 @@ jobs:
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
 
+      - name: Set project type to gradle
+        run: echo PROJECT_TYPE="unknown" > ${GITHUB_ENV}
+
+      - name: Test project-type (for gradle)
+        id: determine-type-gradle
+        run: echo cnt_validations=$(grep 'gradle-' "${{ env.TARGET_DIR }}/auto-update*" | wc -l )>> ${GITHUB_OUTPUT}
+
+      - name: Set project type to gradle
+        if: steps.output.determine-type-gradle.cnt_validations != 0
+        run: echo PROJECT_TYPE=gradle > ${GITHUB_ENV}
+
+      - name: Test project-type (for yarn)
+        id: determine-type-yarn
+        run: echo cnt_validations=$(grep 'yarn-' "${{ env.TARGET_DIR }}/auto-update*" | wc -l )>> ${GITHUB_OUTPUT}
+
+      - name: Set project type to yarn
+        if: steps.output.determine-type-yarn.cnt_validations != 0
+        run: echo PROJECT_TYPE=yarn > ${GITHUB_ENV}
+
+      - name: Test project-type (for yarn2)
+        id: determine-type-yarn2
+        run: echo cnt_validations=$(grep 'yarn2-' "${{ env.TARGET_DIR }}/auto-update*" | wc -l )>> ${GITHUB_OUTPUT}
+
+      - name: Set project type to yarn2
+        if: steps.output.determine-type-yarn2.cnt_validations != 0
+        run: echo PROJECT_TYPE=yarn2 > ${GITHUB_ENV}
+
       - name: Log details
         run: |
           echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
@@ -88,12 +115,19 @@ jobs:
         run: ls ${{ env.TARGET_DIR }}
 
       - name: Move relevant github actions in place
+        if: env.PROJECT_TYPE != 'unknown'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.yaml
-          mv ${{ env.SOURCE_DIR}}/gradle-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.yaml
-          mv ${{ env.SOURCE_DIR}}/gradle-deploy.yml ${{ env.TARGET_DIR }}/deploy.yaml
-          mv ${{ env.SOURCE_DIR}}/gradle-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.yaml
-          mv ${{ env.SOURCE_DIR}}/gradle-test.yml ${{ env.TARGET_DIR }}/test.yaml
+          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.yaml
+          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.yaml
+          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.yaml
+          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.yaml
+
+      - name: Move relevant github actions in place
+        if: env.PROJECT_TYPE == 'unknown'
+        run: |
+          mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.yaml
+          mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.yaml
 
       - name: Commit and push changes
         uses: actions-js/push@v1.3
