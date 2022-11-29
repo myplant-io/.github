@@ -23,7 +23,7 @@ on:
 jobs:
   buildAndDeploy:
     name: "Job: Build and deploy"
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, linux ]
     concurrency:
       group: "deploy_${{ github.ref }}"
       cancel-in-progress: false
