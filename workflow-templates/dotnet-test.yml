@@ -19,7 +19,7 @@ on:
 jobs:
   test:
     name: "Job: Test (with dotnet directly)"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
 
     strategy:
       matrix:
