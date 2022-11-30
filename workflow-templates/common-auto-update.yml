@@ -98,7 +98,7 @@ jobs:
         run: echo PROJECT_TYPE=yarn2 >> ${GITHUB_ENV}
 
       - name: Determine file extensions for github action files
-        run: echo FILE_TYPE=$(ls .github/workflows/auto-update* |  tr . \\n | tail -n1) >> ${GITHUB_ENV}
+        run: echo FILE_TYPE=$(ls ${{ env.TARGET_DIR }}/auto-update* |  tr . \\n | tail -n1) >> ${GITHUB_ENV}
 
       - name: Log details
         run: |
