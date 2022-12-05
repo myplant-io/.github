@@ -1,6 +1,10 @@
 ###
 # GitHub action that updates github actions from the template repository.
 #
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#  - to update non-common files, COMPONENT_TYPE variable needs to be set
+#
 # Created by: Nikolaus Krismer
 ###
 name: Update GitHub actions
@@ -52,6 +56,17 @@ jobs:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Check workflow config file existenceif not only common files should be updated,
+        uses: andstor/file-existence-action@v2
+        with:
+          fail: true
+          files: "target/.github/workflow-config.env"
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: "target/.github/workflow-config.env"
+
       - name: Set env 'BRANCH_NAME'
         run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
 
@@ -71,31 +86,12 @@ jobs:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
 
       - name: Set project type to gradle
-        run: echo PROJECT_TYPE="unknown" >> ${GITHUB_ENV}
+        if: env.COMPONENT_TYPE == '' || env.COMPONENT_TYPE == 'unknown'
+        run: echo COMPONENT_TYPE="none" >> ${GITHUB_ENV}
 
       - name: Test project-type (for gradle)
         id: determine-type-gradle
         run: echo cnt_validations=$(grep 'gradle-' "${{ env.TARGET_DIR }}/auto-update*" | wc -l )>> ${GITHUB_OUTPUT}
-
-      - name: Set project type to gradle
-        if: steps.output.determine-type-gradle.cnt_validations != 0
-        run: echo PROJECT_TYPE=gradle >> ${GITHUB_ENV}
-
-      - name: Test project-type (for yarn)
-        id: determine-type-yarn
-        run: echo cnt_validations=$(grep 'yarn-' "${{ env.TARGET_DIR }}/auto-update*" | wc -l )>> ${GITHUB_OUTPUT}
-
-      - name: Set project type to yarn
-        if: steps.output.determine-type-yarn.cnt_validations != 0
-        run: echo PROJECT_TYPE=yarn >> ${GITHUB_ENV}
-
-      - name: Test project-type (for yarn2)
-        id: determine-type-yarn2
-        run: echo cnt_validations=$(grep 'yarn2-' "${{ env.TARGET_DIR }}/auto-update*" | wc -l )>> ${GITHUB_OUTPUT}
-
-      - name: Set project type to yarn2
-        if: steps.output.determine-type-yarn2.cnt_validations != 0
-        run: echo PROJECT_TYPE=yarn2 >> ${GITHUB_ENV}
 
       - name: Determine file extensions for github action files
         run: echo FILE_TYPE=$(ls ${{ env.TARGET_DIR }}/auto-update* |  tr . \\n | tail -n1) >> ${GITHUB_ENV}
@@ -110,7 +106,7 @@ jobs:
           echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
           echo "SOURCE_DIR: ${{ env.SOURCE_DIR }}"
           echo "TARGET_DIR: ${{ env.TARGET_DIR }}"
-          echo "PROJECT_TYPE: ${{ env.TARGET_DIR }}"
+          echo "COMPONENT_TYPE: ${{ env.COMPONENT_TYPE }}"
           echo "FILE_TYPE: ${{ env.FILE_TYPE }}"
 
       - name: List source contents
@@ -120,16 +116,16 @@ jobs:
         run: ls ${{ env.TARGET_DIR }}
 
       - name: Move relevant github actions in place
-        if: env.PROJECT_TYPE != 'unknown'
+        if: env.COMPONENT_TYPE != 'none'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/${{ env.COMPONENT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/${{ env.COMPONENT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/${{ env.COMPONENT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/${{ env.COMPONENT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }}
 
       - name: Move relevant github actions in place
-        if: env.PROJECT_TYPE == 'unknown'
+        if: env.COMPONENT_TYPE == 'none'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}

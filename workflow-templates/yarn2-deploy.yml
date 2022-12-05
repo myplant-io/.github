@@ -223,7 +223,7 @@ jobs:
 
       - name: Create/restore cache for yarn
         uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        id: yarn-cache
         if: steps.check-docker-registry.outputs.imageExists == 'false'
         with:
           path: .yarn
@@ -231,8 +231,8 @@ jobs:
           restore-keys: ${{ runner.os }}-yarn-
 
       - name: Install dependencies (if not previously cached)
-        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
-        run: yarn
+#        if: ${{ steps.yarn-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
+        run: yarn install --immutable
 
       - name: Determine if config needs to be generated
         id: npm_script_check
