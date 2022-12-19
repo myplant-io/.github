@@ -78,7 +78,7 @@ jobs:
 
       - name: Test project-type (for gradle)
         id: determine-type-gradle
-        run: echo cnt_validations=$(grep -w 'gradle/wrapper-validation-action' "${{ env.TARGET_DIR }}/deploy*" | wc -l )>> ${GITHUB_OUTPUT}
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'gradle/wrapper-validation-action' | wc -l )>> ${GITHUB_OUTPUT}
 
       - name: Set project type to gradle
         if: steps.output.determine-type-gradle.cnt_validations != 0
@@ -86,7 +86,7 @@ jobs:
 
       - name: Test project-type (for yarn classic)
         id: determine-type-yarn
-        run: echo cnt_validations=$(grep -w 'NPM_REGISTRY_AUTH' "${{ env.TARGET_DIR }}/deploy*" | wc -l )>> ${GITHUB_OUTPUT}
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'NPM_REGISTRY_AUTH' | wc -l )>> ${GITHUB_OUTPUT}
 
       - name: Set project type to yarn classic
         if: steps.output.determine-type-yarn.cnt_validations != 0
@@ -94,7 +94,7 @@ jobs:
 
       - name: Test project-type (for yarn2+)
         id: determine-type-yarn2
-        run: echo cnt_validations=$(grep -w 'YARN_NPM_AUTH_TOKEN' "${{ env.TARGET_DIR }}/deploy*" | wc -l )>> ${GITHUB_OUTPUT}
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'YARN_NPM_AUTH_TOKEN' | wc -l )>> ${GITHUB_OUTPUT}
 
       - name: Set project type to yarn2+
         if: steps.output.determine-type-yarn2.cnt_validations != 0
