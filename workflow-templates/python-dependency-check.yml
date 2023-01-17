@@ -19,13 +19,14 @@ on:
     types: [dependencyCheck]
   workflow_dispatch:
 
-env:
-  COMPONENT_NAME: auto
-
 jobs:
   dependencyCheck:
     name: "Job: Dependency check"
     runs-on: [self-hosted, linux]
+    
+    strategy:
+      matrix:
+        python-version: ['3.10']
 
     steps:
       - name: Set git to use LF
@@ -39,6 +40,17 @@ jobs:
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v2
+        with:
+          fail: true
+          files: ".github/workflow-config.env"
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: ".github/workflow-config.env"
 
       - name: Checkout git repository (for dispatched runs)
         uses: actions/checkout@v3
@@ -78,6 +90,11 @@ jobs:
           echo "VERSION: ${{ env.VERSION }}"
           echo "dependency.track.projectname: ${{ env.COMPONENT_NAME }}"
           echo "dependency.track.projectversion: ${{ env.BRANCH_NAME }}"
+
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: CycloneDX Python Generate SBOM
         id: python-generate-sbom
