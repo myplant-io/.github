@@ -228,6 +228,7 @@ jobs:
         env:
           DOCKER_BUILDKIT: 1
         with:
+          provenance: false
           push: true
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
 
