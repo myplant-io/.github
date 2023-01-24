@@ -256,7 +256,13 @@ jobs:
         if: steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/setup-qemu-action@v2
 
+      - name: Check for docker context
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        id: docker-context-check
+        run: echo contextFound=$(docker context ls | grep -w 'buildx' | wc -l) >> ${GITHUB_OUTPUT}
+
       - name: Set up Docker Context for Buildx
+        if: steps.check-docker-registry.outputs.imageExists == 'false' && steps.docker-context-check.outputs.contextFound == 0
         run: docker context create buildx-context
 
       - name: Set up Docker Buildx
