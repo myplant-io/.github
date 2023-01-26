@@ -105,6 +105,7 @@ jobs:
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.branch.name=${{ env.BRANCH_NAME }}
+          -Dsonar.qualitygate.wait=true
 
       - name: Run sonarqube (on PR)
         if: startsWith(github.event_name , 'pull_request')
