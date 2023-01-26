@@ -131,14 +131,14 @@ jobs:
 
       # needs to be added by hand for now
       #      - name: Install @appthreat/cdxgen
-      #        run: yarn add-no-save @appthreat/cdxgen --ignore-optional
-      # or:       run: yarn add --dev @appthreat/cdxgen
+      #        run: yarn add-no-save "@appthreat/cdxgen"@^5.0.0 --ignore-optional
+      # or:       run: yarn add --dev "@appthreat/cdxgen"@^5.0.0
 
       - name: Create SBOM using cyclonedx
         run: yarn cdxgen --output bom.xml
 
       - name: Upload SBOM artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error

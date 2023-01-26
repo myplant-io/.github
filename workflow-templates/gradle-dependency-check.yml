@@ -140,7 +140,7 @@ jobs:
         run: sed -i "s/type=jar//g" build/reports/bom.xml
 
       - name: Upload SBOM artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error

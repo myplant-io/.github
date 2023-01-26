@@ -123,7 +123,7 @@ jobs:
         run: yarn audit --groups dependencies --level ${SECURITY_LEVEL} --json | npx --no-install yarn-audit-html
 
       - name: Upload audit report artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
@@ -131,13 +131,13 @@ jobs:
           path: yarn-audit.html
 
       - name: Install @appthreat/cdxgen
-        run: yarn add-no-save @appthreat/cdxgen --ignore-optional
+        run: yarn add-no-save "@appthreat/cdxgen"@^5.0.0 --ignore-optional
 
       - name: Create SBOM using cyclonedx
-        run: npx --no-install cdxgen --output bom.xml
+        run: yarn run --no-install cdxgen --output bom.xml
 
       - name: Upload SBOM artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
