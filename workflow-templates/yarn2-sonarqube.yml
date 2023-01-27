@@ -169,3 +169,7 @@ jobs:
           -Dsonar.exclusions="**/__generated__/**, **/__mocks__/**, **/__tests__/**"
           -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
           -Dsonar.qualitygate.wait=true
+
+      - name: Restore full-cache (for next build)
+        if: ${{ steps.check-docker-registry.outputs.imageExists == 'false' }}
+        run: yarn build:unshrink
