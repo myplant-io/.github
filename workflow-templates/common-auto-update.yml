@@ -60,7 +60,7 @@ jobs:
         run: echo BRANCH_NAME="${{ github.event.pull_request.head.ref }}" >> ${GITHUB_ENV}
 
       - name: Set 'SOURCE_DIR'
-        run: echo SOURCE_DIR="source/workflow-templates/" >> ${GITHUB_ENV}
+        run: echo SOURCE_DIR="source/workflow-templates" >> ${GITHUB_ENV}
 
       - name: Set 'TARGET_DIR'
         run: echo TARGET_DIR="target/.github/workflows" >> ${GITHUB_ENV}
