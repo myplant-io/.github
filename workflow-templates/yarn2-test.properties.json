@@ -1,6 +1,6 @@
 {
   "name": "Test on PR",
-  "description": "Test pull requests for JavaScript/Yarn2 projects",
+  "description": "Test pull requests for JavaScript/Yarn2+ projects",
   "iconName": "icon-yarn",
   "categories": ["JavaScript"],
   "filePatterns": [".yarn"]
