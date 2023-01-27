@@ -60,7 +60,7 @@ jobs:
         run: echo BRANCH_NAME="${{ github.event.pull_request.head.ref }}" >> ${GITHUB_ENV}
 
       - name: Set 'SOURCE_DIR'
-        run: echo SOURCE_DIR="source/workflow-templates/" >> ${GITHUB_ENV}
+        run: echo SOURCE_DIR="source/workflow-templates" >> ${GITHUB_ENV}
 
       - name: Set 'TARGET_DIR'
         run: echo TARGET_DIR="target/.github/workflows" >> ${GITHUB_ENV}
@@ -119,20 +119,20 @@ jobs:
       - name: List target contents
         run: ls ${{ env.TARGET_DIR }}
 
-      - name: Move relevant github actions in place
+      - name: Move relevant github actions in place (if exist)
         if: env.PROJECT_TYPE != 'unknown'
         run: |
-          mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/common-merge.yml ]                              || mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ]  || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ]            || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ]         || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ]              || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }}
 
-      - name: Move relevant github actions in place
+      - name: Move relevant github actions in place (if exist)
         if: env.PROJECT_TYPE == 'unknown'
         run: |
-          mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/common-merge.yml ]                              || mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/common-sonarqube.yml ]                          || mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
 
       - name: Commit and push changes
         uses: actions-js/push@v1.4
