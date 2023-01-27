@@ -111,7 +111,7 @@ jobs:
         id: webpack-cache
         if: steps.check-docker-registry.outputs.imageExists == 'false'
         with:
-          path: '.cache'
+          path: ".cache"
           key: ${{ runner.os }}-webpack-${{ env.VERSION }}
           restore-keys: ${{ runner.os }}-webpack-
 
@@ -125,7 +125,7 @@ jobs:
           restore-keys: ${{ runner.os }}-yarn-
 
       - name: Install dependencies (if not previously cached)
-#        if: ${{ steps.yarn-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
+        #        if: ${{ steps.yarn-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
         run: yarn install --immutable
 
       - name: Determine if config needs to be generated
@@ -171,5 +171,5 @@ jobs:
           -Dsonar.qualitygate.wait=true
 
       - name: Restore full-cache (for next build)
-        if: ${{ steps.check-docker-registry.outputs.imageExists == 'false' }}
+        if: always()
         run: yarn build:unshrink
