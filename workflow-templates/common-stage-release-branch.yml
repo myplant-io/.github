@@ -1,0 +1,85 @@
+# Do not change! This file will be auto-updated by the auto-update action.
+# More info: https://innio.atlassian.net/wiki/spaces/JHJAL/pages/2146009473/How+to+release+a+micro+service+using+Github
+#
+# When triggered, it will use the source branch to create a new branch release/v{version} from it, where
+# version is derived to the latest release tag bumped using conventional commits.
+# Example: if commit starts with "feat: ", 1.1.1 is bumped to 1.2.1
+#
+# If this branch already exists, the source branch will be merged on top of it
+#
+# HINT: It is possible to merge directly into those feature branches without negative impact to the pipeline
+
+name: "Stage branch for a release"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  start-release-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check actor permission
+        uses: skjnldsv/check-actor-permission@main
+        with:
+          require: write
+
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Display receiver
+        run: echo ${GITHUB_REF#refs/heads/}
+
+      - name: Analyze repo
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v5.6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag_prefix: "v"
+          dry_run: true
+          append_to_pre_release_tag: false
+      - name: Determine release branch name
+        id: branch-names
+        env:
+          preRelTag: ${{ steps.tag_version.outputs.new_tag }}
+        run: |
+          nextRelease=${preRelTag%-*}
+          echo "::set-output name=next-release::$nextRelease"
+          echo "::set-output name=name::release/$nextRelease"
+          echo "::set-output name=source-branch::${GITHUB_REF#refs/heads/}"
+      - name: Look for existing branch
+        id: branch-exists
+        env:
+          branch: ${{ steps.branch-names.outputs.name }}
+        run: |
+          branchExists=$(git ls-remote --heads origin ${branch})
+          if [[ -z ${branchExists} ]]; then
+              echo "::set-output name=exists::false"
+          else
+              echo "::set-output name=exists::true"
+          fi
+      - uses: peterjgrainger/action-create-branch@v2.0.1
+        if: ${{ steps.branch-exists.outputs.exists == 'false' }}
+        name: Create branch for release cycle
+        env:
+          # Use another token then GITHUB_TOKEN to trigger subsequent workflows
+          GITHUB_TOKEN: ${{ secrets.CI_PAT }}
+        with:
+          branch: ${{ steps.branch-names.outputs.name }}
+      - name: Prepare commit message
+        if: ${{ steps.branch-exists.outputs.exists == 'true' }}
+        id: commit-message
+        env:
+          BRANCH: ${{ steps.branch-names.outputs.source-branch }}
+          RELEASE: ${{ steps.branch-names.outputs.next-release }}
+        run: echo "::set-output name=message::Merge branch $BRANCH into release $RELEASE"
+      - name: Merge for PreRelease
+        if: ${{ steps.branch-exists.outputs.exists == 'true' }}
+        uses: tukasz/direct-merge-action@master
+        with:
+          # Use another token then GITHUB_TOKEN to trigger subsequent workflows
+          GITHUB_TOKEN: ${{ secrets.CI_PAT }}
+          source-branch: ${{ steps.branch-names.outputs.source-branch }}
+          target-branch: ${{ steps.branch-names.outputs.name }}
+          commit-message: ${{ steps.commit-message.outputs.message }}

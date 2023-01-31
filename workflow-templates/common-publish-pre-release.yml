@@ -1,0 +1,151 @@
+# Do not change! This file will be auto-updated by the auto-update action.
+# More info: https://innio.atlassian.net/wiki/spaces/JHJAL/pages/2146009473/How+to+release+a+micro+service+using+Github
+#
+# Runs on branches with a name like 'release/v{TAG}', tagging each commit with an incrementing release candidate
+# like v{TAG}.rc-{n}
+
+name: "Publish a pre-release"
+on:
+  push:
+    branches:
+      - "release/v*"
+jobs:
+  pre-release:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: "deploy_${{ github.ref }}"
+      cancel-in-progress: false
+
+    # strategy:
+    #   matrix:
+    #     java-version: [11]
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Load workflow config
+        run: cat .github/workflow-config.env >> $GITHUB_ENV
+
+      - name: Checkout github actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.4.0
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Check setting file existence
+        id: check_settings_file
+        if: env.COMPONENT_NAME == 'auto'
+        uses: andstor/file-existence-action@v1
+        with:
+          # see https://github.com/andstor/file-existence-action/issues/7
+          allow_failure: false
+          files: "settings.gradle"
+
+      - name: Set env 'COMPONENT_NAME' (settings are present)
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
+        run: echo COMPONENT_NAME="$(grep 'rootProject.name' settings.gradle.kts | cut -d '=' -f 2 | tr -d '\r' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+
+      - name: Set env 'COMPONENT_NAME' (no settings found)
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'false'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'DOCKER_TAG_PREFIX'
+        if: env.DOCKER_TAG_PREFIX == 'auto'
+        run: echo DOCKER_TAG_PREFIX="${COMPONENT_NAME}_" >> ${GITHUB_ENV}
+
+      - name: "Validate branch name and calculate version infos"
+        id: versioning
+        run: |
+          releaseBranch=$(git branch --show-current | grep release/v*)
+          branchTag=${releaseBranch#release/}
+          [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          lastTag=$(git describe --match "$branchTag-rc.[0-9]*" --abbrev=0 HEAD) || lastTag=NONE
+          if [[ $lastTag =~ $branchTag-rc\.([0-9]*) ]]; then
+            current="$branchTag-rc.$((BASH_REMATCH[1]+1))"
+          else
+            current="$branchTag-rc.0"
+          fi
+          shaShort="$(echo ${GITHUB_SHA} | cut -c1-7)"
+          echo "::set-output name=sha::$shaShort"
+          echo "::set-output name=previous::$lastTag"
+          echo "::set-output name=new-tag::$current"
+          echo "::set-output name=pretty-tag::$branchTag"
+          echo "::set-output name=new-version::${current#v}"
+      - name: "Calculate tag names"
+        id: tags
+        run: |
+          releaseBranch=$(git branch --show-current | grep release/v*)
+          branchTag=${releaseBranch#release/}
+      - name: Log details
+        shell: bash
+        run: |
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "RELEASE INFO: ${{ join(github.event.release, '\n') }}"
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "DEPLOYMENT_REPO: ${{ env.DEPLOYMENT_REPO }}"
+          echo "DEPLOY_TARGETS: ${{ env.DEPLOY_TARGETS }}"
+          echo "DOCKER_IMAGE_PREFIX: ${{ env.DOCKER_IMAGE_PREFIX }}"
+          echo "TAG: ${{ env.TAG }}"
+          echo "VERSION: ${{ env.VERSION }}"
+          echo "sonar.github.repository: ${GITHUB_REPOSITORY}"
+          echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
+      # - name: Prepare gradle properties
+      #   shell: bash
+      #   env:
+      #     GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
+      #   run: printf "\n$GRADLE_PROPS" >> gradle.properties
+
+      # - name: Prepare Java
+      #   uses: actions/setup-java@v1
+      #   with:
+      #     java-version: ${{ env.JAVA_VERSION }}
+
+      # - name: Validate gradle wrapper
+      #   uses: gradle/wrapper-validation-action@v1
+
+      # - name: Grant execute permission for gradlew
+      #   run: chmod +x ./gradlew
+
+      # - name: Build with gradle (incl. test and sonar)
+      #   uses: gradle/gradle-build-action@v2
+      #   with:
+      #     # TODO:
+      #     # Here, we would want to use the pretty-tag without rc postfix, but it seems gradle plugins do not support that
+      #     arguments: clean test sonarqube -Pversion=${{ steps.versioning.outputs.new-version }}
+
+      - name: Create rc tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v5.6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          custom_tag: ${{ steps.versioning.outputs.new-tag }}
+          tag_prefix: ""
+
+      - name: Enhance changelog
+        id: changelog
+        env:
+          CHANGELOG: ${{ steps.tag_version.outputs.changelog }}
+        # Replaces DD-1234 with a link to Jira
+        run: |
+          newChangelog="$(echo "$CHANGELOG" |  sed "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g")"
+          echo "$newChangelog" > release_changelog.md
+      - name: Pre-Release
+        uses: softprops/action-gh-release@v1
+        with:
+          prerelease: true
+          tag_name: ${{ steps.versioning.outputs.new-tag }}
+          name: ${{ steps.versioning.outputs.new-tag }}
+          body_path: release_changelog.md
+          token: ${{ secrets.GITHUB_TOKEN }}

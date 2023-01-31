@@ -123,6 +123,9 @@ jobs:
         if: env.PROJECT_TYPE != 'unknown'
         run: |
           [ ! -f ${{ env.SOURCE_DIR}}/common-merge.yml ]                              || mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ]                || mv ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ${{ env.TARGET_DIR }}/publish-pre-release.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/common-publish-release.yml ]                    || mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ]               || mv ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ${{ env.TARGET_DIR }}/stage-release-branch.${{ env.FILE_TYPE }}
           [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ]  || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }}
           [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ]            || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }}
           [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ]         || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
@@ -132,6 +135,9 @@ jobs:
         if: env.PROJECT_TYPE == 'unknown'
         run: |
           [ ! -f ${{ env.SOURCE_DIR}}/common-merge.yml ]                              || mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ]                || mv ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ${{ env.TARGET_DIR }}/publish-pre-release.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/common-publish-release.yml ]                    || mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ]               || mv ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ${{ env.TARGET_DIR }}/stage-release-branch.${{ env.FILE_TYPE }}
           [ ! -f ${{ env.SOURCE_DIR}}/common-sonarqube.yml ]                          || mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
 
       - name: Commit and push changes

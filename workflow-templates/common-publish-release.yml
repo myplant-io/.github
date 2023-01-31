@@ -1,0 +1,189 @@
+# Do not change! This file will be auto-updated by the auto-update action.
+# More info: https://innio.atlassian.net/wiki/spaces/JHJAL/pages/2146009473/How+to+release+a+micro+service+using+Github
+#
+# When run on release-branches like 'release/v{TAG}', this pipeline
+#   - adds the tag v{TAG} without postfix to the head of the release branch
+#   - adds the tag the related docker image
+#   - creates a github release with changelog from conventional commits
+#   - merges it into master
+#   - updates the deployment repo for production
+
+name: "Publish a release"
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: "deploy_${{ github.ref }}"
+      cancel-in-progress: false
+
+    # strategy:
+    #   matrix:
+    #     java-version: [11]
+    steps:
+      #
+      # Checks & Checkouts
+      #
+
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - name: Checkout git repository
+        uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout github actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.4.0
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Check setting file existence
+        id: check_settings_file
+        if: env.COMPONENT_NAME == 'auto'
+        uses: andstor/file-existence-action@v1
+        with:
+          # see https://github.com/andstor/file-existence-action/issues/7
+          allow_failure: false
+          files: "settings.gradle"
+
+      - name: Check actor permission
+        uses: skjnldsv/check-actor-permission@main
+        with:
+          require: write
+
+      #
+      # Setting environment variables
+      #
+
+      - name: Load workflow config
+        run: cat .github/workflow-config.env >> $GITHUB_ENV
+
+      - name: Set env 'COMPONENT_NAME' (settings are present)
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
+        run: echo COMPONENT_NAME="$(grep 'rootProject.name' settings.gradle.kts | cut -d '=' -f 2 | tr -d '\r' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+
+      - name: Set env 'COMPONENT_NAME' (no settings found)
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'false'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'DOCKER_TAG_PREFIX'
+        if: env.DOCKER_TAG_PREFIX == 'auto'
+        run: echo DOCKER_TAG_PREFIX="${COMPONENT_NAME}_" >> ${GITHUB_ENV}
+
+      #
+      #
+      #
+
+      - name: "Validate branch name and calculate version infos"
+        id: versioning
+        run: |
+          releaseBranch=$(git branch --show-current | grep release/v*)
+          branchTag=${releaseBranch#release/}
+
+          [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+
+          headTag=$(git describe --tags | grep "$branchTag")
+          sha="$(echo ${GITHUB_SHA} | cut -c1-7)"
+          echo "::set-output name=relTag::$branchTag"
+          echo "::set-output name=preRelTag::$headTag"
+          echo "::set-output name=releaseBranch::$releaseBranch"
+          echo "::set-output name=version::${branchTag#v}"
+          echo "::set-output name=last-version::${headTag#v}"
+          echo "::set-output name=sha::${sha}"
+
+      - name: Re-Tag docker image
+        env:
+          relTag: ${{ steps.versioning.outputs.relTag }}
+          preRelTag: ${{ steps.versioning.outputs.preRelTag }}
+        run: echo "Adding tag $relTag to image with tag $preRelTag"
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v5.6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          custom_tag: ${{ steps.versioning.outputs.relTag }}
+          tag_prefix: ""
+      - name: Enhance changelog
+        id: changelog
+        env:
+          CHANGELOG: ${{ steps.tag_version.outputs.changelog }}
+        # Replaces DD-1234 with a link to Jira
+        run: |
+          newChangelog="$(echo "$CHANGELOG" |  sed "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g")"
+          echo "$newChangelog" > release_changelog.md
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.versioning.outputs.relTag }}
+          name: ${{ steps.versioning.outputs.relTag }}
+          body_path: release_changelog.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Configure AWS credentials
+      #   if: env.GRADLE_DEPLOY_TASK != 'none'
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
+      #     aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
+      #     aws-region: us-east-1
+
+      # - name: Check docker registry
+      #   id: check-docker-registry
+      #   uses: ./.github/actions/check-docker-registry
+      #   with:
+      #     imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
+      #     version: ${{ steps.versioning.outputs.version }}
+      #     # We used the rc tag on the docker image before
+      #     sha: ${{ steps.versioning.outputs.last-version }}
+
+      # - name: Verify docker image could be retagged
+      #   if: steps.check-docker-registry.outputs.imageExists == 'false'
+      #   run: |
+      #     echo "Docker image was not found"
+      #     exit 1
+
+      # - name: Update deployment repo (deploy production)
+      #   uses: peter-evans/repository-dispatch@v1
+      #   with:
+      #     token: ${{ secrets.CI_PAT }}
+      #     repository: myplant-io/ci-deploy-action
+      #     event-type: deploy
+      #     client-payload: '{
+      #       "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
+      #       "component_name": "${{ env.COMPONENT_NAME }}",
+      #       "deployment_files": ${{ env.PRODUCTION_DEPLOY_TARGET }},
+      #       "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
+      #       "version": "${{ steps.versioning.outputs.version }}",
+      #       "git_sha": "${{ steps.versioning.outputs.sha }}"
+      #       }'
+
+      # - name: Merge  -> master
+      #   uses: tukasz/direct-merge-action@master
+      #   with:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     source-branch: ${{ steps.versioning.outputs.releaseBranch }}
+      #     target-branch: master
+      #     commit-message: "Release ${{ steps.versioning.outputs.relTag }}"
+      # - name: Create PR master --> develop
+      #   uses: repo-sync/pull-request@v2
+      #   with:
+      #     destination_branch: "develop"
+      #     source_branch: "master"
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
+      #     pr_label: "feature, automated pr"
+      #     pr_title: "Merge master into develop after release ${{ steps.versioning.outputs.relTag }}"
+      #     pr_allow_empty: true
+
+      # - name: Delete release branch
+      #   env:
+      #     branch: ${{ steps.versioning.outputs.releaseBranch }}
+      #   run: |
+      #     git push -d origin $branch
