@@ -9,6 +9,9 @@ on:
   push:
     branches:
       - "release/v*"
+  create:
+    branches:
+      - "release/v*"
 jobs:
   pre-release:
     runs-on: ubuntu-latest
