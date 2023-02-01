@@ -1,4 +1,5 @@
 <!--- release-section --->
+<!--- release-section will be updated automatically through the auto-update gh action --->
 
 # CI/CD
 
