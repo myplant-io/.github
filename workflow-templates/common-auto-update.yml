@@ -158,6 +158,9 @@ jobs:
       - name: Insert release-section in README
         run: cat "${{ env.SOURCE_DIR }}/common-cicd.md" >> "target/README.md"
 
+      - name: Replace {{repo_url}} with actual repo url
+        run: sed -i 's/{{repo_url}}/${{ github.server_url }}\/${{ github.repository }}/' target/README.md
+
       - name: Find and delete release badges in README
         run: sed -i -E '/\[\!\[Automated Release\]\(/d' target/README.md
 

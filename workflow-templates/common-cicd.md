@@ -14,7 +14,7 @@ Changes to `develop` will be deployed to `staging-alpha` on every push
 ### Deploy release candidate:
 
 Stage (create or update) release branch:  
-[workflow_dispatch: stage-release-branch.yml](${{ github.server_url }}/${{ github.repository }}/actions/workflows/stage-release-branch.yml)
+[workflow_dispatch: stage-release-branch.yml]({{repo_url}}/actions/workflows/stage-release-branch.yml)
 
 ```
 gh workflow run stage-release-branch.yml -r develop
@@ -28,7 +28,7 @@ Then, gh actions will deploy the pre-release to `staging-beta` automatically
 ### Deploy release:
 
 **[Requires release candidate]** If release candidate is acceptable:  
-[workflow_dispatch: publish-release.yml](${{ github.server_url }}/${{ github.repository }}/actions/workflows/publish-release.yml)
+[workflow_dispatch: publish-release.yml]({{repo_url}}/actions/workflows/publish-release.yml)
 
 ```
 gh workflow run publish-release.yml -r release/v{TAG}
