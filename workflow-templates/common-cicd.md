@@ -1,7 +1,7 @@
 <!--- release-section --->
 <!--- release-section will be updated automatically through the auto-update gh action --->
 
-# CI/CD
+# Continues Integration / Continues Delivery
 
 This section describes how to release using myPlant's automated CI/CD workflow. More extensive explanation can be found in [[Confluence] How to release a (micro)service using Github](https://innio.atlassian.net/wiki/spaces/JHJAL/pages/2146009473/How+to+release+a+micro+service+using+Github)
 
@@ -14,7 +14,7 @@ Changes to `develop` will be deployed to `staging-alpha` on every push
 ### Deploy release candidate:
 
 Stage (create or update) release branch:  
-[workflow_dispatch: stage-release-branch.yml](./.github/workflows/stage-release-branch.yml)
+[workflow_dispatch: stage-release-branch.yml](./actions/workflows/stage-release-branch.yml)
 
 ```
 gh workflow run stage-release-branch.yml -r develop
@@ -28,7 +28,7 @@ Then, gh actions will deploy the pre-release to `staging-beta` automatically
 ### Deploy release:
 
 **[Requires release candidate]** If release candidate is acceptable:  
-[workflow_dispatch: publish-release.yml](./.github/workflows/publish-release.yml)
+[workflow_dispatch: publish-release.yml](./actions/workflows/publish-release.yml)
 
 ```
 gh workflow run publish-release.yml -r release/v{TAG}
