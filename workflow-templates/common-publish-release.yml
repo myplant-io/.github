@@ -109,7 +109,7 @@ jobs:
           tag_name: ${{ steps.versioning.outputs.relTag }}
           name: ${{ steps.versioning.outputs.relTag }}
           body_path: release_changelog.md
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CI_PAT }}
 
       # - name: Configure AWS credentials
       #   if: env.GRADLE_DEPLOY_TASK != 'none'
