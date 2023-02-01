@@ -5,8 +5,7 @@
 #   - adds the tag v{TAG} without postfix to the head of the release branch
 #   - adds the tag the related docker image
 #   - creates a github release with changelog from conventional commits
-#   - merges it into master
-#   - updates the deployment repo for production
+#   - merges it into master (temp disabled)
 
 name: "Publish a release"
 on:
@@ -19,14 +18,7 @@ jobs:
       group: "deploy_${{ github.ref }}"
       cancel-in-progress: false
 
-    # strategy:
-    #   matrix:
-    #     java-version: [11]
     steps:
-      #
-      # Checks & Checkouts
-      #
-
       - name: Set git to use LF
         run: |
           git config --global core.autocrlf false
@@ -59,10 +51,6 @@ jobs:
         with:
           require: write
 
-      #
-      # Setting environment variables
-      #
-
       - name: Load workflow config
         run: cat .github/workflow-config.env >> $GITHUB_ENV
 
@@ -77,10 +65,6 @@ jobs:
       - name: Set env 'DOCKER_TAG_PREFIX'
         if: env.DOCKER_TAG_PREFIX == 'auto'
         run: echo DOCKER_TAG_PREFIX="${COMPONENT_NAME}_" >> ${GITHUB_ENV}
-
-      #
-      #
-      #
 
       - name: "Validate branch name and calculate version infos"
         id: versioning

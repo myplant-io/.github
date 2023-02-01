@@ -10,15 +10,14 @@ name: Build and deploy
 
 on:
   push:
-    branches: [develop, release/**, bugfix/**, hotfix/**]
+    branches: [develop, bugfix/**, hotfix/**]
 #    tags:
 #      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
 #      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
   release:
     types:
       - released
-      - prereleased
-  workflow_dispatch:
+      - prerelease
 
 jobs:
   buildAndDeploy:

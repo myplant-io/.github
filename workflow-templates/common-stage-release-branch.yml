@@ -23,13 +23,13 @@ jobs:
         with:
           require: write
 
+      - name: Display receiver
+        run: echo ${GITHUB_REF#refs/heads/}
+
       - name: Checkout git repository
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-
-      - name: Display receiver
-        run: echo ${GITHUB_REF#refs/heads/}
 
       - name: Analyze repo
         id: tag_version
