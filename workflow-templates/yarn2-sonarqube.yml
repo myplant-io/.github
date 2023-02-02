@@ -167,7 +167,3 @@ jobs:
           -Dsonar.exclusions="**/__generated__/**, **/__mocks__/**, **/__tests__/**"
           -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
           -Dsonar.qualitygate.wait=true
-
-      - name: Restore full-cache (for next build)
-        if: always()
-        run: yarn build:unshrink
