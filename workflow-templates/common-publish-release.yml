@@ -103,6 +103,7 @@ jobs:
         run: |
           newChangelog="$(echo "$CHANGELOG" |  sed "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g")"
           echo "$newChangelog" > release_changelog.md
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:

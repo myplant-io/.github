@@ -59,7 +59,7 @@ jobs:
 
       - name: Force PROJECT_TYPE env variable
         if: env.PROJECT_TYPE == '' || env.PROJECT_TYPE == 'unknown'
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           script: |
             core.setFailed('Please provide a PROJECT_TYPE in workflow-config.env')
@@ -84,33 +84,6 @@ jobs:
 
       - name: Determine file extensions for github action files
         run: echo FILE_TYPE=$(ls ${{ env.TARGET_DIR }}/auto-update* |  tr . \\n | tail -n1) >> ${GITHUB_ENV}
-
-      # - name: Test project-type (for gradle)
-      #   if: ${{ env.PROJECT_TYPE }} == ''
-      #   id: determine-type-gradle
-      #   run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'gradle/wrapper-validation-action' | wc -l) >> ${GITHUB_OUTPUT}
-
-      # - name: Set project type to gradle
-      #   if: steps.determine-type-gradle.outputs.cnt_validations != '0'
-      #   run: echo PROJECT_TYPE=gradle >> ${GITHUB_ENV}
-
-      # - name: Test project-type (for yarn classic)
-      #   if: ${{ env.PROJECT_TYPE }} == ''
-      #   id: determine-type-yarn
-      #   run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'NPM_REGISTRY_AUTH' | wc -l) >> ${GITHUB_OUTPUT}
-
-      # - name: Set project type to yarn classic
-      #   if: steps.determine-type-yarn.outputs.cnt_validations != '0'
-      #   run: echo PROJECT_TYPE=yarn >> ${GITHUB_ENV}
-
-      # - name: Test project-type (for yarn2+)
-      #   if: ${{ env.PROJECT_TYPE }} == ''
-      #   id: determine-type-yarn2
-      #   run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'YARN_NPM_AUTH_TOKEN' | wc -l) >> ${GITHUB_OUTPUT}
-
-      # - name: Set project type to yarn2+
-      #   if: steps.determine-type-yarn2.outputs.cnt_validations != '0'
-      #   run: echo PROJECT_TYPE=yarn2 >> ${GITHUB_ENV}
 
       - name: Log details
         run: |
@@ -139,9 +112,9 @@ jobs:
           [ ! -f ${{ env.SOURCE_DIR}}/common-publish-release.yml ]                    || mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }}
           [ ! -f ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ]               || mv ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ${{ env.TARGET_DIR }}/stage-release-branch.${{ env.FILE_TYPE }}
           [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ]  || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ]            || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }}
           [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ]         || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ]              || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'deploy.yml')}} == true ]            || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }}
+          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'test.yml')}} == true ]                || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }}
 
       - name: Move relevant github actions in place (if exist)
         if: env.PROJECT_TYPE == 'unknown'
@@ -151,6 +124,11 @@ jobs:
           [ ! -f ${{ env.SOURCE_DIR}}/common-publish-release.yml ]                    || mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }}
           [ ! -f ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ]               || mv ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ${{ env.TARGET_DIR }}/stage-release-branch.${{ env.FILE_TYPE }}
           [ ! -f ${{ env.SOURCE_DIR}}/common-sonarqube.yml ]                          || mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
+
+      - name: Move manual workflow templates in place (if not present)
+        run: |
+          [ -f ${{env.TARGET_DIR}}/test.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'test.yml')}} != true  ]      || mv ${{ env.SOURCE_DIR}}/common-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }}
+          [ -f ${{env.TARGET_DIR}}/deploy.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'deploy.yml')}} != true ]   || mv ${{ env.SOURCE_DIR}}/common-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }}
 
       - name: Find and delete release-section in README
         run: sed -i '/<\!--- release-section/,/<\!--- release-section-end --->/ d' target/README.md
@@ -172,6 +150,6 @@ jobs:
         with:
           branch: ${{ env.BRANCH_NAME }}
           directory: ${{ env.TARGET_DIR }}
-          empty: true
+          empty: false
           github_token: ${{ secrets.CI_PAT }}
           message: "build: auto-update of GitHub actions [skip ci]"
