@@ -1,0 +1,344 @@
+###
+#
+# This file is a MANUAL WORKFLOW, please change this custom workflow to your needs.
+# This file will NOT be auto-updated by the auto-update action if MANUAL_WORKFLOWS=[] contains 'deploy.yml'.
+# More info: https://innio.atlassian.net/wiki/spaces/JHJAL/pages/2146009473/How+to+release+a+micro+service+using+Github
+#
+#
+# GitHub action that builds a docker container and deploys it to AWS ECR.
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Daniel Hons, Nikolaus Krismer
+###
+name: Build and deploy
+
+on:
+  push:
+    branches: [develop, bugfix/**, hotfix/**]
+  #    tags:
+  #      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
+  #      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
+  release:
+    types:
+      - released
+      - prereleased
+
+jobs:
+  buildAndDeploy:
+    name: "Job: Build and deploy"
+    runs-on: [self-hosted, linux]
+    concurrency:
+      group: "deploy_${{ github.ref }}"
+      cancel-in-progress: false
+
+    # strategy:
+    #   matrix:
+    #     java-version: [11]
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v3
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v2
+        with:
+          fail: true
+          files: ".github/workflow-config.env"
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: ".github/workflow-config.env"
+
+      - name: Checkout github actions repository
+        uses: actions/checkout@v3
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.6.1
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Check setting file existence
+        id: check_settings_file
+        if: env.COMPONENT_NAME == 'auto'
+        uses: andstor/file-existence-action@v2
+        with:
+          fail: false
+          files: "settings.gradle"
+
+      - name: Set env 'COMPONENT_NAME' (settings are present)
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
+        run: echo COMPONENT_NAME="$(grep 'rootProject.name' settings.gradle | cut -d '=' -f 2 | tr -d '\r' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+
+      - name: Set env 'COMPONENT_NAME' (no settings found)
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'false'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'DOCKER_TAG_PREFIX'
+        if: env.DOCKER_TAG_PREFIX == 'auto'
+        run: echo DOCKER_TAG_PREFIX="${COMPONENT_NAME}_" >> ${GITHUB_ENV}
+
+      - name: Set env 'SHA'
+        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
+
+      - name: Set env 'TAG' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo TAG="${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'VERSION' to SHA (for untagged deployments)
+        if: startsWith(github.ref, 'refs/tags/') == false
+        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
+
+      - name: Set 'VERSION' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Determine latest (pre-)release
+        id: latest_release
+        uses: InsonusK/get-latest-release@v1.0.1
+        with:
+          myToken: ${{ github.token }}
+          view_top: 1
+
+      - name: Set env 'IS_AUTO_RELEASE' (a.k.a release triggered by tag)
+        run: echo IS_AUTO_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name != env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on auto release)
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_PRERELEASE=${{ contains(env.TAG, '-') == true }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on auto release)
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_RELEASE=${{ contains(env.TAG, '-') == false && startsWith(github.ref, 'refs/tags/') }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - tag based)
+        if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+        run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on manual release - tag based)
+        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+        run: echo IS_PRERELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'true' }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on manual release - tag based)
+        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+        run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'false' }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - release based)
+        if: github.event_name == 'release'
+        run: echo IS_MANUAL_RELEASE=true >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on manual release - release based)
+        if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
+        run: echo IS_PRERELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == true }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on manual release - release based)
+        if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
+        run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
+
+      - name: Initialize 'DEPLOY_TARGETS'
+        run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
+
+      - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
+        if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
+        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+
+      - name: Set env 'DEPLOY_TARGETS' pre-release
+        if: env.IS_PRERELEASE == 'true' && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
+        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+
+      - name: Set env 'DEPLOY_TARGETS' for release
+        if: env.IS_RELEASE == 'true' &&  env.RELEASE_DEPLOY_TARGET != 'none'
+        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+
+      - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
+        if: env.BRANCH_NAME == 'master'
+        run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
+
+      - name: Log details
+        run: |
+          echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "DEPLOY_TARGETS: ${{ env.DEPLOY_TARGETS }}"
+          echo "DEPLOYMENT_REPO: ${{ env.DEPLOYMENT_REPO }}"
+          echo "DOCKER_TAG_PREFIX: ${{ env.DOCKER_TAG_PREFIX }}"
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "IS_AUTO_RELEASE: ${{ env.IS_AUTO_RELEASE }}"
+          echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
+          echo "IS_PRERELEASE: ${{ env.IS_PRERELEASE }}"
+          echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
+          echo "TAG: ${{ env.TAG }}"
+          echo "VERSION: ${{ env.VERSION }}"
+
+      - name: Create new pre-release
+        if: env.IS_AUTO_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          token: "${{ secrets.GITHUB_TOKEN }}"
+          allowUpdates: true
+          draft: false
+          prerelease: true
+
+      - name: Create new release
+        if: env.IS_AUTO_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          token: "${{ secrets.GITHUB_TOKEN }}"
+          allowUpdates: true
+          draft: false
+          prerelease: false
+
+      ###
+      #
+      #  Implement your own deploy file from here
+      #
+      ###
+
+      - name: Throw unimplemented workflow exception (delete this step)
+        run: exit 1 "Please implement this deploy.yml file to your needs"
+
+      # - name: Prepare gradle properties
+      #   run: printf "\n$GRADLE_PROPS" >> gradle.properties
+      #   env:
+      #     GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
+
+      # - name: Prepare java ${{ matrix.java-version }}
+      #   uses: actions/setup-java@v3
+      #   with:
+      #     distribution: "adopt"
+      #     java-version: ${{ matrix.java-version }}
+
+      # - name: Validate gradle wrapper
+      #   uses: gradle/wrapper-validation-action@v1
+
+      # - name: Grant execute permission for gradlew
+      #   run: chmod +x ./gradlew
+
+      - name: Configure AWS credentials (to enable test to download containers)
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: aws-login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Configure AWS credentials
+        if: env.GRADLE_DEPLOY_TASK != 'none'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
+          aws-region: us-east-1
+
+      - name: Check docker registry
+        id: check-docker-registry
+        if: env.GRADLE_DEPLOY_TASK != 'none'
+        uses: ./.github/actions/check-docker-registry
+        with:
+          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
+          version: ${{ env.VERSION }}
+          sha: ${{ env.SHA }}
+
+      # - name: Build with gradle (incl. test)
+      #   if: steps.check-docker-registry.outputs.imageExists == 'false' || env.GRADLE_DEPLOY_TASK == 'none'
+      #   uses: gradle/gradle-build-action@v2
+      #   with:
+      #     arguments: ${{ env.GRADLE_BUILD_TASK }} -Pversion=${{ env.VERSION }}
+
+      # - name: Determine number of gradle (sub)projects
+      #   id: gradle-project-stats
+      #   if: failure()
+      #   run: echo "project-count=$(./gradlew tasks --all | grep ':assemble' | cut -d ':' -f 1 | wc -l)" >> ${GITHUB_OUTPUT}
+
+      # - name: Compress and upload test report folders
+      #   if: failure() && steps.gradle-project-stats.outputs.project-count == '0'
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: test-result
+      #     path: "build/reports/tests"
+
+      # - name: Compress test report folders (for multirepo)
+      #   if: failure() && steps.gradle-project-stats.outputs.project-count != '0'
+      #   run: |
+      #     folders=$(./gradlew tasks --all | grep ':assemble' | cut -d ':' -f 1 | sort -u | sed 's#$#/build/reports/tests#' | xargs)
+      #     zip -qq -r test-results.zip $(echo ${folders})
+
+      # - name: Upload test results (for multirepo)
+      #   if: failure() && steps.gradle-project-stats.outputs.project-count != '0'
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: test-result
+      #     path: test-results.zip
+
+      # - name: Build and push docker image
+      #   if: steps.check-docker-registry.outputs.imageExists == 'false' && env.GRADLE_DEPLOY_TASK != 'none'
+      #   uses: gradle/gradle-build-action@v2
+      #   with:
+      #     arguments: ${{ env.GRADLE_DEPLOY_TASK }} -Pversion=${{ env.VERSION }}
+
+      - name: Deploy Service
+        if: env.DEPLOY_TARGETS != 'none' && env.GRADLE_DEPLOY_TASK != 'none'
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.CI_PAT }}
+          repository: myplant-io/ci-deploy-action
+          event-type: deploy
+          client-payload: '{
+            "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
+            "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
+            "version": "${{ env.VERSION }}",
+            "component_name": "${{ env.COMPONENT_NAME }}",
+            "deployment_files": ${{ env.DEPLOY_TARGETS }},
+            "git_sha": "${{ env.SHA }}",
+            }'
+
+      # - name: Publish artifacts to nexus repo
+      #   if: env.GRADLE_PUBLISH_TASK != 'none' && (env.GRADLE_PUBLISH_SHA == 'true' || startsWith(github.ref, 'refs/tags/'))
+      #   uses: gradle/gradle-build-action@v2
+      #   with:
+      #     arguments: ${{ env.GRADLE_PUBLISH_TASK }} -Pversion=${{ env.VERSION }}
+
+      - name: Merging release changes to master
+        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "commitish": "${{ github.event.release.target_commitish }}",
+            "source_branch": "${{ env.BRANCH_NAME }}",
+            "target_branch": "master",
+            "tag": "${{ env.TAG }}"
+            }'
+
+      # target_commitish can be "develop" for releases that are solely based on tags
+      - name: Merging release changes to master (not using develop commitish, but tag ref)
+        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "source_branch": "${{ env.BRANCH_NAME }}",
+            "target_branch": "master",
+            "tag": "${{ env.TAG }}"
+            }'
