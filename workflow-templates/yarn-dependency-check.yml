@@ -110,7 +110,7 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Install dependencies (if not previously cached)
-        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' }}
+        if: steps.node_modules-cache.outputs.cache-hit != 'true'
         run: yarn install --frozen-lockfile --ignore-optional
 
       - name: Install yarn-add-no-save (if not already installed)

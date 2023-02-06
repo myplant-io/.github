@@ -123,7 +123,7 @@ jobs:
           restore-keys: ${{ runner.os }}-yarn-
 
       - name: Install dependencies (if not previously cached)
-        #        if: ${{ steps.yarn-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
+        # if: steps.yarn-cache.outputs.cache-hit != 'true'
         run: yarn install --immutable
 
       - name: Determine if config needs to be generated
@@ -167,7 +167,3 @@ jobs:
           -Dsonar.exclusions="**/__generated__/**, **/__mocks__/**, **/__tests__/**"
           -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
           -Dsonar.qualitygate.wait=true
-
-      - name: Restore full-cache (for next build)
-        if: always()
-        run: yarn build:unshrink
