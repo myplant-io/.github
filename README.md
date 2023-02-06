@@ -6,6 +6,67 @@ Shared workflow templates (for github actions).
 To learn why this is the case, have a look at the following issue:
 https://github.com/github/roadmap/issues/98
 
+## Auto update Github Actions
+
+This repository provides an auto-update.yml-action that installs/updates common workflows. Dependabot automatically creates pull requests if there are changes in this repository.
+
+Auto-update features:
+
+- Install generalized workflows based on `workflow-config.env` (through Dependabot or `dispatch_workflow`)
+- Updates target repository's `Readme.md` with CI/CD section
+- Allows dependabot to create pull request with changes in generalized workflows, such that all repositories in myPlant share the same workflows (also in the future)
+- \[TODO\] Support for custom workflow files that implements myPlant's release flow
+
+## Installation
+
+Install the common-auto-update.yml into your repository (Use a feature branch). Example in cli (requires git, gh, curl), but also works on [github.com/myplant-io](https://github.com/myplant-io)
+
+1. Create feature branch
+
+```
+git branch feat/install-auto-update develop
+git checkout feat/install-auto-update
+git push --set-upstream origin feat/install-auto-update
+```
+
+2. Create `workflow-config.env` file in the `{{TARGET_REPOSITORY}}/.github/` folder
+
+yarn:
+
+```
+curl https://raw.githubusercontent.com/myplant-io/.github/master/env-templates/yarn-workflow-config.env --output ./.github/workflow-config.env
+```
+
+yarn2:
+
+```
+curl https://raw.githubusercontent.com/myplant-io/.github/master/env-templates/yarn2-workflow-config.env --output ./.github/workflow-config.env
+```
+
+gradle:
+
+```
+curl https://raw.githubusercontent.com/myplant-io/.github/master/env-templates/gradle-workflow-config.env --output ./.github/workflow-config.env
+```
+
+3. Install common-auto-update.yml through `{{TARGET_REPOSITORY}}/new/feat/install-auto-update/?filename=.github%2Fworkflows%2Fauto-update.yml&workflow_template=workflow-templates%2Fcommon-auto-update`
+
+```
+python -m webbrowser "$(gh repo view --json url --template '{{.url}}')/new/feat/install-auto-update/?filename=.github%2Fworkflows%2Fauto-update.yml&workflow_template=workflow-templates%2Fcommon-auto-update"
+```
+
+4. Dispatch auto-update workflow (workflow_run) in the `feat/install-auto-update` branch
+
+```
+gh workflow run auto-update.yml -r feat/install-auto-update
+```
+
+5. Create PR `feat/install-auto-update` -> `develop` and review changes.
+
+```
+gh pr create --base develop
+```
+
 ## GitHub dependabot configuration
 
 It is recommended to enable a dependabot for checking on new version of the
@@ -38,11 +99,12 @@ updates:
 ## Noteworthy
 
 Next to the workflow files itself (e.g. _.github/gradle-deploy.yml_) you will
-need a _.github/workflow-config.env_ file for the actions to work.
+need a _.github/workflow-config.env_ file for the actions to work. See [env-templates](https://github.com/myplant-io/.github/tree/master/env-templates/)
 
 Here is an example workflow configuration file:
 
 ```
+PROJECT_TYPE=gradle
 COMPONENT_NAME=auto
 DEPLOYMENT_REPO=myplant-io/deployment
 DOCKER_TAG_PREFIX=auto
