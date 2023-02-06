@@ -64,6 +64,14 @@ jobs:
         env:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
+      - name: Create/restore cache for webpack
+        uses: actions/cache@v3
+        id: webpack-cache
+        with:
+          path: ".cache"
+          key: ${{ runner.os }}-webpack-${{ env.VERSION }}
+          restore-keys: ${{ runner.os }}-webpack-
+
       - name: Create/restore cache for yarn
         uses: actions/cache@v3
         id: yarn-cache
@@ -88,3 +96,7 @@ jobs:
 
       - name: Run tests
         run: yarn test
+
+      - name: Restore full-cache (for next build)
+        if: always()
+        run: yarn build:unshrink

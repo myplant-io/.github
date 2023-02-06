@@ -107,28 +107,28 @@ jobs:
       - name: Move relevant github actions in place (if exist)
         if: env.PROJECT_TYPE != 'unknown'
         run: |
-          [ ! -f ${{ env.SOURCE_DIR}}/common-merge.yml ]                              || mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ]                || mv ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ${{ env.TARGET_DIR }}/publish-pre-release.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/common-publish-release.yml ]                    || mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ]               || mv ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ${{ env.TARGET_DIR }}/stage-release-branch.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ]  || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ]         || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'deploy.yml')}} == true ]            || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'test.yml')}} == true ]                || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ${{ env.TARGET_DIR }}/publish-pre-release.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ${{ env.TARGET_DIR }}/stage-release-branch.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }} 2>/dev/null || :
+          [ ${{contains(env.MANUAL_WORKFLOWS, 'deploy.yml')}} == true ] || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }} 2>/dev/null || :
+          [ ${{contains(env.MANUAL_WORKFLOWS, 'test.yml')}} == true ]   || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }} 2>/dev/null || :
 
       - name: Move relevant github actions in place (if exist)
         if: env.PROJECT_TYPE == 'unknown'
         run: |
-          [ ! -f ${{ env.SOURCE_DIR}}/common-merge.yml ]                              || mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ]                || mv ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ${{ env.TARGET_DIR }}/publish-pre-release.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/common-publish-release.yml ]                    || mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ]               || mv ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ${{ env.TARGET_DIR }}/stage-release-branch.${{ env.FILE_TYPE }}
-          [ ! -f ${{ env.SOURCE_DIR}}/common-sonarqube.yml ]                          || mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ${{ env.TARGET_DIR }}/publish-pre-release.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ${{ env.TARGET_DIR }}/stage-release-branch.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }} 2>/dev/null || :
 
       - name: Move manual workflow templates in place (if not present)
         run: |
-          [ -f ${{env.TARGET_DIR}}/test.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'test.yml')}} != true  ]      || mv ${{ env.SOURCE_DIR}}/common-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }}
-          [ -f ${{env.TARGET_DIR}}/deploy.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'deploy.yml')}} != true ]   || mv ${{ env.SOURCE_DIR}}/common-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }}
+          [ -f ${{env.TARGET_DIR}}/test.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'test.yml')}} != true  ]      || mv ${{ env.SOURCE_DIR}}/common-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }} 2>/dev/null || :
+          [ -f ${{env.TARGET_DIR}}/deploy.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'deploy.yml')}} != true ]   || mv ${{ env.SOURCE_DIR}}/common-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }} 2>/dev/null || :
 
       - name: Find and delete release-section in README
         run: sed -i '/<\!--- release-section/,/<\!--- release-section-end --->/ d' target/README.md

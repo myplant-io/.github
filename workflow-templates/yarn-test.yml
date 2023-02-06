@@ -87,3 +87,7 @@ jobs:
 
       - name: Run tests
         run: yarn test
+
+      - name: Restore full-cache (for next build)
+        if: always()
+        run: yarn build:unshrink
