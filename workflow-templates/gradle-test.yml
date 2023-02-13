@@ -110,6 +110,14 @@ jobs:
         with:
           arguments: ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}
 
+      - name: Test reporting
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: Test Report
+          path: "**/build/test-results/test/TEST-*.xml"
+          reporter: java-junit
+
       - name: Determine number of gradle (sub)projects
         id: gradle-project-stats
         if: failure()
