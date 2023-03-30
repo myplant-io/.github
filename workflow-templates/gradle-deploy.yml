@@ -28,10 +28,6 @@ jobs:
       group: "deploy_${{ github.ref }}"
       cancel-in-progress: false
 
-    strategy:
-      matrix:
-        java-version: [11]
-
     steps:
       - name: Set git to use LF
         run: |
@@ -204,17 +200,20 @@ jobs:
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
-      - name: Prepare java ${{ matrix.java-version }}
-        uses: actions/setup-java@v3
-        with:
-          distribution: "adopt"
-          java-version: ${{ matrix.java-version }}
-
       - name: Validate gradle wrapper
         uses: gradle/wrapper-validation-action@v1
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
+
+      - name: Get java version from gradle
+        run: echo "JAVA_VERSION=$(./gradlew -q javaVersion | tail -n 1)" >> ${GITHUB_ENV}
+
+      - name: Prepare java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: "adopt"
+          java-version: ${{ env.JAVA_VERSION }}
 
       - name: Configure AWS credentials (to enable test to download containers)
         uses: aws-actions/configure-aws-credentials@v2
