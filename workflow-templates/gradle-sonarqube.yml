@@ -138,4 +138,4 @@ jobs:
               -Dsonar.pullrequest.branch=${{ github.head_ref }}
               -Dsonar.pullrequest.key=${{ github.event.number }}
               -Dsonar.qualitygate.wait=true
-              -Dsonar.java.source=${JAVA_VERSION}
+              -Dsonar.java.source=${{ env.JAVA_VERSION }}
