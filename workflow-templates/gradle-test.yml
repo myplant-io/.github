@@ -13,12 +13,12 @@ on:
   pull_request_target:
     branches: [develop, release/**, bugfix/**, hotfix/**]
     paths-ignore:
-      - ".github/workflows/*auto-update*"
+      - '.github/workflows/*auto-update*'
   workflow_dispatch:
 
 jobs:
   testAndValidate:
-    name: "Job: Test and validate"
+    name: 'Job: Test and validate'
     runs-on: [self-hosted, linux]
 
     steps:
@@ -46,12 +46,12 @@ jobs:
         uses: andstor/file-existence-action@v2
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Set env 'SHA'
         if: startsWith(github.event_name , 'pull_request') == false
@@ -90,7 +90,7 @@ jobs:
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v3
         with:
-          distribution: "adopt"
+          distribution: 'adopt'
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Configure AWS credentials (to enable test to download containers)
@@ -114,7 +114,7 @@ jobs:
         if: success() || failure()
         with:
           name: Test Report
-          path: "**/build/test-results/test/TEST-*.xml"
+          path: '**/build/test-results/test/TEST-*.xml'
           reporter: java-junit
 
       - name: Determine number of gradle (sub)projects
@@ -127,7 +127,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-result
-          path: "build/reports/tests"
+          path: 'build/reports/tests'
 
       - name: Compress test report folders (for multirepo)
         if: failure() && steps.gradle-project-stats.outputs.project-count != '0'

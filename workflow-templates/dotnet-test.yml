@@ -13,17 +13,17 @@ on:
   pull_request_target:
     branches: [develop, release/**, bugfix/**, hotfix/**]
     paths-ignore:
-      - ".github/workflows/*auto-update*"
+      - '.github/workflows/*auto-update*'
   workflow_dispatch:
 
 jobs:
   test:
-    name: "Job: Test (with dotnet directly)"
+    name: 'Job: Test (with dotnet directly)'
     runs-on: [self-hosted, linux]
 
     strategy:
       matrix:
-        dotnet-version: ["5.0.x"]
+        dotnet-version: ['5.0.x']
 
     steps:
       - name: Set git to use LF
@@ -50,12 +50,12 @@ jobs:
         uses: andstor/file-existence-action@v2
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'

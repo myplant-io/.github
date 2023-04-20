@@ -13,7 +13,7 @@ on:
   pull_request:
     branches: [develop]
     paths-ignore:
-      - ".github/workflows/*auto-update*"
+      - '.github/workflows/*auto-update*'
   push:
     branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
   repository_dispatch:
@@ -22,11 +22,11 @@ on:
 
 jobs:
   sonarqube:
-    name: "Job: Sonarqube"
+    name: 'Job: Sonarqube'
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: [self-hosted, linux]
     concurrency:
-      group: "sonarqube_${{ github.ref }}"
+      group: 'sonarqube_${{ github.ref }}'
       cancel-in-progress: true
 
     steps:
@@ -47,18 +47,18 @@ jobs:
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
-          ref: "${{ github.event.client_payload.branch }}"
+          ref: '${{ github.event.client_payload.branch }}'
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v2
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'

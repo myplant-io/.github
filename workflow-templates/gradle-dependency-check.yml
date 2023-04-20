@@ -12,7 +12,7 @@ name: Dependency check
 on:
   schedule:
     # at 00:00 every sunday (on the default branch - develop)
-    - cron: "0 0 * * SUN"
+    - cron: '0 0 * * SUN'
   push:
     branches: [main, master]
   repository_dispatch:
@@ -21,10 +21,10 @@ on:
 
 jobs:
   dependencyCheck:
-    name: "Job: Dependency check"
+    name: 'Job: Dependency check'
     runs-on: [self-hosted, linux]
     concurrency:
-      group: "dependencyCheck_${{ github.ref }}"
+      group: 'dependencyCheck_${{ github.ref }}'
       cancel-in-progress: true
 
     steps:
@@ -45,18 +45,18 @@ jobs:
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
-          ref: "${{ github.event.client_payload.branch }}"
+          ref: '${{ github.event.client_payload.branch }}'
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v2
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Checkout github actions repository
         uses: actions/checkout@v3
@@ -72,7 +72,7 @@ jobs:
         uses: andstor/file-existence-action@v2
         with:
           fail: false
-          files: "settings.gradle"
+          files: 'settings.gradle'
 
       - name: Set env 'COMPONENT_NAME' (settings are present)
         if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
@@ -124,7 +124,7 @@ jobs:
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v3
         with:
-          distribution: "adopt"
+          distribution: 'adopt'
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Dependency check with gradle
@@ -144,13 +144,13 @@ jobs:
         with:
           if-no-files-found: error
           name: SBOM
-          path: "build/reports/bom.xml"
+          path: 'build/reports/bom.xml'
 
       - name: Publish dependency check result to tracker
         id: upload-dependency-track
         uses: ./.github/actions/upload-dependency-track
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          bomfilename: "build/reports/bom.xml"
+          bomfilename: 'build/reports/bom.xml'
           projectname: ${{ env.COMPONENT_NAME }}
           projectversion: ${{ env.BRANCH_NAME }}

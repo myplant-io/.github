@@ -8,15 +8,15 @@ name: Update GitHub actions
 on:
   pull_request_target:
     paths:
-      - ".github/workflows/*auto-update*"
+      - '.github/workflows/*auto-update*'
 
 jobs:
   updateGitHubActions:
-    name: "Job: Update GH actions"
+    name: 'Job: Update GH actions'
     if: ${{ github.actor == 'dependabot[bot]' }}
     runs-on: [self-hosted, linux]
     concurrency:
-      group: "update_${{ github.ref }}"
+      group: 'update_${{ github.ref }}'
       cancel-in-progress: false
 
     steps:
@@ -141,4 +141,4 @@ jobs:
           directory: ${{ env.TARGET_DIR }}
           empty: true
           github_token: ${{ secrets.CI_PAT }}
-          message: "build: auto-update of GitHub actions [skip ci]"
+          message: 'build: auto-update of GitHub actions [skip ci]'
