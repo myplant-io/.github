@@ -130,9 +130,9 @@ jobs:
           path: npm-audit.html
 
       # needs to be added by hand for now
-      #      - name: Install @appthreat/cdxgen
-      #        run: yarn add-no-save "@appthreat/cdxgen"@^5.0.0 --ignore-optional
-      # or:       run: yarn add --dev "@appthreat/cdxgen"@^5.0.0
+      #      - name: Install @cyclonedx/cdxgen
+      #        run: yarn add-no-save @cyclonedx/cdxgen --ignore-optional
+      # or:       run: yarn add --dev @cyclonedx/cdxgen
 
       - name: Create SBOM using cyclonedx
         run: yarn cdxgen --output bom.xml

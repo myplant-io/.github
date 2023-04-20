@@ -130,8 +130,8 @@ jobs:
           name: audit-report
           path: yarn-audit.html
 
-      - name: Install @appthreat/cdxgen
-        run: yarn add-no-save "@appthreat/cdxgen"@^5.0.0 --ignore-optional
+      - name: Install @cyclonedx/cdxgen
+        run: yarn add-no-save @cyclonedx/cdxgen --ignore-optional
 
       - name: Create SBOM using cyclonedx
         run: yarn run --no-install cdxgen --output bom.xml
