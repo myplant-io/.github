@@ -131,7 +131,7 @@ jobs:
 
       # needs to be added by hand for now
       #      - name: Install @cyclonedx/cdxgen
-      #        run: yarn add-no-save @cyclonedx/cdxgen --ignore-optional
+      #        run: yarn add-no-save @cyclonedx/cdxgen
       # or:       run: yarn add --dev @cyclonedx/cdxgen
 
       - name: Create SBOM using cyclonedx
