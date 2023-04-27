@@ -84,6 +84,9 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Prepare gradle
+        uses: gradle/gradle-build-action@v2
+
       - name: Get java version from gradle
         run: echo "JAVA_VERSION=$(./gradlew -q javaVersion | tail -n 1)" >> ${GITHUB_ENV}
 
