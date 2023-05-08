@@ -88,7 +88,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
 
       - name: Get java version from gradle
-        run: echo "JAVA_VERSION=$(./gradlew -q javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
+        run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v3
