@@ -1,25 +1,27 @@
 ###
-# GitHub action that runs tests on the code.
+# GitHub action that creates a Software-Bill-of-Material (SBOM) and pushes the
+# result to the myplant dependency tracker (dependency-dev.myplant.io).
 #
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
 #
 # Created by: Nikolaus Krismer
 ###
-name: Test (with dotnet directly)
+name: Dependency-Tracker (with dotnet directly)
 
 on:
-  # see https://github.com/dependabot/dependabot-core/issues/3253 why this is pull_request_target and not pull_request
-  pull_request_target:
-    branches: [develop, release/**, bugfix/**, hotfix/**]
-    paths-ignore:
-      - '.github/workflows/*auto-update*'
+  schedule:
+    # at 00:00 every sunday (on the default branch - develop)
+    - cron: '0 0 * * SUN'
+  push:
+    branches: [main, master]
+  repository_dispatch:
+    types: [dependencyCheck]
   workflow_dispatch:
-
 jobs:
   test:
     name: 'Job: Test (with dotnet directly)'
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
@@ -57,9 +59,25 @@ jobs:
         with:
           envFile: '.github/workflow-config.env'
 
+      - name: Checkout github actions repository
+        uses: actions/checkout@v3
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.6.1
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME'
+        if: github.event_name != 'repository_dispatch'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
 
       - name: Log details
         run: |
@@ -77,8 +95,32 @@ jobs:
       - name: Install dependencies
         run: dotnet restore
 
-      - name: Test code
+      - name: Build code
         run: |
-          dotnet test "${{ env.COMPONENT_NAME }}/${{ env.COMPONENT_NAME }}.csproj" \
+          dotnet build "${{ env.COMPONENT_NAME }}/${{ env.COMPONENT_NAME }}.csproj" \
             --no-restore \
-            --verbosity normal
+            --verbosity normal \
+            --output buildOutput
+
+      - name: CycloneDX .NET Generate SBOM
+        uses: CycloneDX/gh-dotnet-generate-sbom@v1.0.1
+        with:
+          path: '${{ env.COMPONENT_NAME }}.sln'
+          github-bearer-token: ${{ secrets.CI_PAT }}
+
+      - name: Upload SBOM artifact
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
+        uses: actions/upload-artifact@v3
+        with:
+          if-no-files-found: error
+          name: SBOM
+          path: './bom.xml'
+
+      - name: Publish dependency check result to tracker
+        id: upload-dependency-track
+        uses: ./.github/actions/upload-dependency-track
+        with:
+          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          bomfilename: './bom.xml'
+          projectname: ${{ env.COMPONENT_NAME }}
+          projectversion: ${{ env.BRANCH_NAME }}

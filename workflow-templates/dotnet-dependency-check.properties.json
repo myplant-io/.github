@@ -1,0 +1,7 @@
+{
+  "name": "Dependency-track integration",
+  "description": "Integration with dependency-dev.myplant.io for dotnet/csharp projects",
+  "iconName": "icon-dependency-track",
+  "categories": ["csharp"],
+  "filePatterns": ["*.sln", "*.csproj"]
+}
