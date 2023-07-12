@@ -60,7 +60,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: myplant-io/github-actions
-          ref: v0.6.1
+          ref: v0.6.2
           token: ${{ secrets.CI_PAT }}
           path: .github/actions
 
@@ -94,9 +94,6 @@ jobs:
         with:
           myToken: ${{ github.token }}
           view_top: 1
-
-      - name: Set env 'IS_AUTO_RELEASE' (a.k.a release triggered by tag)
-        run: echo IS_AUTO_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name != env.TAG }} >> ${GITHUB_ENV}
 
       - name: Set env 'IS_PRERELEASE' (on auto release)
         if: env.IS_AUTO_RELEASE == 'true'
@@ -139,7 +136,6 @@ jobs:
           echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "IS_AUTO_RELEASE: ${{ env.IS_AUTO_RELEASE }}"
           echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
           echo "IS_PRERELEASE: ${{ env.IS_PRERELEASE }}"
           echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
@@ -147,23 +143,59 @@ jobs:
           echo "VERSION: ${{ env.VERSION }}"
           echo "MY_VERSION: ${{ env.MY_VERSION }}"
 
-      - name: Create new pre-release
-        if: env.IS_AUTO_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
-        uses: ncipollo/release-action@v1
-        with:
-          token: "${{ secrets.GITHUB_TOKEN }}"
-          allowUpdates: true
-          draft: false
-          prerelease: true
+      - name: Find Version Infos
+        id: versioning
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        env: 
+          IS_PRERELEASE: ${{ env.IS_RELEASE }}
+        shell: bash
+        run: |
+            branchTag=$(git describe --tags)
 
-      - name: Create new release
-        if: env.IS_AUTO_RELEASE == 'true' && env.IS_RELEASE == 'true'
-        uses: ncipollo/release-action@v1
+            [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
+
+            # if there is no prior release, this will be the first one, set the ref to the initial commit to build the first release
+            lastRelTag=$(git tag -l | grep -v "${branchTag}" | grep -v ".*-.*" | tail -n 1) || lastRelTag=$(git rev-list --max-parents=0 HEAD)
+            lastTag=$(git tag -l | grep -vx "${branchTag}" | tail -n 1)
+            shaShort="$(echo ${GITHUB_SHA} | cut -c1-7)"
+
+            echo "::set-output name=sha::$shaShort"
+            echo "::set-output name=lastRelTag::$lastRelTag"
+            echo "::set-output name=relTag::$branchTag"
+            echo "::set-output name=version::${branchTag#v}"
+            echo "::set-output name=last-version::${lastTag#v}"
+
+            if ${IS_RELEASE}; then
+              echo "::set-output name=buildFromTag::$lastRelTag"
+            else
+              echo "::set-output name=buildFromTag::"
+            fi;
+
+      - name: Build changelog on manual release
+        id: build_changelog
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        uses: mikepenz/release-changelog-builder-action@v4.0.0-b02
         with:
-          token: "${{ secrets.GITHUB_TOKEN }}"
-          allowUpdates: true
-          draft: false
-          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          outputFile: release_changelog.md
+          fromTag: ${{ steps.versioning.outputs.buildFromTag }}
+          toTag: ${{ steps.versioning.outputs.relTag }}
+
+      - name: Enhance changelog
+        id: enhance_changelog
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        shell: bash
+        run: |
+          sed -i "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g" release_changelog.md
+
+      - name: Update Release
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        uses: tubone24/update_release@v1.3.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ env.TAG }}
+        with:
+          body_path: release_changelog.md
 
       - name: Prepare dotnet environment
         uses: actions/setup-dotnet@v3
