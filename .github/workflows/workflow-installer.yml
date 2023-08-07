@@ -1,0 +1,121 @@
+name: "Workflow installer"
+run-name: "Workflow installer"
+env:
+  INPUT-TYPE: None
+on:
+  workflow_dispatch:
+    inputs:
+      auto-detect:
+        required: true
+        type: boolean
+        default: true
+        description: Auto-detects project type for already existing repositories
+      type:
+        required: false
+        type: choice
+        options:
+          - "gradle"
+          - "yarn"
+          - "yarn2"
+          - "dotnet"
+        description: Manually choose a project type
+      repository:
+        required: true
+        type: string
+        description: Target repository name (without myplant.io/)
+
+jobs:
+  install:
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git workflow repository
+        uses: actions/checkout@v3
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+          path: source
+
+      - name: checkout github target repo
+        uses: actions/checkout@v3
+        with:
+          repository: myplant-io/${{ inputs.repository }}
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+          token: ${{ secrets.CI_PAT }}
+          path: target
+
+      - name: project auto-detection
+        id: project-auto-detection
+        if: inputs.auto-detect == 'true'
+        shell: bash
+        run: |
+            if [[ -f "build.gradle" || -f "build.gradle.kts" ]]; then
+              if [[ -f "package.json" ]]; then
+                echo "gradle project contains package.json"
+                exit 1
+              else
+                echo "Gradle project detected"
+                echo INPUT-TYPE=gradle >> ${GITHUB_ENV}
+              fi
+            elif [[ -f "yarn.lock" ]]; then
+              if [[ -f ".yarnrc" || -f ".npmrc" ]]; then
+                echo "Yarn project detected"
+                echo INPUT-TYPE=yarn >> ${GITHUB_ENV}
+              elif [[ -f ".yarnrc.yml" ]]; then
+                echo "Yarn2 project detected"
+                echo INPUT-TYPE=yarn2 >> ${GITHUB_ENV}
+              else
+                echo "cannot detect yarn version"
+                exit 1
+              fi
+            elif [[ -f "Program.cs" ]]; then
+              echo "Dotnet project detected"
+              echo INPUT-TYPE=dotnet >> ${GITHUB_ENV}
+            else
+              echo "could not detect project type"
+              exit 1
+            fi
+
+      - name: Create feature branch
+        if: env.INPUT-TYPE != 'None'
+        working-directory: target
+        run: |
+          git branch install-default-github-actions 2>/dev/null || :
+          git checkout install-default-github-actions
+          git push --set-upstream origin install-default-github-actions 2>/dev/null || :
+          git pull origin install-default-github-actions
+
+      - name: Move relevant github actions in place
+        if: env.INPUT-TYPE != 'None'
+        run: |
+          mkdir -p target/.github/workflows/
+          mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-deploy.yml target/.github/workflows/deploy.yml 2>/dev/null || :
+          mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-test.yml target/.github/workflows/test.yml 2>/dev/null || :
+          mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-sonarqube.yml target/.github/workflows/sonarqube.yml 2>/dev/null || :
+          mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-dependency-check.yml target/.github/workflows/dependency-check.yml 2>/dev/null || :
+          mv -f source/workflow-templates/common-auto-update.yml target/.github/workflows/common-auto-update.yml 2>/dev/null || :
+
+      - name: Commit and push changes
+        if: env.INPUT-TYPE != 'None'
+        uses: actions-js/push@v1.4
+        with:
+          branch: install-default-github-actions
+          directory: target
+          github_token: ${{ secrets.CI_PAT }}
+          message: "build: install of general GitHub workflows"
+
+      - name: Create Pull Request
+        if: env.INPUT-TYPE != 'None'
+        uses: peter-evans/create-pull-request@v5-beta
+        with:
+          title: Install of general GitHub workflows
+          token: ${{ secrets.CI_PAT }}
+          path: target
+          branch: install-default-github-actions
+          base: main
+          delete-branch: true
