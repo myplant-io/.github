@@ -111,7 +111,7 @@ jobs:
 
       - name: Create Pull Request
         if: env.INPUT-TYPE != 'None'
-        uses: peter-evans/create-pull-request@v5-beta
+        uses: peter-evans/create-pull-request@v5
         with:
           title: Install of general GitHub workflows
           token: ${{ secrets.CI_PAT }}
