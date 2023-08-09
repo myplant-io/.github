@@ -1,28 +1,32 @@
 name: "Workflow installer"
 run-name: "Workflow installer"
-env:
-  INPUT-TYPE: None
+
 on:
   workflow_dispatch:
     inputs:
       auto-detect:
         required: true
         type: boolean
-        default: 'true'
+        default: true
         description: Auto-detects project type for already existing repositories
       type:
         required: false
         type: choice
         options:
+          - "None"
           - "gradle"
           - "yarn"
           - "yarn2"
           - "dotnet"
-        description: Manually choose a project type
+        default: 'None'
+        description: Manually choose a project type (if not using auto detection)
       repository:
         required: true
         type: string
         description: Target repository name (without myplant.io/)
+
+env:
+  INPUT-TYPE: ${{ github.event.inputs.type || 'None' }}
 
 jobs:
   install:
@@ -51,7 +55,7 @@ jobs:
 
       - name: project auto-detection
         id: project-auto-detection
-        if: ${{ inputs.auto-detect == 'true' }}
+        if: inputs.auto-detect == true
         shell: bash
         run: |
             if [[ -f "build.gradle" || -f "build.gradle.kts" ]]; then
@@ -98,7 +102,7 @@ jobs:
           mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-test.yml target/.github/workflows/test.yml 2>/dev/null || :
           mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-sonarqube.yml target/.github/workflows/sonarqube.yml 2>/dev/null || :
           mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-dependency-check.yml target/.github/workflows/dependency-check.yml 2>/dev/null || :
-          mv -f source/workflow-templates/common-auto-update.yml target/.github/workflows/common-auto-update.yml 2>/dev/null || :
+          mv -f source/workflow-templates/common-auto-update.yml target/.github/workflows/auto-update.yml 2>/dev/null || :
 
       - name: Commit and push changes
         if: env.INPUT-TYPE != 'None'
