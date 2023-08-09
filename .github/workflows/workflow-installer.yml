@@ -55,6 +55,7 @@ jobs:
 
       - name: project auto-detection
         id: project-auto-detection
+        working-directory: ./target
         if: inputs.auto-detect == true
         shell: bash
         run: |
