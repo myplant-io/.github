@@ -111,6 +111,7 @@ jobs:
         uses: actions-js/push@v1.4
         with:
           branch: install-default-github-actions
+          repository: myplant-io/${{ inputs.repository }}
           directory: ./target
           github_token: ${{ secrets.CI_PAT }}
           message: "build: install of general GitHub workflows"
