@@ -100,10 +100,10 @@ jobs:
         if: env.INPUT_TYPE != 'auto-detect'
         working-directory: ./target
         run: |
-          git branch chore-install-default-github-actions 2>/dev/null || :
-          git checkout chore-install-default-github-actions
-          git push --set-upstream origin chore-install-default-github-actions 2>/dev/null || :
-          git pull origin chore-install-default-github-actions
+          git branch chore/install-default-github-actions 2>/dev/null || :
+          git checkout chore/install-default-github-actions
+          git push --set-upstream origin chore/install-default-github-actions 2>/dev/null || :
+          git pull origin chore/install-default-github-actions
 
       - name: Move relevant github actions in place
         if: env.INPUT_TYPE != 'auto-detect'
@@ -119,7 +119,7 @@ jobs:
         if: env.INPUT_TYPE != 'auto-detect'
         uses: actions-js/push@v1.4
         with:
-          branch: chore-install-default-github-actions
+          branch: chore/install-default-github-actions
           repository: myplant-io/${{ inputs.repository }}
           directory: ./target
           github_token: ${{ secrets.CI_PAT }}
@@ -132,6 +132,6 @@ jobs:
           title: "chore: install default github workflows"
           token: ${{ secrets.CI_PAT }}
           path: ./target
-          branch: chore-install-default-github-actions
+          branch: chore/install-default-github-actions
           base: develop
           delete-branch: true
