@@ -58,6 +58,7 @@ jobs:
               echo FILE_TYPE=$(ls .github/workflows/auto-update* |  tr . \\n | tail -n1) >> ${GITHUB_ENV}
             else
               echo FILE_TYPE=$(ls .github/workflows/ | head -n1 | tr . \\n | tail -n1) >> ${GITHUB_ENV}
+            fi
           else
             echo FILE_TYPE=yml >> ${GITHUB_ENV}
           fi
