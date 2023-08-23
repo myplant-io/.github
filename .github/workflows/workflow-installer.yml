@@ -4,29 +4,24 @@ run-name: "Workflow installer"
 on:
   workflow_dispatch:
     inputs:
-      auto-detect:
-        required: true
-        type: boolean
-        default: true
-        description: Auto-detects project type for already existing repositories
       type:
-        required: false
+        required: true
         type: choice
         options:
-          - "None"
+          - "auto-detection"
           - "gradle"
           - "yarn"
           - "yarn2"
           - "dotnet"
-        default: 'None'
-        description: Manually choose a project type (if not using auto detection)
+        default: 'auto-detection'
+        description: Choose a project type
       repository:
         required: true
         type: string
-        description: Target repository name (without myplant.io/)
+        description: Target repository name (without myplant-io/)
 
 env:
-  INPUT-TYPE: ${{ github.event.inputs.type || 'None' }}
+  INPUT_TYPE: ${{ github.event.inputs.type }}
 
 jobs:
   install:
@@ -54,10 +49,23 @@ jobs:
           token: ${{ secrets.CI_PAT }}
           path: target
 
+      - name: Determine file extensions for github action files
+        working-directory: ./target
+        shell: bash
+        run: |
+          if [[ -d .github/workflows ]]; then
+            if [[ -f .github/workflows/auto-update* ]]; then
+              echo FILE_TYPE=$(ls .github/workflows/auto-update* |  tr . \\n | tail -n1) >> ${GITHUB_ENV}
+            else
+              echo FILE_TYPE=$(ls .github/workflows/ | head -n1 | tr . \\n | tail -n1) >> ${GITHUB_ENV}
+          else
+            echo FILE_TYPE=yml >> ${GITHUB_ENV}
+          fi
+
       - name: project auto-detection
         id: project-auto-detection
         working-directory: ./target
-        if: inputs.auto-detect == true
+        if: env.INPUT_TYPE == 'auto-detection'
         shell: bash
         run: |
             if [[ -f "build.gradle" || -f "build.gradle.kts" ]]; then
@@ -66,29 +74,29 @@ jobs:
                 exit 1
               else
                 echo "Gradle project detected"
-                echo INPUT-TYPE=gradle >> ${GITHUB_ENV}
+                echo INPUT_TYPE=gradle >> ${GITHUB_ENV}
               fi
             elif [[ -f "yarn.lock" ]]; then
               if [[ -f ".yarnrc" || -f ".npmrc" ]]; then
                 echo "Yarn project detected"
-                echo INPUT-TYPE=yarn >> ${GITHUB_ENV}
+                echo INPUT_TYPE=yarn >> ${GITHUB_ENV}
               elif [[ -f ".yarnrc.yml" ]]; then
                 echo "Yarn2 project detected"
-                echo INPUT-TYPE=yarn2 >> ${GITHUB_ENV}
+                echo INPUT_TYPE=yarn2 >> ${GITHUB_ENV}
               else
                 echo "cannot detect yarn version"
                 exit 1
               fi
             elif [[ -f "Program.cs" ]]; then
               echo "Dotnet project detected"
-              echo INPUT-TYPE=dotnet >> ${GITHUB_ENV}
+              echo INPUT_TYPE=dotnet >> ${GITHUB_ENV}
             else
               echo "could not detect project type"
               exit 1
             fi
 
       - name: Create feature branch
-        if: env.INPUT-TYPE != 'None'
+        if: env.INPUT_TYPE != 'auto-detect'
         working-directory: ./target
         run: |
           git branch install-default-github-actions 2>/dev/null || :
@@ -97,17 +105,17 @@ jobs:
           git pull origin install-default-github-actions
 
       - name: Move relevant github actions in place
-        if: env.INPUT-TYPE != 'None'
+        if: env.INPUT_TYPE != 'auto-detect'
         run: |
           mkdir -p target/.github/workflows/
-          mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-deploy.yml target/.github/workflows/deploy.yml 2>/dev/null || :
-          mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-test.yml target/.github/workflows/test.yml 2>/dev/null || :
-          mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-sonarqube.yml target/.github/workflows/sonarqube.yml 2>/dev/null || :
-          mv -f source/workflow-templates/${{ env.INPUT-TYPE }}-dependency-check.yml target/.github/workflows/dependency-check.yml 2>/dev/null || :
-          mv -f source/workflow-templates/common-auto-update.yml target/.github/workflows/auto-update.yml 2>/dev/null || :
+          mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-deploy.yml target/.github/workflows/deploy.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-test.yml target/.github/workflows/test.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-sonarqube.yml target/.github/workflows/sonarqube.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-dependency-check.yml target/.github/workflows/dependency-check.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv -f source/workflow-templates/common-auto-update.yml target/.github/workflows/auto-update.${{ env.FILE_TYPE }} 2>/dev/null || :
 
       - name: Commit and push changes
-        if: env.INPUT-TYPE != 'None'
+        if: env.INPUT_TYPE != 'auto-detect'
         uses: actions-js/push@v1.4
         with:
           branch: install-default-github-actions
@@ -117,7 +125,7 @@ jobs:
           message: "build: install of general GitHub workflows"
 
       - name: Create Pull Request
-        if: env.INPUT-TYPE != 'None'
+        if: env.INPUT_TYPE != 'auto-detect'
         uses: peter-evans/create-pull-request@v5
         with:
           title: Install of general GitHub workflows
