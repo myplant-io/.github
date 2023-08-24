@@ -13,12 +13,12 @@ on:
   pull_request_target:
     branches: [develop, release/**, bugfix/**, hotfix/**]
     paths-ignore:
-      - ".github/workflows/*auto-update*"
+      - '.github/workflows/*auto-update*'
   workflow_dispatch:
 
 jobs:
   validateAndTest:
-    name: "Job: Validate and test"
+    name: 'Job: Validate and test'
     runs-on: [self-hosted, linux]
 
     strategy:
@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache@v3
         id: webpack-cache
         with:
-          path: ".cache"
+          path: '.cache'
           key: ${{ runner.os }}-webpack-${{ env.VERSION }}
           restore-keys: ${{ runner.os }}-webpack-
 

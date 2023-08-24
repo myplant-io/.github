@@ -13,7 +13,7 @@ on:
   pull_request:
     branches: [develop]
     paths-ignore:
-      - ".github/workflows/*auto-update*"
+      - '.github/workflows/*auto-update*'
   push:
     branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
   repository_dispatch:
@@ -22,16 +22,12 @@ on:
 
 jobs:
   sonarqube:
-    name: "Job: Sonarqube"
+    name: 'Job: Sonarqube'
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: [self-hosted, linux]
     concurrency:
-      group: "sonarqube_${{ github.ref }}"
+      group: 'sonarqube_${{ github.ref }}'
       cancel-in-progress: true
-
-    strategy:
-      matrix:
-        java-version: [11]
 
     steps:
       - name: Set git to use LF
@@ -51,18 +47,18 @@ jobs:
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
-          ref: "${{ github.event.client_payload.branch }}"
+          ref: '${{ github.event.client_payload.branch }}'
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v2
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Set env 'SHA'
         run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
@@ -98,20 +94,26 @@ jobs:
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
-      - name: Prepare java ${{ matrix.java-version }}
-        uses: actions/setup-java@v3
-        with:
-          distribution: "adopt"
-          java-version: ${{ matrix.java-version }}
-
       - name: Validate gradle wrapper
         uses: gradle/wrapper-validation-action@v1
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Prepare gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Get java version from gradle
+        run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
+
+      - name: Prepare java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: ${{ env.JAVA_VERSION }}
+
       - name: Configure AWS credentials (to enable test to download containers)
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
@@ -139,3 +141,4 @@ jobs:
               -Dsonar.pullrequest.branch=${{ github.head_ref }}
               -Dsonar.pullrequest.key=${{ github.event.number }}
               -Dsonar.qualitygate.wait=true
+              -Dsonar.java.source=${{ env.JAVA_VERSION }}

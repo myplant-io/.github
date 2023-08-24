@@ -13,17 +13,13 @@ on:
   pull_request_target:
     branches: [develop, release/**, bugfix/**, hotfix/**]
     paths-ignore:
-      - ".github/workflows/*auto-update*"
+      - '.github/workflows/*auto-update*'
   workflow_dispatch:
 
 jobs:
   testAndValidate:
-    name: "Job: Test and validate"
+    name: 'Job: Test and validate'
     runs-on: [self-hosted, linux]
-
-    strategy:
-      matrix:
-        java-version: [11]
 
     steps:
       - name: Set git to use LF
@@ -50,12 +46,12 @@ jobs:
         uses: andstor/file-existence-action@v2
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Set env 'SHA'
         if: startsWith(github.event_name , 'pull_request') == false
@@ -82,20 +78,26 @@ jobs:
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
-      - name: Prepare java ${{ matrix.java-version }}
-        uses: actions/setup-java@v3
-        with:
-          distribution: "adopt"
-          java-version: ${{ matrix.java-version }}
-
       - name: Validate gradle wrapper
         uses: gradle/wrapper-validation-action@v1
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Prepare gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Get java version from gradle
+        run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
+
+      - name: Prepare java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: ${{ env.JAVA_VERSION }}
+
       - name: Configure AWS credentials (to enable test to download containers)
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
@@ -110,6 +112,14 @@ jobs:
         with:
           arguments: ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}
 
+      - name: Test reporting
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: Test Report
+          path: '**/build/test-results/test/TEST-*.xml'
+          reporter: java-junit
+
       - name: Determine number of gradle (sub)projects
         id: gradle-project-stats
         if: failure()
@@ -120,7 +130,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-result
-          path: "build/reports/tests"
+          path: 'build/reports/tests'
 
       - name: Compress test report folders (for multirepo)
         if: failure() && steps.gradle-project-stats.outputs.project-count != '0'

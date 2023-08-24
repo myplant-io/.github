@@ -20,11 +20,11 @@ on:
 
 jobs:
   sonarqube:
-    name: "Job: Sonarqube"
+    name: 'Job: Sonarqube'
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: [self-hosted, linux]
     concurrency:
-      group: "sonarqube_${{ github.ref }}"
+      group: 'sonarqube_${{ github.ref }}'
       cancel-in-progress: true
 
     strategy:
@@ -49,18 +49,18 @@ jobs:
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
-          ref: "${{ github.event.client_payload.branch }}"
+          ref: '${{ github.event.client_payload.branch }}'
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v2
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
@@ -110,7 +110,7 @@ jobs:
         uses: actions/cache@v3
         id: node_modules-cache
         with:
-          path: "**/node_modules"
+          path: '**/node_modules'
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Install dependencies
@@ -129,7 +129,7 @@ jobs:
         run: yarn test --coverage
 
       - name: Setup sonarqube
-        uses: warchant/setup-sonar-scanner@v4
+        uses: warchant/setup-sonar-scanner@v6
 
       - name: Run sonarqube
         if: startsWith(github.event_name , 'pull_request') == false

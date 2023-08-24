@@ -7,6 +7,7 @@ root = true
 
 [*]
 
+quote_type = single
 # Change these settings to your own preference
 indent_style = space
 indent_size = 2

@@ -87,7 +87,7 @@ jobs:
 
       - name: Determine latest (pre-)release
         id: latest_release
-        uses: InsonusK/get-latest-release@v1.0.1
+        uses: InsonusK/get-latest-release@v1.1.0
         with:
           myToken: ${{ github.token }}
           view_top: 1
@@ -184,7 +184,7 @@ jobs:
           prerelease: false
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
@@ -237,6 +237,7 @@ jobs:
           provenance: false
           push: true
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
+          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
 
       - name: Deploy service
         if: env.DEPLOY_TARGETS != 'none'

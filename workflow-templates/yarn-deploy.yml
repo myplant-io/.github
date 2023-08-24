@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: myplant-io/github-actions
-          ref: v0.6.1
+          ref: v0.6.2
           token: ${{ secrets.CI_PAT }}
           path: .github/actions
 
@@ -90,21 +90,10 @@ jobs:
 
       - name: Determine latest (pre-)release
         id: latest_release
-        uses: InsonusK/get-latest-release@v1.0.1
+        uses: InsonusK/get-latest-release@v1.1.0
         with:
           myToken: ${{ github.token }}
           view_top: 1
-
-      - name: Set env 'IS_AUTO_RELEASE' (a.k.a release triggered by tag)
-        run: echo IS_AUTO_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name != env.TAG }} >> ${GITHUB_ENV}
-
-      - name: Set env 'IS_PRERELEASE' (on auto release)
-        if: env.IS_AUTO_RELEASE == 'true'
-        run: echo IS_PRERELEASE=${{ contains(env.TAG, '-') == true }} >> ${GITHUB_ENV}
-
-      - name: Set env 'IS_RELEASE' (on auto release)
-        if: env.IS_AUTO_RELEASE == 'true'
-        run: echo IS_RELEASE=${{ contains(env.TAG, '-') == false && startsWith(github.ref, 'refs/tags/') }} >> ${GITHUB_ENV}
 
       - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - tag based)
         if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
@@ -132,6 +121,9 @@ jobs:
 
       - name: Initialize 'DEPLOY_TARGETS'
         run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
+
+      - name: Initialize 'RETAG'
+        run: echo RETAG=false >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
@@ -161,30 +153,86 @@ jobs:
           echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "IS_AUTO_RELEASE: ${{ env.IS_AUTO_RELEASE }}"
           echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
           echo "IS_PRERELEASE: ${{ env.IS_PRERELEASE }}"
           echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
           echo "TAG: ${{ env.TAG }}"
           echo "VERSION: ${{ env.VERSION }}"
 
-      - name: Create new pre-release
-        if: env.IS_AUTO_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
-        uses: ncipollo/release-action@v1
-        with:
-          token: '${{ secrets.GITHUB_TOKEN }}'
-          allowUpdates: true
-          draft: false
-          prerelease: true
+      - name: Find Version Infos
+        id: versioning
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        env: 
+          IS_PRERELEASE: ${{ env.IS_RELEASE }}
+        shell: bash
+        run: |
+            branchTag=$(git describe --tags)
 
-      - name: Create new release
-        if: env.IS_AUTO_RELEASE == 'true' && env.IS_RELEASE == 'true'
-        uses: ncipollo/release-action@v1
+            [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
+
+            # if there is no prior release, this will be the first one, set the ref to the initial commit to build the first release
+            lastRelTag=$(git tag -l | grep -v "${branchTag}" | grep -v ".*-.*" | tail -n 1) || lastRelTag=$(git rev-list --max-parents=0 HEAD)
+            lastTag=$(git tag -l | grep -vx "${branchTag}" | tail -n 1)
+            shaShort="$(echo ${GITHUB_SHA} | cut -c1-7)"
+
+            echo "::set-output name=sha::$shaShort"
+            echo "::set-output name=lastRelTag::$lastRelTag"
+            echo "::set-output name=relTag::$branchTag"
+            echo "::set-output name=version::${branchTag#v}"
+            echo "::set-output name=last-version::${lastTag#v}"
+
+            if ${IS_RELEASE}; then
+              echo "::set-output name=buildFromTag::$lastRelTag"
+            else
+              echo "::set-output name=buildFromTag::"
+            fi;
+
+      - name: Build changelog on manual release
+        id: build_changelog
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        uses: mikepenz/release-changelog-builder-action@v4.0.0-b02
         with:
-          token: '${{ secrets.GITHUB_TOKEN }}'
-          allowUpdates: true
-          draft: false
-          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          configurationJson: |
+            {
+              "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})"
+            }
+          outputFile: release_changelog.md
+          fromTag: ${{ steps.versioning.outputs.buildFromTag }}
+          toTag: ${{ steps.versioning.outputs.relTag }}
+
+      - name: Enhance changelog
+        id: enhance_changelog
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        shell: bash
+        run: |
+          sed -i "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g" release_changelog.md
+
+      - name: Update Release
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        uses: tubone24/update_release@v1.3.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ env.TAG }}
+        with:
+          body_path: release_changelog.md
+
+      - name: Check Re-Tag docker image
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        env:
+          relTag: ${{ steps.versioning.outputs.version }}
+          preRelTag: ${{ steps.versioning.outputs.last-version }}
+        shell: bash
+        run: |
+            echo "Check if tags are on same rev"
+
+            prevSHA=$(git rev-list -n 1 refs/tags/v$preRelTag)
+            curSHA=$(git rev-list -n 1 refs/tags/v$relTag)
+
+            if [ $prevSHA == $curSHA ]; then
+              echo RETAG=true >> ${GITHUB_ENV}
+              echo "Adding tag $relTag to image with tag $preRelTag"
+            fi;
 
       - name: Prepare node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
@@ -197,79 +245,80 @@ jobs:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
           aws-region: us-east-1
 
-      - name: Check docker registry
+      - name: Retag docker image
         id: check-docker-registry
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
         uses: ./.github/actions/check-docker-registry
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          version: ${{ env.VERSION }}
-          sha: ${{ env.SHA }}
+          version: ${{ steps.versioning.outputs.version }}
+          sha: ${{ steps.versioning.outputs.last-version }}
 
       - name: Create/restore cache for node_modules
         uses: actions/cache@v3
         id: node_modules-cache
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false'
         with:
           path: "**/node_modules"
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Install dependencies (if not previously cached)
-        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && steps.check-docker-registry.outputs.imageExists == 'false' }}
+        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && env.RETAG == 'false' }}
         run: yarn install --frozen-lockfile
 
       - name: Determine if config needs to be generated
         id: npm_script_check
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false'
         run: echo generate_config_exists=$(npm run | grep 'generate:config' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Generate config files
-        if: steps.check-docker-registry.outputs.imageExists == 'false' && steps.npm_script_check.outputs.generate_config_exists != 0
+        if: env.RETAG == 'false' && steps.npm_script_check.outputs.generate_config_exists != 0
         run: yarn generate:config
 
       - name: Validate code
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false'
         run: yarn validate
 
       - name: Test code
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false'
         run: yarn test
 
       - name: Build application
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false'
         run: yarn build
 
       - name: Login to Amazon ECR
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false'
         id: aws-login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Set up QEMU
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false'
         uses: docker/setup-qemu-action@v2
 
       - name: Check for docker context
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false'
         id: docker-context-check
         run: echo contextFound=$(docker context ls | grep -w 'buildx' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Set up Docker Context for Buildx
-        if: steps.check-docker-registry.outputs.imageExists == 'false' && steps.docker-context-check.outputs.contextFound == 0
+        if: env.RETAG == 'false' && steps.docker-context-check.outputs.contextFound == 0
         run: docker context create buildx-context
 
       - name: Set up Docker Buildx
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false'
         uses: docker/setup-buildx-action@v2
         with:
           endpoint: buildx-context
 
       - name: Build and push docker image
-        if: steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false'
         uses: docker/build-push-action@v4
         env:
           DOCKER_BUILDKIT: 1

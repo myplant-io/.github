@@ -12,7 +12,7 @@ name: Dependency check
 on:
   schedule:
     # at 00:00 every sunday (on the default branch - develop)
-    - cron: "0 0 * * SUN"
+    - cron: '0 0 * * SUN'
   push:
     branches: [main, master]
   repository_dispatch:
@@ -21,9 +21,9 @@ on:
 
 jobs:
   dependencyCheck:
-    name: "Job: Dependency check"
+    name: 'Job: Dependency check'
     runs-on: [self-hosted, linux]
-    
+
     strategy:
       matrix:
         python-version: ['3.10']
@@ -45,19 +45,19 @@ jobs:
         uses: andstor/file-existence-action@v2
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Checkout git repository (for dispatched runs)
         uses: actions/checkout@v3
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
-          ref: "${{ github.event.client_payload.branch }}"
+          ref: '${{ github.event.client_payload.branch }}'
 
       - name: Checkout github actions repository
         uses: actions/checkout@v3
@@ -100,22 +100,22 @@ jobs:
         id: python-generate-sbom
         uses: ./.github/actions/python-generate-sbom
         with:
-          inputfile: "./requirements.txt"
-          type: "r"
-          output: "./bom.xml"
+          inputfile: './requirements.txt'
+          type: 'r'
+          output: './bom.xml'
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: SBOM
-          path: "./bom.xml"
+          path: './bom.xml'
 
       - name: Publish dependency check result to tracker
         id: upload-dependency-track
         uses: ./.github/actions/upload-dependency-track
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          bomfilename: "./bom.xml"
+          bomfilename: './bom.xml'
           projectname: ${{ env.COMPONENT_NAME }}
           projectversion: ${{ env.BRANCH_NAME }}

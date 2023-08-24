@@ -7,7 +7,7 @@
 #
 # Created by: Nikolaus Krismer
 ###
-name: Dependency check
+name: Dependency-Tracker (with dotnet directly)
 
 on:
   schedule:
@@ -18,18 +18,14 @@ on:
   repository_dispatch:
     types: [dependencyCheck]
   workflow_dispatch:
-
 jobs:
-  dependencyCheck:
-    name: 'Job: Dependency check'
-    runs-on: [self-hosted, linux]
-    concurrency:
-      group: 'dependencyCheck_${{ github.ref }}'
-      cancel-in-progress: true
+  test:
+    name: 'Job: Test (with dotnet directly)'
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [16.x]
+        dotnet-version: ['6.0.x']
 
     steps:
       - name: Set git to use LF
@@ -38,18 +34,19 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
+        if: startsWith(github.event_name , 'pull_request') == false
         uses: actions/checkout@v3
-        if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
-      - name: Checkout git repository (for dispatched runs)
+      - name: Checkout git repository (on PR)
+        if: startsWith(github.event_name , 'pull_request')
         uses: actions/checkout@v3
-        if: github.event_name == 'repository_dispatch'
         with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
-          ref: '${{ github.event.client_payload.branch }}'
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v2
@@ -84,66 +81,40 @@ jobs:
 
       - name: Log details
         run: |
-          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "dependency.track.projectname: ${{ env.COMPONENT_NAME }}"
-          echo "dependency.track.projectversion: ${{ env.BRANCH_NAME }}"
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
 
-      - name: Prepare node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - name: Prepare dotnet environment
+        uses: actions/setup-dotnet@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          dotnet-version: ${{ matrix.dotnet-version }}
 
-      - name: Add registry credentials
-        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> ${GITHUB_ENV}
-        env:
-          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+      - name: Install dependencies
+        run: dotnet restore
 
-      - name: Create/restore cache for yarn
-        uses: actions/cache@v3
-        id: yarn-cache
+      - name: Build code
+        run: |
+          dotnet build "${{ env.COMPONENT_NAME }}/${{ env.COMPONENT_NAME }}.csproj" \
+            --no-restore \
+            --verbosity normal \
+            --output buildOutput
+
+      - name: CycloneDX .NET Generate SBOM
+        uses: CycloneDX/gh-dotnet-generate-sbom@v1.0.1
         with:
-          path: .yarn
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: Install dependencies (if not previously cached)
-        # if: steps.yarn-cache.outputs.cache-hit != 'true'
-        run: yarn install --immutable
-
-      #      - name: Install html report
-      #        run: npm install --no-package-lock --no-save npm-audit-html
-
-      - name: Perform audit
-        continue-on-error: true
-        run: yarn npm audit --environment production --severity ${SECURITY_LEVEL} --json | yarn npm-audit-html
-
-      - name: Upload audit report artifact
-        uses: actions/upload-artifact@v3
-        with:
-          if-no-files-found: error
-          name: audit-report
-          path: npm-audit.html
-
-      # needs to be added by hand for now
-      #      - name: Install @cyclonedx/cdxgen
-      #        run: yarn add-no-save @cyclonedx/cdxgen
-      # or:       run: yarn add --dev @cyclonedx/cdxgen
-
-      - name: Create SBOM using cyclonedx
-        run: yarn cdxgen --output bom.xml
+          path: '${{ env.COMPONENT_NAME }}.sln'
+          github-bearer-token: ${{ secrets.CI_PAT }}
 
       - name: Upload SBOM artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: SBOM
-          path: bom.xml
+          path: './bom.xml'
 
       - name: Publish dependency check result to tracker
         id: upload-dependency-track

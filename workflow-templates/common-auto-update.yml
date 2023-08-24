@@ -8,7 +8,7 @@ name: Update GitHub actions
 on:
   pull_request_target:
     paths:
-      - ".github/workflows/*auto-update*"
+      - '.github/workflows/*auto-update*'
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
     # if: ${{ github.actor == 'dependabot[bot]' }} # allow update through workflow_dispatch?
     runs-on: [self-hosted, linux]
     concurrency:
-      group: "update_${{ github.ref }}"
+      group: 'update_${{ github.ref }}'
       cancel-in-progress: false
 
     steps:
@@ -36,6 +36,7 @@ jobs:
           ref: extending-auto-update
           token: ${{ secrets.CI_PAT }}
           path: source
+          ref: extending-auto-update
 
       - name: Checkout git repository
         if: startsWith(github.event_name , 'pull_request') == false
@@ -107,6 +108,7 @@ jobs:
       - name: Move relevant github actions in place (if exist)
         if: env.PROJECT_TYPE != 'unknown'
         run: |
+          mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ${{ env.TARGET_DIR }}/publish-pre-release.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }} 2>/dev/null || :
@@ -119,6 +121,7 @@ jobs:
       - name: Move relevant github actions in place (if exist)
         if: env.PROJECT_TYPE == 'unknown'
         run: |
+          mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ${{ env.TARGET_DIR }}/publish-pre-release.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }} 2>/dev/null || :
@@ -152,4 +155,4 @@ jobs:
           directory: ${{ env.TARGET_DIR }}
           empty: false
           github_token: ${{ secrets.CI_PAT }}
-          message: "build: auto-update of GitHub actions [skip ci]"
+          message: 'build: auto-update of GitHub actions [skip ci]'
