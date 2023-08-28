@@ -13,6 +13,7 @@ on:
           - "yarn"
           - "yarn2"
           - "dotnet"
+          - "python"
         default: 'auto-detection'
         description: Choose a project type
       repository:
@@ -91,6 +92,9 @@ jobs:
             elif [[ -f "Program.cs" ]]; then
               echo "Dotnet project detected"
               echo INPUT_TYPE=dotnet >> ${GITHUB_ENV}
+            elif [[ -f "requirements.txt" ]]
+              echo "Python project detected"
+              echo INPUT_TYPE=python >> ${GITHUB_ENV}
             else
               echo "could not detect project type"
               exit 1
