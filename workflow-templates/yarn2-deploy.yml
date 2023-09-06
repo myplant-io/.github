@@ -164,7 +164,7 @@ jobs:
         id: versioning
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
         env: 
-          IS_PRERELEASE: ${{ env.IS_RELEASE }}
+          IS_RELEASE: ${{ env.IS_RELEASE }}
         shell: bash
         run: |
             branchTag=$(git describe --tags)
@@ -176,16 +176,15 @@ jobs:
             lastTag=$(git tag -l | grep -vx "${branchTag}" | tail -n 1)
             shaShort="$(echo ${GITHUB_SHA} | cut -c1-7)"
 
-            echo "::set-output name=sha::$shaShort"
-            echo "::set-output name=lastRelTag::$lastRelTag"
-            echo "::set-output name=relTag::$branchTag"
-            echo "::set-output name=version::${branchTag#v}"
-            echo "::set-output name=last-version::${lastTag#v}"
+            echo SHA_SHORT=$shaShort >> ${GITHUB_ENV}
+            echo LAST_REL_TAG=$lastRelTag >> ${GITHUB_ENV}
+            echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
+            echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
 
             if ${IS_RELEASE}; then
-              echo "::set-output name=buildFromTag::$lastRelTag"
+              echo BUILD_FROM_TAG=$lastRelTag >> ${GITHUB_ENV}
             else
-              echo "::set-output name=buildFromTag::"
+            echo BUILD_FROM_TAG= >> ${GITHUB_ENV}
             fi;
 
       - name: Build changelog on manual release
@@ -221,8 +220,8 @@ jobs:
       - name: Check Re-Tag docker image
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         env:
-          relTag: ${{ steps.versioning.outputs.version }}
-          preRelTag: ${{ steps.versioning.outputs.last-version }}
+          relTag: ${{ env.VERSION }}
+          preRelTag: ${{ env.LAST_VERSION }}
         shell: bash
         run: |
             echo "Check if tags are on same rev"
@@ -258,8 +257,8 @@ jobs:
         uses: ./.github/actions/check-docker-registry
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          version: ${{ steps.versioning.outputs.version }}
-          sha: ${{ steps.versioning.outputs.last-version }}
+          version: ${{ env.VERSION }}
+          sha: ${{ env.LAST_VERSION }}
 
       - name: Create/restore cache for webpack
         uses: actions/cache@v3
