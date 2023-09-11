@@ -129,7 +129,7 @@ jobs:
         run: yarn test --coverage
 
       - name: Setup sonarqube
-        uses: warchant/setup-sonar-scanner@v6
+        uses: warchant/setup-sonar-scanner@v7
 
       - name: Run sonarqube
         if: startsWith(github.event_name , 'pull_request') == false
