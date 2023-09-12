@@ -1,0 +1,19 @@
+version: 2
+registries:
+  maven-myplant-nexus:
+    type: maven-repository
+    url: https://nexus-dev.myplant.io/repository/maven-public
+    username: ${{secrets.NEXUS_USER_RO}}
+    password: ${{secrets.NEXUS_PW_RO}}
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    registries:
+    - maven-myplant-nexus
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
