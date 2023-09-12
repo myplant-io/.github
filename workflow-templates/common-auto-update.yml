@@ -9,11 +9,12 @@ on:
   pull_request_target:
     paths:
       - '.github/workflows/*auto-update*'
+  workflow_dispatch:
 
 jobs:
   updateGitHubActions:
-    name: 'Job: Update GH actions'
-    if: ${{ github.actor == 'dependabot[bot]' }}
+    name: "Job: Update GH actions"
+    # if: ${{ github.actor == 'dependabot[bot]' }} # allow update through workflow_dispatch?
     runs-on: [self-hosted, linux]
     concurrency:
       group: 'update_${{ github.ref }}'
@@ -26,15 +27,16 @@ jobs:
           git config --global core.eol lf
 
       - name: Allow dependabot to check for version
-        uses: myplant-io/.github@v0.7.3
+        uses: myplant-io/.github@extending-auto-update
 
       - name: Checkout github actions repo
         uses: actions/checkout@v4
         with:
           repository: myplant-io/.github
+          ref: extending-auto-update
           token: ${{ secrets.CI_PAT }}
           path: source
-          ref: v0.7.3
+          ref: extending-auto-update
 
       - name: Checkout git repository
         if: startsWith(github.event_name , 'pull_request') == false
@@ -52,6 +54,16 @@ jobs:
           path: target
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Load workflow config
+        run: cat target/.github/workflow-config.env >> $GITHUB_ENV
+
+      - name: Force PROJECT_TYPE env variable
+        if: env.PROJECT_TYPE == '' || env.PROJECT_TYPE == 'unknown'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            core.setFailed('Please provide a PROJECT_TYPE in workflow-config.env')
 
       - name: Set env 'BRANCH_NAME'
         run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
@@ -74,33 +86,6 @@ jobs:
       - name: Determine file extensions for github action files
         run: echo FILE_TYPE=$(ls ${{ env.TARGET_DIR }}/auto-update* |  tr . \\n | tail -n1) >> ${GITHUB_ENV}
 
-      - name: Set project type to gradle
-        run: echo PROJECT_TYPE="unknown" >> ${GITHUB_ENV}
-
-      - name: Test project-type (for gradle)
-        id: determine-type-gradle
-        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'gradle/wrapper-validation-action' | wc -l) >> ${GITHUB_OUTPUT}
-
-      - name: Set project type to gradle
-        if: steps.determine-type-gradle.outputs.cnt_validations != '0'
-        run: echo PROJECT_TYPE=gradle >> ${GITHUB_ENV}
-
-      - name: Test project-type (for yarn classic)
-        id: determine-type-yarn
-        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'NPM_REGISTRY_AUTH' | wc -l) >> ${GITHUB_OUTPUT}
-
-      - name: Set project type to yarn classic
-        if: steps.determine-type-yarn.outputs.cnt_validations != '0'
-        run: echo PROJECT_TYPE=yarn >> ${GITHUB_ENV}
-
-      - name: Test project-type (for yarn2+)
-        id: determine-type-yarn2
-        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'YARN_NPM_AUTH_TOKEN' | wc -l) >> ${GITHUB_OUTPUT}
-
-      - name: Set project type to yarn2+
-        if: steps.determine-type-yarn2.outputs.cnt_validations != '0'
-        run: echo PROJECT_TYPE=yarn2 >> ${GITHUB_ENV}
-
       - name: Log details
         run: |
           echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
@@ -120,28 +105,54 @@ jobs:
       - name: List target contents
         run: ls ${{ env.TARGET_DIR }}
 
-      - name: Move relevant github actions in place
+      - name: Move relevant github actions in place (if exist)
         if: env.PROJECT_TYPE != 'unknown'
         run: |
-          mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ${{ env.TARGET_DIR }}/publish-pre-release.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ${{ env.TARGET_DIR }}/stage-release-branch.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }} 2>/dev/null || :
-          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }} 2>/dev/null || :
-          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }} 2>/dev/null || :
+          [ ${{contains(env.MANUAL_WORKFLOWS, 'deploy.yml')}} == true ] || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }} 2>/dev/null || :
+          [ ${{contains(env.MANUAL_WORKFLOWS, 'test.yml')}} == true ]   || mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }} 2>/dev/null || :
 
-      - name: Move relevant github actions in place
+      - name: Move relevant github actions in place (if exist)
         if: env.PROJECT_TYPE == 'unknown'
         run: |
-          mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
-          mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-publish-pre-release.yml ${{ env.TARGET_DIR }}/publish-pre-release.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-publish-release.yml ${{ env.TARGET_DIR }}/publish-release.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-stage-release-branch.yml ${{ env.TARGET_DIR }}/stage-release-branch.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }} 2>/dev/null || :
+
+      - name: Move manual workflow templates in place (if not present)
+        run: |
+          [ -f ${{env.TARGET_DIR}}/test.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'test.yml')}} != true  ]      || mv ${{ env.SOURCE_DIR}}/common-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }} 2>/dev/null || :
+          [ -f ${{env.TARGET_DIR}}/deploy.yml -o ${{contains(env.MANUAL_WORKFLOWS, 'deploy.yml')}} != true ]   || mv ${{ env.SOURCE_DIR}}/common-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }} 2>/dev/null || :
+
+      - name: Find and delete release-section in README
+        run: sed -i '/<\!--- release-section/,/<\!--- release-section-end --->/ d' target/README.md
+
+      - name: Insert release-section in README
+        run: cat "${{ env.SOURCE_DIR }}/common-cicd.md" >> "target/README.md"
+
+      - name: Replace {{repo_url}} with actual repo url
+        run: sed -i "s/{{repo_url}}/$(printf '%s\n' '${{ github.server_url }}/${{ github.repository }}' | sed -e 's/[\/&]/\\&/g')/" target/README.md
+
+      - name: Find and delete release badges in README
+        run: sed -i -E '/\[\!\[Automated Release\]\(/d' target/README.md
+
+      - name: Insert release badges in README
+        run: echo -e "[![Automated Release](https://badgen.net/badge/myPlant%20Release/stage/123456?icon=github)](${{ github.server_url }}/${{ github.repository }}/actions/workflows/stage-release-branch.yml)\n[![Automated Release](https://badgen.net/badge/myPlant%20Release/publish/345621?icon=github)](${{ github.server_url }}/${{ github.repository }}/actions/workflows/publish-release.yml)\n$(cat target/README.md)" > target/README.md
 
       - name: Commit and push changes
         uses: actions-js/push@v1.4
         with:
           branch: ${{ env.BRANCH_NAME }}
           directory: ${{ env.TARGET_DIR }}
-          empty: true
+          empty: false
           github_token: ${{ secrets.CI_PAT }}
           message: 'build: auto-update of GitHub actions [skip ci]'
