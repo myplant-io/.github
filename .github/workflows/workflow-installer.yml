@@ -92,7 +92,7 @@ jobs:
             elif [[ -f "Program.cs" ]]; then
               echo "Dotnet project detected"
               echo INPUT_TYPE=dotnet >> ${GITHUB_ENV}
-            elif [[ -f "requirements.txt" ]]; then
+            elif [[ -f "requirements.txt" || -f "pyproject.toml" ]]; then
               echo "Python project detected"
               echo INPUT_TYPE=python >> ${GITHUB_ENV}
             else
