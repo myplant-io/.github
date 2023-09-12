@@ -34,14 +34,14 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git workflow repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
           path: source
 
       - name: checkout github target repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: myplant-io/${{ inputs.repository }}
           ref: develop
