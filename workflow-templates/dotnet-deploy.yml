@@ -138,8 +138,6 @@ jobs:
       - name: Find Version Infos
         id: versioning
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
-        env: 
-          IS_RELEASE: ${{ env.IS_RELEASE }}
         shell: bash
         run: |
             branchTag=$(git describe --tags)
@@ -159,19 +157,16 @@ jobs:
             if ${IS_RELEASE}; then
               echo BUILD_FROM_TAG=$lastRelTag >> ${GITHUB_ENV}
             else
-              echo BUILD_FROM_TAG= >> ${GITHUB_ENV}
+              echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
             fi;
 
       - name: Build changelog on manual release
         id: build_changelog
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
-        uses: mikepenz/release-changelog-builder-action@v4.0.0-b02
+        uses: mikepenz/release-changelog-builder-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          configurationJson: |
-            {
-              "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})"
-            }
+          configurationJson: { "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})" }
           outputFile: release_changelog.md
           fromTag: ${{ steps.versioning.outputs.buildFromTag }}
           toTag: ${{ steps.versioning.outputs.relTag }}
