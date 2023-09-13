@@ -184,7 +184,7 @@ jobs:
             if ${IS_RELEASE}; then
               echo BUILD_FROM_TAG=$lastRelTag >> ${GITHUB_ENV}
             else
-            echo BUILD_FROM_TAG= >> ${GITHUB_ENV}
+              echo BUILD_FROM_TAG= >> ${GITHUB_ENV}
             fi;
 
       - name: Build changelog on manual release
@@ -245,7 +245,7 @@ jobs:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
@@ -303,7 +303,7 @@ jobs:
 
       - name: Set up QEMU
         if: env.RETAG == 'false'
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Check for docker context
         if: env.RETAG == 'false'
@@ -316,13 +316,13 @@ jobs:
 
       - name: Set up Docker Buildx
         if: env.RETAG == 'false'
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
         with:
           endpoint: buildx-context
 
       - name: Build and push docker image
         if: env.RETAG == 'false'
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         env:
           DOCKER_BUILDKIT: 1
         with:
