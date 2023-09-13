@@ -205,7 +205,7 @@ jobs:
 
       - name: Docker login (to AWS ECR)
         if: steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ steps.aws-login-ecr.outputs.registry }}
 
