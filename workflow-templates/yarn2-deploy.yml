@@ -275,7 +275,6 @@ jobs:
 
       - name: Install dependencies (if not previously cached)
         if: env.RETAG == 'false'
-#        if: ${{ steps.yarn-cache.outputs.cache-hit != 'true' && env.RETAG == 'false' }}
         run: yarn install --immutable
 
       - name: Determine if config needs to be generated
@@ -368,5 +367,5 @@ jobs:
           }'
 
       - name: Restore full-cache (for next build)
-        if: ${{ if: env.RETAG == 'false' }}
+        if: env.RETAG == 'false'
         run: yarn build:unshrink
