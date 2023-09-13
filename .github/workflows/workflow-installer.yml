@@ -89,7 +89,7 @@ jobs:
                 echo "cannot detect yarn version"
                 exit 1
               fi
-            elif [[ -f "Program.cs" ]]; then
+            elif [[ -f "Program.cs" || $(ls -1 *.sln 2>/dev/null | wc -l) != 0 ]]; then
               echo "Dotnet project detected"
               echo INPUT_TYPE=dotnet >> ${GITHUB_ENV}
             elif [[ -f "requirements.txt" || -f "pyproject.toml" ]]; then
