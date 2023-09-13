@@ -156,7 +156,7 @@ jobs:
 
             if ${IS_RELEASE}; then
               echo BUILD_FROM_TAG=$lastRelTag >> ${GITHUB_ENV}
-            elses
+            else
               echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
             fi;
 
