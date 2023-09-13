@@ -110,7 +110,7 @@ jobs:
           git pull origin chore/install-gh-actions
 
       - name: Install dependabot
-        if: env.INPUT_TYPE != 'auto-detect' || env.INPUT_TYPE != 'dotnet'
+        if: env.INPUT_TYPE != 'auto-detect' && env.INPUT_TYPE != 'dotnet'
         run: |
           mkdir -p target/.github/
           mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-dependabot.yml target/.github/dependabot.${{ env.FILE_TYPE }} 2>/dev/null || :
