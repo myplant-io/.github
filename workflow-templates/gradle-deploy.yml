@@ -192,7 +192,7 @@ jobs:
             if ${IS_RELEASE}; then
               echo BUILD_FROM_TAG=$lastRelTag >> ${GITHUB_ENV}
             else
-            echo BUILD_FROM_TAG= >> ${GITHUB_ENV}
+              echo BUILD_FROM_TAG= >> ${GITHUB_ENV}
             fi;
 
       - name: Build changelog on manual release
@@ -266,7 +266,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Configure AWS credentials (to enable test to download containers)
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
@@ -278,7 +278,7 @@ jobs:
 
       - name: Configure AWS credentials
         if: env.GRADLE_DEPLOY_TASK != 'none'
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}

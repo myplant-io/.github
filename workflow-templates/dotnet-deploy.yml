@@ -159,7 +159,7 @@ jobs:
             if ${IS_RELEASE}; then
               echo BUILD_FROM_TAG=$lastRelTag >> ${GITHUB_ENV}
             else
-            echo BUILD_FROM_TAG= >> ${GITHUB_ENV}
+              echo BUILD_FROM_TAG= >> ${GITHUB_ENV}
             fi;
 
       - name: Build changelog on manual release

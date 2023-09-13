@@ -184,7 +184,7 @@ jobs:
           prerelease: false
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
@@ -211,7 +211,7 @@ jobs:
 
       - name: Set up QEMU
         if: steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Check for docker context
         if: steps.check-docker-registry.outputs.imageExists == 'false'
@@ -224,13 +224,13 @@ jobs:
 
       - name: Set up Docker Buildx
         if: steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
         with:
           endpoint: buildx-context
 
       - name: Build and push docker image
         if: steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         env:
           DOCKER_BUILDKIT: 1
         with:
