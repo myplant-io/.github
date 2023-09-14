@@ -199,7 +199,8 @@ jobs:
         uses: mikepenz/release-changelog-builder-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          configurationJson: { "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})" }
+          configurationJson: |
+            { "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})" }
           outputFile: release_changelog.md
           fromTag: ${{ env.BUILD_FROM_TAG }}
           toTag: ${{ env.BRANCH_TAG }}
