@@ -1,14 +1,14 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     allow:
-      - dependency-type: "production"
+      - dependency-type: 'production'
     ignore:
-      - dependency-name: "@types/node"
+      - dependency-name: '@types/node'
     schedule:
-      interval: "daily"
-  - package-ecosystem: "github-actions"
-    directory: "/"
+      interval: 'daily'
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "daily"
+      interval: 'daily'

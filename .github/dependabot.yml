@@ -1,7 +1,7 @@
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "workflow-templates/"
+  - package-ecosystem: 'github-actions'
+    directory: 'workflow-templates/'
     schedule:
-      interval: "daily"
+      interval: 'daily'
     open-pull-requests-limit: 5

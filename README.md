@@ -25,7 +25,7 @@ updates:
   - package-ecosystem: "gradle"
     directory: "/"
     registries:
-    - maven-myplant-nexus
+      - maven-myplant-nexus
     schedule:
       interval: "daily"
     open-pull-requests-limit: 5
