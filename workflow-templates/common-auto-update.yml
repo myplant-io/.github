@@ -27,7 +27,7 @@ jobs:
 
       - name: Allow dependabot to check for version
         id: workflow-templates
-        uses: myplant-io/.github@v0.8.1
+        uses: myplant-io/.github@v0.8.2
 
       - name: Checkout github actions repo
         uses: actions/checkout@v4
