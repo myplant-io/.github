@@ -1,14 +1,14 @@
-name: "Auto-Update"
-description: "Auto-Update of github actions"
+name: 'Auto-Update'
+description: 'Auto-Update of github actions'
 outputs:
   ref:
-    description: "Ref"
+    description: 'Ref'
     value: ${{ steps.ref.outputs.ref }}
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
-    - run: echo ${{ github.context.ref }}
+    - run: echo ${{ github.ref }}
       shell: bash
     - id: ref
-      run: echo "ref=${{ github.context.ref }}" >> ${GITHUB_OUTPUT}
+      run: echo "ref=${{ github.ref }}" >> ${GITHUB_OUTPUT}
       shell: bash
