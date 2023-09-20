@@ -26,7 +26,6 @@ jobs:
           git config --global core.eol lf
 
       - name: Allow dependabot to check for version
-        id: workflow-templates
         uses: myplant-io/.github@v0.8.2
 
       - name: Dependabot metadata
