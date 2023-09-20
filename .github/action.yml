@@ -1,0 +1,7 @@
+name: 'Auto-Update'
+description: 'Auto-Update of github actions'
+runs:
+  using: 'composite'
+  steps:
+    - run: echo "Placeholder action needed for dependabot auto-updates"
+      shell: bash
