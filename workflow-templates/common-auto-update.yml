@@ -29,13 +29,19 @@ jobs:
         id: workflow-templates
         uses: myplant-io/.github@v0.8.2
 
+      - name: Dependabot metadata
+        id: dependabot-metadata
+        uses: dependabot/fetch-metadata@v1
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
       - name: Checkout github actions repo
         uses: actions/checkout@v4
         with:
           repository: myplant-io/.github
           token: ${{ secrets.CI_PAT }}
           path: source
-          ref: ${{ steps.workflow-templates.outputs.ref }}
+          ref: v${{ steps.dependabot-metadata.outputs.new-version }}
 
       - name: Checkout git repository
         if: startsWith(github.event_name , 'pull_request') == false
