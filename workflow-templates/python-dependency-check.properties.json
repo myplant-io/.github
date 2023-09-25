@@ -3,5 +3,5 @@
   "description": "Integration with dependency-dev.myplant.io for Python projects",
   "iconName": "icon-dependency-track",
   "categories": ["Python"],
-  "filePatterns": ["requirements.txt"]
+  "filePatterns": ["poetry.lock", "requirements.txt"]
 }

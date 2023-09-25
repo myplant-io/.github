@@ -1,7 +1,7 @@
 {
   "name": "Sonarqube integration",
-  "description": "Sonarqube for non gradle projects (like Python)",
+  "description": "Sonarqube for non gradle projects (like go)",
   "iconName": "icon-sonarqube",
-  "categories": ["Python"],
-  "filePatterns": ["poetry.lock"]
+  "categories": ["Go"],
+  "filePatterns": ["go.mod"]
 }
