@@ -1,5 +1,5 @@
 name: 'Workflow installer'
-run-name: 'Workflow installer'
+run-name: Deploy workflows to ${{ inputs.repository }}
 
 on:
   workflow_dispatch:
