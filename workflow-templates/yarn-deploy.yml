@@ -283,7 +283,7 @@ jobs:
 
       - name: Test code
         if: env.RETAG == 'false'
-        run: yarn test
+        run: yarn test --ci --no-cache --silent
 
       - name: Build application
         if: env.RETAG == 'false'
