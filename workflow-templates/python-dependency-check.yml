@@ -104,7 +104,7 @@ jobs:
 
       - name: CycloneDX Python Generate SBOM with poetry
         uses: ./.github/actions/python-generate-sbom
-        if: steps.check_files.outputs.files_exists == 'true'
+        if: steps.check-poetry-lock.outputs.files_exists == 'true'
         with:
           inputfile: './poetry.lock'
           type: 'p'
@@ -112,7 +112,7 @@ jobs:
 
       - name: CycloneDX Python Generate SBOM with pip
         uses: ./.github/actions/python-generate-sbom
-        if: steps.check_files.outputs.files_exists == 'false'
+        if: steps.check-poetry-lock.outputs.files_exists == 'false'
         with:
           inputfile: './requirements.txt'
           type: 'r'
