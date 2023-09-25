@@ -126,7 +126,7 @@ jobs:
         run: yarn generate:config
 
       - name: Run tests
-        run: yarn test --coverage
+        run: yarn test --coverage --ci --no-cache --silent
 
       - name: Setup sonarqube
         uses: warchant/setup-sonar-scanner@v7
