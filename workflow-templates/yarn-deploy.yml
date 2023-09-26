@@ -248,13 +248,21 @@ jobs:
           aws-region: us-east-1
 
       - name: Retag docker image
-        id: check-docker-registry
+        id: check-docker-registry-retag
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
         uses: ./.github/actions/check-docker-registry
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
           version: ${{ env.VERSION }}
           sha: ${{ env.LAST_VERSION }}
+
+      - name: Check docker registry
+        id: check-docker-registry
+        uses: ./.github/actions/check-docker-registry
+        with:
+          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
+          version: ${{ env.VERSION }}
+          sha: ${{ env.SHA }}
 
       - name: Create/restore cache for node_modules
         uses: actions/cache@v3
@@ -265,56 +273,56 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Install dependencies (if not previously cached)
-        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && env.RETAG == 'false' }}
+        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' }}
         run: yarn install --frozen-lockfile
 
       - name: Determine if config needs to be generated
         id: npm_script_check
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         run: echo generate_config_exists=$(npm run | grep 'generate:config' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Generate config files
-        if: env.RETAG == 'false' && steps.npm_script_check.outputs.generate_config_exists != 0
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && steps.npm_script_check.outputs.generate_config_exists != 0
         run: yarn generate:config
 
       - name: Validate code
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         run: yarn validate
 
       - name: Test code
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         run: yarn test --ci --no-cache --silent
 
       - name: Build application
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         run: yarn build
 
       - name: Login to Amazon ECR
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         id: aws-login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Set up QEMU
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/setup-qemu-action@v3
 
       - name: Check for docker context
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         id: docker-context-check
         run: echo contextFound=$(docker context ls | grep -w 'buildx' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Set up Docker Context for Buildx
-        if: env.RETAG == 'false' && steps.docker-context-check.outputs.contextFound == 0
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && steps.docker-context-check.outputs.contextFound == 0
         run: docker context create buildx-context
 
       - name: Set up Docker Buildx
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/setup-buildx-action@v3
         with:
           endpoint: buildx-context
 
       - name: Build and push docker image
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/build-push-action@v5
         env:
           DOCKER_BUILDKIT: 1
