@@ -145,7 +145,7 @@ jobs:
             [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
 
             # if there is no prior release, this will be the first one, set the ref to the initial commit to build the first release
-            lastRelTag=$(git tag -l | grep -v "${branchTag}" | grep -v ".*-.*" | tail -n 1) || lastRelTag=$(git rev-list --max-parents=0 HEAD)
+            lastRelTag=$(git tag -l --sort=v:refname | grep -v "${branchTag}" | grep -v ".*-.*" | tail -n 1) || lastRelTag=$(git rev-list --max-parents=0 HEAD)
             lastTag=$(git tag -l --sort=v:refname | grep -vx "${branchTag}" | tail -n 1)
             shaShort="$(echo ${GITHUB_SHA} | cut -c1-7)"
 
