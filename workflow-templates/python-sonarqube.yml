@@ -68,7 +68,7 @@ jobs:
         run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
 
       - name: Default SONAR_PREFIX to io.myplant
-        if "${{ env.SONAR_PREFIX == '' }}"
+        if: env.SONAR_PREFIX == ''
         run: echo SONAR_PREFIX="io.myplant" >> ${GITHUB_ENV}
 
       - name: Apply SONAR_PREFIX to SONAR_KEY
