@@ -276,7 +276,7 @@ jobs:
 
       - name: Login to Amazon ECR
         id: aws-login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Configure AWS credentials
         if: env.GRADLE_DEPLOY_TASK != 'none'
