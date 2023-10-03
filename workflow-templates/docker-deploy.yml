@@ -265,7 +265,7 @@ jobs:
       - name: Login to Amazon ECR
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         id: aws-login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Docker login (to AWS ECR)
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
