@@ -215,7 +215,45 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           configurationJson: |
-            { "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})" }
+            { "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})",
+              "categories": [
+                {
+                  "title": "## 🚀 Features",
+                  "labels": [
+                    "feat",
+                    "feature"
+                  ]
+                },
+                {
+                  "title": "## 🐛 Fixes",
+                  "labels": [
+                    "fix",
+                    "hotfix",
+                    "bug"
+                  ]
+                },
+                {
+                  "title": "## 🛠️ Chores",
+                  "labels": [
+                    "chore"
+                  ]
+                },
+                {
+                  "title": "## 🛠️ Dependencies",
+                  "labels": [
+                    "deps"
+                  ]
+                }
+              ],
+              "label_extractor": [
+                {
+                  "method": "match",
+                  "pattern": "^([\\w\\-]+)",
+                  "target": "$1",
+                  "on_property": "branch"
+                }
+              ]
+            }
           outputFile: release_changelog.md
           fromTag: ${{ env.BUILD_FROM_TAG }}
           toTag: ${{ env.BRANCH_TAG }}
