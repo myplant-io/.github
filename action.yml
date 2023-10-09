@@ -1,14 +1,7 @@
-name: "Auto-Update"
-description: "Auto-Update of github actions"
-outputs:
-  ref:
-    description: "Ref"
-    value: ${{ steps.ref.outputs.ref }}
+name: 'Auto-Update'
+description: 'Auto-Update of github actions'
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
-    - run: echo ${{ github.context.ref }}
-      shell: bash
-    - id: ref
-      run: echo "ref=${{ github.context.ref }}" >> ${GITHUB_OUTPUT}
+    - run: echo "Placeholder action needed for dependabot auto-updates"
       shell: bash

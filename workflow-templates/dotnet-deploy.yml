@@ -138,8 +138,6 @@ jobs:
       - name: Find Version Infos
         id: versioning
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
-        env: 
-          IS_RELEASE: ${{ env.IS_RELEASE }}
         shell: bash
         run: |
             branchTag=$(git describe --tags)
@@ -147,8 +145,8 @@ jobs:
             [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
 
             # if there is no prior release, this will be the first one, set the ref to the initial commit to build the first release
-            lastRelTag=$(git tag -l | grep -v "${branchTag}" | grep -v ".*-.*" | tail -n 1) || lastRelTag=$(git rev-list --max-parents=0 HEAD)
-            lastTag=$(git tag -l | grep -vx "${branchTag}" | tail -n 1)
+            lastRelTag=$(git tag -l --sort=v:refname | grep -v "${branchTag}" | grep -v ".*-.*" | tail -n 1) || lastRelTag=$(git rev-list --max-parents=0 HEAD)
+            lastTag=$(git tag -l --sort=v:refname | grep -vx "${branchTag}" | tail -n 1)
             shaShort="$(echo ${GITHUB_SHA} | cut -c1-7)"
 
             echo SHA_SHORT=$shaShort >> ${GITHUB_ENV}
@@ -159,18 +157,55 @@ jobs:
             if ${IS_RELEASE}; then
               echo BUILD_FROM_TAG=$lastRelTag >> ${GITHUB_ENV}
             else
-            echo BUILD_FROM_TAG= >> ${GITHUB_ENV}
+              echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
             fi;
 
       - name: Build changelog on manual release
         id: build_changelog
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
-        uses: mikepenz/release-changelog-builder-action@v4.0.0-b02
+        uses: mikepenz/release-changelog-builder-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           configurationJson: |
-            {
-              "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})"
+            { "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})",
+              "categories": [
+                {
+                  "title": "## 🚀 Features",
+                  "labels": [
+                    "feat",
+                    "feature"
+                  ]
+                },
+                {
+                  "title": "## 🐛 Fixes",
+                  "labels": [
+                    "fix",
+                    "hotfix",
+                    "bug"
+                  ]
+                },
+                {
+                  "title": "## 🛠️ Chores",
+                  "labels": [
+                    "chore"
+                  ]
+                },
+                {
+                  "title": "## 🛠️ Dependencies",
+                  "labels": [
+                    "deps",
+                    "dep"
+                  ]
+                }
+              ],
+              "label_extractor": [
+                {
+                  "method": "match",
+                  "pattern": "^([\\w\\-]+)",
+                  "target": "$1",
+                  "on_property": "branch"
+                }
+              ]
             }
           outputFile: release_changelog.md
           fromTag: ${{ steps.versioning.outputs.buildFromTag }}
