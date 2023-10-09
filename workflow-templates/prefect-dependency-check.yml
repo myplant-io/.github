@@ -1,0 +1,135 @@
+###
+# GitHub action that creates a Software-Bill-of-Material (SBOM) and pushes the
+# result to the myplant dependency tracker (dependency-dev.myplant.io).
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Nikolaus Krismer and Nikolaus Brunner
+###
+name: Dependency check
+
+on:
+  schedule:
+    # at 00:00 every sunday (on the default branch - develop)
+    - cron: '0 0 * * SUN'
+  push:
+    branches: [main, master]
+  repository_dispatch:
+    types: [dependencyCheck]
+  workflow_dispatch:
+
+jobs:
+  dependencyCheck:
+    name: 'Job: Dependency check'
+    runs-on: [self-hosted, linux]
+
+    strategy:
+      matrix:
+        python-version: ['3.10']
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        if: github.event_name != 'repository_dispatch'
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v2
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v4
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
+
+      - name: Checkout github actions repository
+        uses: actions/checkout@v4
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.6.2
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME="${GITHUB_REF/refs\/heads\//}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SHA'
+        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
+
+      - name: Set 'VERSION' to SHA
+        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
+
+      - name: Log details
+        run: |
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "VERSION: ${{ env.VERSION }}"
+          echo "dependency.track.projectname: ${{ env.COMPONENT_NAME }}"
+          echo "dependency.track.projectversion: ${{ env.BRANCH_NAME }}"
+
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Check poetry file existence
+        uses: andstor/file-existence-action@v2
+        id: check-poetry-lock
+        with:
+          files: 'poetry.lock'
+
+      - name: CycloneDX Python Generate SBOM with poetry
+        uses: ./.github/actions/python-generate-sbom
+        if: steps.check-poetry-lock.outputs.files_exists == 'true'
+        with:
+          inputfile: './poetry.lock'
+          type: 'p'
+          output: './bom.xml'
+
+      - name: CycloneDX Python Generate SBOM with pip
+        uses: ./.github/actions/python-generate-sbom
+        if: steps.check-poetry-lock.outputs.files_exists == 'false'
+        with:
+          inputfile: './requirements.txt'
+          type: 'r'
+          output: './bom.xml'
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v3
+        with:
+          if-no-files-found: error
+          name: SBOM
+          path: './bom.xml'
+
+      - name: Publish dependency check result to tracker
+        id: upload-dependency-track
+        uses: ./.github/actions/upload-dependency-track
+        with:
+          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          bomfilename: './bom.xml'
+          projectname: ${{ env.COMPONENT_NAME }}
+          projectversion: ${{ env.BRANCH_NAME }}

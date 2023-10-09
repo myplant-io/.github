@@ -14,6 +14,7 @@ on:
           - 'yarn2'
           - 'dotnet'
           - 'python'
+          - 'prefect'
         default: 'auto-detection'
         description: Choose a project type
       repository:
@@ -68,8 +69,13 @@ jobs:
         id: project-auto-detection
         working-directory: ./target
         if: env.INPUT_TYPE == 'auto-detection'
+        env: 
+          TARGET_REPO: ${{ inputs.repository }}
         shell: bash
         run: |
+          if [[ $TARGET_REPO == "prefect"* ]]; then
+            echo INPUT_TYPE=prefect >> ${GITHUB_ENV}
+          fi
           if [[ -f "build.gradle" || -f "build.gradle.kts" ]]; then
             if [[ -f "package.json" ]]; then
               echo "gradle project contains package.json"

@@ -63,6 +63,14 @@ VERBOSE_ARTIFACT_UPLOAD=false
 The files can slightly vary between build tools (the above one is for gradle),
 so please make sure that it contains everything that is needed.
 
+Prefect would need the following:
+```
+COMPONENT_NAME: auto
+DOCKER_TAG_PREFIX: auto
+PREFECT_SERVER_URL: 'https://prefect-dev.staging.myplant.io'
+PROJECT_NAME: 'prod-to-staging-dump'
+```
+
 - Most docker deployments actions (docker-deploy.yaml, yarn/yarn2-deploy) actions
   require a DOCKER_REPOSITORY variable.
 - Yarn/Yarn2 dependency checks need a SECURITY_LEVEL defined.
