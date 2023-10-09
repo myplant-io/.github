@@ -226,7 +226,8 @@ jobs:
                 {
                   "title": "## 🛠️ Dependencies",
                   "labels": [
-                    "deps"
+                    "deps",
+                    "dep"
                   ]
                 }
               ],
