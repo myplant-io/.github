@@ -19,7 +19,7 @@ on:
 jobs:
   testAndValidate:
     name: 'Job: Test and validate'
-    runs-on: [self-hosted, linux]
+    runs-on: [ plain-self-hosted ]
 
     steps:
       - name: Set git to use LF
@@ -72,6 +72,12 @@ jobs:
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "VERSION: ${{ env.VERSION }}"
+
+      - name: Prepare default Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: '17'
 
       - name: Prepare gradle properties
         run: printf "\n$GRADLE_PROPS" >> gradle.properties
