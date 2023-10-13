@@ -22,7 +22,7 @@ on:
 jobs:
   dependencyCheck:
     name: 'Job: Dependency check'
-    runs-on: [ plain-self-hosted ]
+    runs-on: [ self-hosted-standard ]
     concurrency:
       group: 'dependencyCheck_${{ github.ref }}'
       cancel-in-progress: true
@@ -106,12 +106,6 @@ jobs:
           echo "VERSION: ${{ env.VERSION }}"
           echo "dependency.track.projectname: ${{ env.COMPONENT_NAME }}"
           echo "dependency.track.projectversion: ${{ env.BRANCH_NAME }}"
-
-      - name: Prepare default Java 17
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'adopt'
-          java-version: '17'
 
       - name: Prepare gradle properties
         run: printf "\n$GRADLE_PROPS" >> gradle.properties
