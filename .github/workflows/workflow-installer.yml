@@ -73,9 +73,6 @@ jobs:
           TARGET_REPO: ${{ inputs.repository }}
         shell: bash
         run: |
-          if [[ $TARGET_REPO == "prefect"* ]]; then
-            echo INPUT_TYPE=prefect >> ${GITHUB_ENV}
-          fi
           if [[ -f "build.gradle" || -f "build.gradle.kts" ]]; then
             if [[ -f "package.json" ]]; then
               echo "gradle project contains package.json"
@@ -99,8 +96,13 @@ jobs:
             echo "Dotnet project detected"
             echo INPUT_TYPE=dotnet >> ${GITHUB_ENV}
           elif [[ -f "requirements.txt" || -f "pyproject.toml" ]]; then
-            echo "Python project detected"
-            echo INPUT_TYPE=python >> ${GITHUB_ENV}
+            if [[ $TARGET_REPO == "prefect"* ]]; then
+              echo "Prefect project detected"
+              echo INPUT_TYPE=prefect >> ${GITHUB_ENV}
+            else
+              echo "Python project detected"
+              echo INPUT_TYPE=python >> ${GITHUB_ENV}
+            fi
           else
             echo "could not detect project type"
             exit 1
