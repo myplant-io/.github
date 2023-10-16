@@ -235,6 +235,10 @@ jobs:
                     "deps",
                     "dep"
                   ]
+                },
+                {
+                  "title": "## 🌀 Miscellaneous",
+                  "labels": []
                 }
               ],
               "label_extractor": [
