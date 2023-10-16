@@ -302,6 +302,7 @@ jobs:
           secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
 
       - name: Register in prefect
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         env:
           DOCKER_BUILDKIT: 1
         run: docker run ${{ env.IMAGE_TAG }} prefect-toolbox register --project-name "${{ env.PROJECT_NAME }}" --src-dir /src --credentials "${{ secrets.PREFECT_CREDENTIALS }}" --prefect-server "${{ env.PREFECT_SERVER_URL }}" --image "${{ env.IMAGE_TAG }}"
