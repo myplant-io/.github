@@ -113,12 +113,9 @@ jobs:
         if: steps.node_modules-cache.outputs.cache-hit != 'true'
         run: yarn install --frozen-lockfile --ignore-optional
 
-      - name: Install yarn-add-no-save (if not already installed)
-        run: yarn add --dev yarn-add-no-save
-
       - name: Install yarn-audit-html report
         if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
-        run: yarn add-no-save yarn-audit-html --ignore-optional
+        run: yarn add --dev yarn-audit-html --ignore-optional
 
       - name: Perform yarn audit
         if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
@@ -133,10 +130,13 @@ jobs:
           path: yarn-audit.html
 
       - name: Install @cyclonedx/cdxgen
-        run: yarn add-no-save @cyclonedx/cdxgen
+        run: yarn add --dev @cyclonedx/cdxgen@v8.6.2
 
       - name: Create SBOM using cyclonedx
-        run: yarn run --no-install cdxgen --output bom.xml
+        run: yarn run --no-install cdxgen --output bom.xml --required-only
+
+      - name: Revert lockfile changes (caused by cdxgen and yarn-audit-html install)
+        run: git checkout -- package.json yarn.lock
 
       - name: Upload SBOM artifact
         if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
