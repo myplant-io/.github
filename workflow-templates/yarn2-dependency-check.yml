@@ -119,10 +119,12 @@ jobs:
         run: yarn add --dev npm-audit-html --ignore-optional
 
       - name: Perform audit
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         continue-on-error: true
         run: yarn npm audit --environment production --severity ${SECURITY_LEVEL} --json | yarn npm-audit-html
 
       - name: Upload audit report artifact
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
