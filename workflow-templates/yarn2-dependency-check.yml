@@ -111,31 +111,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
 
-      - name: Install dependencies (if not previously cached)
-        # if: steps.yarn-cache.outputs.cache-hit != 'true'
+      - name: Install dependencies
         run: yarn install --immutable
 
-      #      - name: Install html report
-      #        run: npm install --no-package-lock --no-save npm-audit-html
+      - name: Install npm-audit-html report
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
+        run: yarn add --dev npm-audit-html --ignore-optional
 
       - name: Perform audit
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         continue-on-error: true
         run: yarn npm audit --environment production --severity ${SECURITY_LEVEL} --json | yarn npm-audit-html
 
       - name: Upload audit report artifact
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: audit-report
           path: npm-audit.html
 
-      # needs to be added by hand for now
-      #      - name: Install @cyclonedx/cdxgen
-      #        run: yarn add-no-save @cyclonedx/cdxgen
-      # or:       run: yarn add --dev @cyclonedx/cdxgen
+      - name: Install @cyclonedx/cdxgen
+        run: yarn add --dev @cyclonedx/cdxgen@v8.6.2
 
       - name: Create SBOM using cyclonedx
-        run: yarn cdxgen --output bom.xml
+        run: yarn cdxgen --output bom.xml --required-only
+
+      - name: Revert lockfile changes (caused by cdxgen and npm-audit-html install)
+        run: git checkout -- package.json yarn.lock
 
       - name: Upload SBOM artifact
         if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
