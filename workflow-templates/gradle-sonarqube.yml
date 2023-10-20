@@ -75,6 +75,37 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
 
+      - name: Set env 'BRANCH_NAME'
+        if: github.event_name != 'repository_dispatch'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SONAR_BASE_VERSION'
+        if: startsWith(github.event_name , 'pull_request') == false
+        run: echo SONAR_BASE_VERSION="${GITHUB_SHA}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SONAR_BASE_VERSION'
+        if: startsWith(github.event_name , 'pull_request')
+        run: echo SONAR_BASE_VERSION="${{ github.event.pull_request.number }}" >> ${GITHUB_ENV}
+
+      - name: git-get-release-action
+        if: env.BRANCH_NAME == 'master'
+        uses: cardinalby/git-get-release-action@v1
+        id: getLatestVersion
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          doNotFailIfNotFound: true
+          latest: true
+          prerelease: false
+
+      - name: Set env 'SONAR_BASE_VERSION'
+        if: env.BRANCH_NAME == 'master'
+        run: echo SONAR_BASE_VERSION="${{ steps.getLatestVersion.outputs.tag_name }}" >> ${GITHUB_ENV}
+
       - name: Log details
         run: |
           echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
@@ -84,10 +115,12 @@ jobs:
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "TAG: ${{ env.TAG }}"
           echo "VERSION: ${{ env.VERSION }}"
-          echo "sonar.github.repository: ${{ github.repository }}"
+          echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
+          echo "sonar.projectVersion: ${{ env.SONAR_BASE_VERSION }}"
           echo "sonar.pullrequest.base: ${{ github.base_ref }}"
           echo "sonar.pullrequest.branch: ${{ github.head_ref }}"
           echo "sonar.pullrequest.key: ${{ github.event.number }}"
+          echo "sonar.pullrequest.github.repository: ${{ github.repository }}"
 
       - name: Prepare gradle properties
         run: printf "\n$GRADLE_PROPS" >> gradle.properties
@@ -131,7 +164,9 @@ jobs:
             ${{ env.GRADLE_SONARQUBE_TASK }} -Pversion=${{ env.VERSION }}
               -Dsonar.host.url=${{ secrets.SONAR_URL }}
               -Dsonar.login=${{ secrets.SONAR_LOGIN }}
-
+              -Dsonar.branch.name=${{ env.BRANCH_NAME }}
+              -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+              -Dsonar.qualitygate.wait=true
 
       - name: Sonarqube with gradle (on PR)
         if: startsWith(github.event_name, 'pull_request')
@@ -139,12 +174,13 @@ jobs:
         with:
           arguments: |
             ${{ env.GRADLE_SONARQUBE_TASK }} -Pversion=${{ env.VERSION }}
+              -Dsonar.host.url=${{ secrets.SONAR_URL }}
+              -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+              -Dsonar.java.source=${{ env.JAVA_VERSION }}
+              -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
               -Dsonar.pullrequest.github.endpoint=https://api.github.com
               -Dsonar.pullrequest.github.repository=${{ github.repository }}
               -Dsonar.pullrequest.base=${{ github.base_ref }}
               -Dsonar.pullrequest.branch=${{ github.head_ref }}
               -Dsonar.pullrequest.key=${{ github.event.number }}
               -Dsonar.qualitygate.wait=true
-              -Dsonar.java.source=${{ env.JAVA_VERSION }}
-              -Dsonar.host.url=${{ secrets.SONAR_URL }}
-              -Dsonar.login=${{ secrets.SONAR_LOGIN }}

@@ -72,7 +72,7 @@ jobs:
         run: echo SONAR_PREFIX="io.myplant" >> ${GITHUB_ENV}
 
       - name: Apply SONAR_PREFIX to SONAR_KEY
-        if: "${{ env.SONAR_PREFIX != '' }}"
+        if: env.SONAR_PREFIX != ''
         run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
@@ -83,6 +83,29 @@ jobs:
         if: github.event_name == 'repository_dispatch'
         run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
 
+      - name: Set env 'SONAR_BASE_VERSION'
+        if: startsWith(github.event_name , 'pull_request') == false
+        run: echo SONAR_BASE_VERSION="${GITHUB_SHA}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SONAR_BASE_VERSION'
+        if: startsWith(github.event_name , 'pull_request')
+        run: echo SONAR_BASE_VERSION="${{ github.event.pull_request.number }}" >> ${GITHUB_ENV}
+
+      - name: git-get-release-action
+        if: env.BRANCH_NAME == 'master'
+        uses: cardinalby/git-get-release-action@v1
+        id: getLatestVersion
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          doNotFailIfNotFound: true
+          latest: true
+          prerelease: false
+
+      - name: Set env 'SONAR_BASE_VERSION'
+        if: env.BRANCH_NAME == 'master'
+        run: echo SONAR_BASE_VERSION="${{ steps.getLatestVersion.outputs.tag_name }}" >> ${GITHUB_ENV}
+   
       - name: Log details
         run: |
           echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
@@ -91,12 +114,14 @@ jobs:
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
-          echo "sonar.projectKey: ${{ env.SONAR_KEY }}"
           echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
-          echo "sonar.github.repository: ${{ github.repository }}"
+          echo "sonar.projectKey: ${{ env.SONAR_KEY }}"
+          echo "sonar.projectName: ${{ env.COMPONENT_NAME }}"
+          echo "sonar.projectVersion: ${{ env.SONAR_BASE_VERSION }}"
           echo "sonar.pullrequest.base: ${{ github.base_ref }}"
           echo "sonar.pullrequest.branch: ${{ github.head_ref }}"
           echo "sonar.pullrequest.key: ${{ github.event.number }}"
+          echo "sonar.pullrequest.github.repository: ${{ github.repository }}"
 
       - name: Setup sonarqube
         uses: warchant/setup-sonar-scanner@v7
@@ -106,9 +131,10 @@ jobs:
         run: sonar-scanner
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
           -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.branch.name=${{ env.BRANCH_NAME }}
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
-          -Dsonar.branch.name=${{ env.BRANCH_NAME }}
+          -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
           -Dsonar.qualitygate.wait=true
 
       - name: Run sonarqube (on PR)
@@ -118,6 +144,7 @@ jobs:
           -Dsonar.login=${{ secrets.SONAR_LOGIN }}
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
+          -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
           -Dsonar.pullrequest.github.endpoint=https://api.github.com
           -Dsonar.pullrequest.github.repository=${{ github.repository }}
           -Dsonar.pullrequest.base=${{ github.base_ref }}
