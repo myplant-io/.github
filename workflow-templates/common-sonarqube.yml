@@ -85,7 +85,7 @@ jobs:
 
       - name: Set env 'SONAR_BASE_VERSION'
         if: startsWith(github.event_name , 'pull_request')
-        run: echo SONAR_BASE_VERSION="${{ github.event.pull_request.number }}" >> ${GITHUB_ENV}
+        run: echo SONAR_BASE_VERSION="${{ github.event.number }}" >> ${GITHUB_ENV}
 
       - name: git-get-release-action
         if: env.BRANCH_NAME == 'master'
