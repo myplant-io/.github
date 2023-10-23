@@ -165,6 +165,7 @@ jobs:
               -Dsonar.host.url=${{ secrets.SONAR_URL }}
               -Dsonar.login=${{ secrets.SONAR_LOGIN }}
               -Dsonar.branch.name=${{ env.BRANCH_NAME }}
+              -Dsonar.java.source=${{ env.JAVA_VERSION }}
               -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
               -Dsonar.qualitygate.wait=true
 
