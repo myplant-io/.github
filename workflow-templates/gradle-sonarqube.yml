@@ -165,6 +165,7 @@ jobs:
               -Dsonar.host.url=${{ secrets.SONAR_URL }}
               -Dsonar.login=${{ secrets.SONAR_LOGIN }}
               -Dsonar.branch.name=${{ env.BRANCH_NAME }}
+              -Dsonar.gradle.skipCompile=true
               -Dsonar.java.source=${{ env.JAVA_VERSION }}
               -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
               -Dsonar.qualitygate.wait=true
@@ -177,6 +178,7 @@ jobs:
             ${{ env.GRADLE_SONARQUBE_TASK }} -Pversion=${{ env.VERSION }}
               -Dsonar.host.url=${{ secrets.SONAR_URL }}
               -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+              -Dsonar.gradle.skipCompile=true
               -Dsonar.java.source=${{ env.JAVA_VERSION }}
               -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
               -Dsonar.pullrequest.github.endpoint=https://api.github.com
