@@ -20,7 +20,7 @@ on:
       repository:
         required: true
         type: string
-        description: Target repository name (without myplant-io/)
+        description: Target repository name (WITH myplant-io/ or myplant-io-analytics/)
 
 env:
   INPUT_TYPE: ${{ github.event.inputs.type }}
@@ -44,7 +44,7 @@ jobs:
       - name: checkout github target repo
         uses: actions/checkout@v4
         with:
-          repository: myplant-io/${{ inputs.repository }}
+          repository: ${{ inputs.repository }}
           ref: develop
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -139,7 +139,7 @@ jobs:
         uses: actions-js/push@v1.4
         with:
           branch: chore/install-gh-actions
-          repository: myplant-io/${{ inputs.repository }}
+          repository: ${{ inputs.repository }}
           directory: ./target
           github_token: ${{ secrets.CI_PAT }}
           message: 'chore: install default github workflows'
