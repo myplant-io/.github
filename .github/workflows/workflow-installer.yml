@@ -139,7 +139,7 @@ jobs:
         uses: actions-js/push@v1.4
         with:
           branch: chore/install-gh-actions
-          repository: myplant-io/${{ inputs.repository }}
+          repository: ${{ inputs.repository }}
           directory: ./target
           github_token: ${{ secrets.CI_PAT }}
           message: 'chore: install default github workflows'
