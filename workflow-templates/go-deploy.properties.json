@@ -1,0 +1,7 @@
+{
+  "name": "Build and deploy",
+  "description": "Build and deploy python docker container",
+  "iconName": "icon-python",
+  "categories": ["Go"],
+  "filePatterns": ["go.mod"]
+}

@@ -22,7 +22,7 @@ on:
 jobs:
   dependencyCheck:
     name: 'Job: Dependency check'
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted]
 
     strategy:
       matrix:

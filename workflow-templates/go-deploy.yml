@@ -28,10 +28,6 @@ jobs:
       group: "deploy_${{ github.ref }}"
       cancel-in-progress: false
 
-    strategy:
-      matrix:
-        node-version: [16.x]
-
     steps:
       - name: Set git to use LF
         run: |
@@ -44,6 +40,20 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
+      - name: Checkout github actions repo
+        uses: actions/checkout@v4
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.6.2
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_READONLY_PAT }}
+
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v2
         with:
@@ -55,17 +65,9 @@ jobs:
         with:
           envFile: ".github/workflow-config.env"
 
-      - name: Checkout github actions repo
-        uses: actions/checkout@v4
-        with:
-          repository: myplant-io/github-actions
-          ref: v0.6.2
-          token: ${{ secrets.CI_PAT }}
-          path: .github/actions
-
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
-        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+        run: echo "COMPONENT_NAME=${{ github.event.repository.name }}" >> ${GITHUB_ENV}
 
       - name: Set env 'DOCKER_TAG_PREFIX'
         if: env.DOCKER_TAG_PREFIX == 'auto'
@@ -96,6 +98,17 @@ jobs:
           myToken: ${{ github.token }}
           view_top: 1
 
+      - name: Set env 'IS_AUTO_RELEASE' (a.k.a release triggered by tag)
+        run: echo IS_AUTO_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name != env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on auto release)
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_PRERELEASE=${{ contains(env.TAG, '-') == true }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on auto release)
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_RELEASE=${{ contains(env.TAG, '-') == false && startsWith(github.ref, 'refs/tags/') }} >> ${GITHUB_ENV}
+
       - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - tag based)
         if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
@@ -123,9 +136,6 @@ jobs:
       - name: Initialize 'DEPLOY_TARGETS'
         run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
 
-      - name: Initialize 'RETAG'
-        run: echo RETAG=false >> ${GITHUB_ENV}
-
       - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
         run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
@@ -142,6 +152,9 @@ jobs:
         if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
+      - name: Initialize 'RETAG'
+        run: echo RETAG=false >> ${GITHUB_ENV}
+
       - name: Log details
         run: |
           echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
@@ -154,6 +167,7 @@ jobs:
           echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "IS_AUTO_RELEASE: ${{ env.IS_AUTO_RELEASE }}"
           echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
           echo "IS_PRERELEASE: ${{ env.IS_PRERELEASE }}"
           echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
@@ -170,8 +184,8 @@ jobs:
             [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
 
             # if there is no prior release, this will be the first one, set the ref to the initial commit to build the first release
-            lastRelTag=$(git tag -l --sort=v:refname | grep -v "${branchTag}" | grep -v ".*-.*" | tail -n 1) || lastRelTag=$(git rev-list --max-parents=0 HEAD)
-            lastTag=$(git tag -l --sort=v:refname | grep -vx "${branchTag}" | tail -n 1)
+            lastRelTag=$(git tag -l | grep -v "${branchTag}" | grep -v ".*-.*" | tail -n 1) || lastRelTag=$(git rev-list --max-parents=0 HEAD)
+            lastTag=$(git tag -l | grep -vx "${branchTag}" | tail -n 1)
             shaShort="$(echo ${GITHUB_SHA} | cut -c1-7)"
 
             echo SHA_SHORT=$shaShort >> ${GITHUB_ENV}
@@ -237,8 +251,8 @@ jobs:
               ]
             }
           outputFile: release_changelog.md
-          fromTag: ${{ steps.versioning.outputs.buildFromTag }}
-          toTag: ${{ steps.versioning.outputs.relTag }}
+          fromTag: ${{ env.BUILD_FROM_TAG }}
+          toTag: ${{ env.BRANCH_TAG }}
 
       - name: Enhance changelog
         id: enhance_changelog
@@ -273,16 +287,6 @@ jobs:
               echo "Adding tag $relTag to image with tag $preRelTag"
             fi;
 
-      - name: Prepare node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Add registry credentials
-        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
-        env:
-          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -307,43 +311,16 @@ jobs:
           version: ${{ env.VERSION }}
           sha: ${{ env.SHA }}
 
-      - name: Create/restore cache for node_modules
-        uses: actions/cache@v3
-        id: node_modules-cache
-        if: env.RETAG == 'false'
-        with:
-          path: "**/node_modules"
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
-      - name: Install dependencies (if not previously cached)
-        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' }}
-        run: yarn install --frozen-lockfile
-
-      - name: Determine if config needs to be generated
-        id: npm_script_check
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: echo generate_config_exists=$(npm run | grep 'generate:config' | wc -l) >> ${GITHUB_OUTPUT}
-
-      - name: Generate config files
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && steps.npm_script_check.outputs.generate_config_exists != 0
-        run: yarn generate:config
-
-      - name: Validate code
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn validate
-
-      - name: Test code
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn test --ci --no-cache --silent
-
-      - name: Build application
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn build
-
       - name: Login to Amazon ECR
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         id: aws-login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Docker login (to AWS ECR)
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.aws-login-ecr.outputs.registry }}
 
       - name: Set up QEMU
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
@@ -355,7 +332,7 @@ jobs:
         run: echo contextFound=$(docker context ls | grep -w 'buildx' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Set up Docker Context for Buildx
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && steps.docker-context-check.outputs.contextFound == 0
+        if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && steps.docker-context-check.outputs.contextFound == 0
         run: docker context create buildx-context
 
       - name: Set up Docker Buildx
@@ -370,10 +347,10 @@ jobs:
         env:
           DOCKER_BUILDKIT: 1
         with:
-          context: .
           provenance: false
           push: true
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
+          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
 
       - name: Deploy service
         if: env.DEPLOY_TARGETS != 'none'
