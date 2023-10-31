@@ -19,7 +19,7 @@ on:
 jobs:
   validateAndTest:
     name: 'Job: Validate and test'
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted-standard]
 
     strategy:
       matrix:

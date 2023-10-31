@@ -5,7 +5,7 @@
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
 #
-# Created by: Nikolaus Krismer
+# Created by: Nikolaus Krismer and Nikolaus Brunner
 ###
 name: Dependency check
 
@@ -23,13 +23,6 @@ jobs:
   dependencyCheck:
     name: 'Job: Dependency check'
     runs-on: [self-hosted-standard]
-    concurrency:
-      group: 'dependencyCheck_${{ github.ref }}'
-      cancel-in-progress: true
-
-    strategy:
-      matrix:
-        node-version: [16.x]
 
     steps:
       - name: Set git to use LF
@@ -44,13 +37,6 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
-      - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v4
-        if: github.event_name == 'repository_dispatch'
-        with:
-          fetch-depth: 0
-          ref: '${{ github.event.client_payload.branch }}'
-
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v2
         with:
@@ -61,6 +47,13 @@ jobs:
         uses: cardinalby/export-env-action@v2
         with:
           envFile: '.github/workflow-config.env'
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v4
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
 
       - name: Checkout github actions repository
         uses: actions/checkout@v4
@@ -75,12 +68,13 @@ jobs:
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
-        if: github.event_name != 'repository_dispatch'
-        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+        run: echo BRANCH_NAME="${GITHUB_REF/refs\/heads\//}" >> ${GITHUB_ENV}
 
-      - name: Set env 'BRANCH_NAME' (for dispatched runs)
-        if: github.event_name == 'repository_dispatch'
-        run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
+      - name: Set env 'SHA'
+        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
+
+      - name: Set 'VERSION' to SHA
+        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
 
       - name: Log details
         run: |
@@ -89,62 +83,38 @@ jobs:
           echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "VERSION: ${{ env.VERSION }}"
           echo "dependency.track.projectname: ${{ env.COMPONENT_NAME }}"
           echo "dependency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
-      - name: Prepare node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - uses: actions/setup-go@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          go-version: "${{ env.GO_VERSION }}"
 
-      - name: Add registry credentials
-        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
-        env:
-          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
-
-      - name: Create/restore cache for node_modules
-        uses: actions/cache@v3
-        id: node_modules-cache
+      - uses: extractions/netrc@v1
         with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          machine: github.com
+          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          password: ${{ secrets.CI_PAT }}
 
-      - name: Install dependencies (if not previously cached)
-        if: steps.node_modules-cache.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile --ignore-optional
-
-      - name: Install yarn-audit-html report
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
-        run: yarn add --dev --ignore-workspace-root-check yarn-audit-html --ignore-optional
-
-      - name: Perform yarn audit
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
-        run: yarn audit --groups dependencies --level ${SECURITY_LEVEL} --json | npx --no-install yarn-audit-html
-
-      - name: Upload audit report artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
-        uses: actions/upload-artifact@v3
+      - uses: extractions/netrc@v1
         with:
-          if-no-files-found: error
-          name: audit-report
-          path: yarn-audit.html
+          machine: api.github.com
+          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          password: ${{ secrets.CI_PAT }}
 
-      - name: Install @cyclonedx/cdxgen
-        run: yarn add --dev --ignore-workspace-root-check @cyclonedx/cdxgen@v8.6.2
-
-      - name: Create SBOM using cyclonedx
-        run: yarn run --no-install cdxgen --output bom.xml --required-only
-
-      - name: Revert lockfile changes (caused by cdxgen and yarn-audit-html install)
-        run: git checkout -- package.json yarn.lock
+      - name: Generate SBOM
+        uses: CycloneDX/gh-gomod-generate-sbom@v2
+        with:
+          version: v1
+          args: mod -licenses -output bom.xml
 
       - name: Upload SBOM artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: SBOM
-          path: bom.xml
+          path: './bom.xml'
 
       - name: Publish dependency check result to tracker
         id: upload-dependency-track

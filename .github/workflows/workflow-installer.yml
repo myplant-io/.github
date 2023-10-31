@@ -15,6 +15,7 @@ on:
           - 'dotnet'
           - 'python'
           - 'prefect'
+          - 'go'
         default: 'auto-detection'
         description: Choose a project type
       repository:
@@ -103,6 +104,9 @@ jobs:
               echo "Python project detected"
               echo INPUT_TYPE=python >> ${GITHUB_ENV}
             fi
+          elif [[ -f "go.mod" ]]; then
+            echo "go project detected"
+            echo INPUT_TYPE=go >> ${GITHUB_ENV}
           else
             echo "could not detect project type"
             exit 1
