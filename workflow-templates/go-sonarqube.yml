@@ -11,7 +11,7 @@ name: Sonarqube
 
 on:
   pull_request:
-    branches: [develop]
+    branches: [develop, main, master]
     paths-ignore:
       - '.github/workflows/*auto-update*'
   push:
@@ -123,6 +123,28 @@ jobs:
           echo "sonar.pullrequest.key: ${{ github.event.number }}"
           echo "sonar.pullrequest.github.repository: ${{ github.repository }}"
 
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "${{ env.GO_VERSION }}"
+
+      - uses: extractions/netrc@v1
+        with:
+          machine: github.com
+          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          password: ${{ secrets.CI_PAT }}
+
+      - uses: extractions/netrc@v1
+        with:
+          machine: api.github.com
+          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          password: ${{ secrets.CI_PAT }}
+
+      - name: Tests
+        run: |
+          go mod tidy
+          go build .
+          go test -coverprofile=coverage.out . > testresults.out
+
       - name: Setup sonarqube
         uses: warchant/setup-sonar-scanner@v7
 
@@ -135,6 +157,8 @@ jobs:
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+          -Dsonar.go.coverage.reportPaths=coverage.out
+          -Dsonar.go.tests.reportPaths=testresults.out
           -Dsonar.qualitygate.wait=true
 
       - name: Run sonarqube (on PR)
@@ -150,4 +174,6 @@ jobs:
           -Dsonar.pullrequest.base=${{ github.base_ref }}
           -Dsonar.pullrequest.branch=${{ github.head_ref }}
           -Dsonar.pullrequest.key=${{ github.event.number }}
+          -Dsonar.go.coverage.reportPaths=coverage.out
+          -Dsonar.go.tests.reportPaths=testresults.out
           -Dsonar.qualitygate.wait=true
