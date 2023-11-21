@@ -138,15 +138,15 @@ jobs:
 
       - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${{ env.PUSH_DEPLOY_TARGET }} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' pre-release
         if: env.IS_PRERELEASE == 'true' && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${{ env.PRE_RELEASE_DEPLOY_TARGET }} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for release
         if: env.IS_RELEASE == 'true' &&  env.RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${{ env.RELEASE_DEPLOY_TARGET }} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
