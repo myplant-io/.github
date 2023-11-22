@@ -1,12 +1,12 @@
 # When triggered, it will use the source branch to create a new branch release/v{version} from it, where
 # version is derived to the latest release tag bumped using conventional commits.
-# Example: if commit starts with "feat: ", 1.1.1 is bumped to 1.2.1
+# Example: if commit starts with "feat: ", 1.1.1 is bumped to 1.2.1 (https://github.com/mathieudutour/github-tag-action#bumping)
 #
 # If this branch already exists, the source branch will be merged on top of it
 #
 # HINT: It is possible to merge directly into those feature branches without negative impact to the pipeline
 
-name: "Stage branch for release"
+name: "Create Pre/Release branch"
 
 on:
   workflow_dispatch:
@@ -31,6 +31,7 @@ jobs:
           tag_prefix: "v"
           dry_run: true
           append_to_pre_release_tag: false
+
       - name: Determine release branch name
         id: branch-names
         env:
@@ -40,6 +41,7 @@ jobs:
           echo "::set-output name=next-release::$nextRelease"
           echo "::set-output name=name::release/$nextRelease"
           echo "::set-output name=source-branch::${GITHUB_REF#refs/heads/}"
+
       - name: Look for existing branch
         id: branch-exists
         env:
@@ -52,6 +54,7 @@ jobs:
           else
               echo "::set-output name=exists::true"
           fi
+
       - uses: peterjgrainger/action-create-branch@v2.0.1
         if:  ${{ steps.branch-exists.outputs.exists == 'false' }}
         name: Create branch for release cycle
@@ -60,6 +63,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CI_PAT }}
         with:
           branch: ${{ steps.branch-names.outputs.name }}
+
       - name: Prepare commit message
         if:  ${{ steps.branch-exists.outputs.exists == 'true' }}
         id: commit-message
@@ -67,6 +71,7 @@ jobs:
           BRANCH: ${{ steps.branch-names.outputs.source-branch }}
           RELEASE: ${{ steps.branch-names.outputs.next-release }}
         run: echo "::set-output name=message::Merge branch $BRANCH into release $RELEASE"
+
       - name: Merge for PreRelease
         if:  ${{ steps.branch-exists.outputs.exists == 'true' }}
         uses: tukasz/direct-merge-action@master
