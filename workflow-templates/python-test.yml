@@ -1,0 +1,80 @@
+###
+# GitHub action that runs tests on the code.
+#
+# Created by: Andreas Schachinger, Nikolaus Krismer
+###
+name: Test and validate
+
+on:
+  pull_request:
+    branches: [ develop ]
+    paths-ignore:
+      - ".github/workflows/*auto-update*"
+  push:
+    branches: [ develop, release/**, bugfix/**, hotfix/** ]
+
+jobs:
+  testAndValidate:
+    name: "Job: Test and validate"
+    runs-on: [ self-hosted-standard ]
+    strategy:
+      matrix:
+        python-version: ['3.10']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - uses: kenchan0130/actions-system-info@v1.2.1
+        id: system-info
+
+      - name: Log details
+        run: |
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - name: Prepare python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          cache: "pip"
+          python-version: ${{ matrix.python-version }}
+
+      - name: Check for pre-commit configuraiton
+        id: pre-commit-config
+        uses: andstor/file-existence-action@v2
+        with:
+          fail: false
+          files: ".pre-commit-config.yaml"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt \
+               --index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpy/simple" \
+               --extra-index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpyexternal/simple" \
+               --extra-index-url "https://pypi.org/simple"
+
+      - name: Run pre-commit (on PR)
+        if: steps.pre-commit-config.outputs.files_exists == 'true' && env.BRANCH_NAME != 'develop'
+        run: pre-commit run --show-diff-on-failure --color=always --all-files
+
+      - name: Run pre-commit (on develop)
+        if: steps.pre-commit-config.outputs.files_exists == 'true' && env.BRANCH_NAME == 'develop'
+        run: SKIP=no-commit-to-branch pre-commit run --show-diff-on-failure --color=always --all-files
+
+      - name: Test with pytest
+        run: pytest
