@@ -24,7 +24,7 @@ jobs:
   sonarqube:
     name: 'Job: Sonarqube'
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted-standard]
     concurrency:
       group: 'sonarqube_${{ github.ref }}'
       cancel-in-progress: true
@@ -82,7 +82,7 @@ jobs:
           dotnet-version: ${{ matrix.dotnet-version }}
 
       - name: SonarScanner for .NET 5 with pull request decoration support
-        uses: highbyte/sonarscan-dotnet@2.1.3
+        uses: highbyte/sonarscan-dotnet@v2.2.6
         with:
           dotnetDisableTests: true
           sonarProjectKey: ${COMPONENT_NAME}

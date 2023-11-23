@@ -5,7 +5,7 @@
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
 #
-# Created by: Nikolaus Krismer
+# Created by: Nikolaus Krismer and Nikolaus Brunner
 ###
 name: Dependency check
 
@@ -22,10 +22,7 @@ on:
 jobs:
   dependencyCheck:
     name: 'Job: Dependency check'
-    runs-on: [ self-hosted-standard ]
-    concurrency:
-      group: 'dependencyCheck_${{ github.ref }}'
-      cancel-in-progress: true
+    runs-on: [self-hosted-standard]
 
     steps:
       - name: Set git to use LF
@@ -40,13 +37,6 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
-      - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v4
-        if: github.event_name == 'repository_dispatch'
-        with:
-          fetch-depth: 0
-          ref: '${{ github.event.client_payload.branch }}'
-
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v2
         with:
@@ -58,6 +48,13 @@ jobs:
         with:
           envFile: '.github/workflow-config.env'
 
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v4
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
+
       - name: Checkout github actions repository
         uses: actions/checkout@v4
         with:
@@ -66,29 +63,12 @@ jobs:
           token: ${{ secrets.CI_PAT }}
           path: .github/actions
 
-      - name: Check setting file existence
-        id: check_settings_file
+      - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
-        uses: andstor/file-existence-action@v2
-        with:
-          fail: false
-          files: 'settings.gradle'
-
-      - name: Set env 'COMPONENT_NAME' (settings are present)
-        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
-        run: echo COMPONENT_NAME="$(grep 'rootProject.name' settings.gradle | cut -d '=' -f 2 | tr -d '\r' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
-
-      - name: Set env 'COMPONENT_NAME' (no settings found)
-        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'false'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
-        if: github.event_name != 'repository_dispatch'
-        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
-
-      - name: Set env 'BRANCH_NAME' (for dispatched runs)
-        if: github.event_name == 'repository_dispatch'
-        run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
+        run: echo BRANCH_NAME="${GITHUB_REF/refs\/heads\//}" >> ${GITHUB_ENV}
 
       - name: Set env 'SHA'
         run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
@@ -107,53 +87,40 @@ jobs:
           echo "dependency.track.projectname: ${{ env.COMPONENT_NAME }}"
           echo "dependency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
-      - name: Prepare gradle properties
-        run: printf "\n$GRADLE_PROPS" >> gradle.properties
-        env:
-          GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
-
-      - name: Validate gradle wrapper
-        uses: gradle/wrapper-validation-action@v1
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
-
-      - name: Prepare gradle
-        uses: gradle/gradle-build-action@v2
-
-      - name: Get java version from gradle
-        run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
-
-      - name: Prepare java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v3
+      - uses: actions/setup-go@v4
         with:
-          distribution: 'adopt'
-          java-version: ${{ env.JAVA_VERSION }}
+          go-version: "${{ env.GO_VERSION }}"
 
-      - name: Dependency check with gradle
-        uses: gradle/gradle-build-action@v2
-        continue-on-error: true
+      - uses: extractions/netrc@v1
         with:
-          arguments: |
-            ${{ env.GRADLE_DEPENDENCY_CHECK_TASK }} -Pversion=${{ env.VERSION }}
-            -Pcyclonedx.includeBomSerialNumber=false
+          machine: github.com
+          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          password: ${{ secrets.CI_PAT }}
 
-      - name: Post process dependency check bom
-        run: sed -i "s/type=jar//g" build/reports/bom.xml
+      - uses: extractions/netrc@v1
+        with:
+          machine: api.github.com
+          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          password: ${{ secrets.CI_PAT }}
+
+      - name: Generate SBOM
+        uses: CycloneDX/gh-gomod-generate-sbom@v2
+        with:
+          version: v1
+          args: mod -licenses -output bom.xml
 
       - name: Upload SBOM artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: SBOM
-          path: 'build/reports/bom.xml'
+          path: './bom.xml'
 
       - name: Publish dependency check result to tracker
         id: upload-dependency-track
         uses: ./.github/actions/upload-dependency-track
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          bomfilename: 'build/reports/bom.xml'
+          bomfilename: './bom.xml'
           projectname: ${{ env.COMPONENT_NAME }}
           projectversion: ${{ env.BRANCH_NAME }}

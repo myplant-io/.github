@@ -9,15 +9,11 @@
 name: Build and deploy
 
 on:
-  push:
-    branches: [develop, release/**, bugfix/**, hotfix/**]
-#    tags:
-#      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
-#      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
+  create:
   release:
-    types:
-      - released
-      - prereleased
+    types: [released, published]
+  push:
+    branches: [develop, release/**, hotfix/**]
   workflow_dispatch:
 
 jobs:
@@ -30,7 +26,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.10']
+        python-version: ['3.9']
 
     steps:
       - name: Set git to use LF
@@ -137,25 +133,6 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
         run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
 
-      - name: Initialize 'DEPLOY_TARGETS'
-        run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
-        if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' pre-release
-        if: env.IS_PRERELEASE == 'true' && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' for release
-        if: env.IS_RELEASE == 'true' &&  env.RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
-        if: env.BRANCH_NAME == 'master'
-        run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
-
       - name: Initialize 'RETAG'
         run: echo RETAG=false >> ${GITHUB_ENV}
 
@@ -178,10 +155,9 @@ jobs:
           echo "TAG: ${{ env.TAG }}"
           echo "VERSION: ${{ env.VERSION }}"
 
-      - name: Prepare python ${{ matrix.python-version }}
+      - name: Setup python
         uses: actions/setup-python@v4
         with:
-          cache: "pip"
           python-version: ${{ matrix.python-version }}
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
@@ -367,43 +343,8 @@ jobs:
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
           secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
 
-      - name: Deploy service
-        if: env.DEPLOY_TARGETS != 'none'
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.CI_PAT }}
-          repository: myplant-io/ci-deploy-action
-          event-type: deploy
-          client-payload: '{
-            "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
-            "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
-            "version": "${{ env.VERSION }}",
-            "component_name": "${{ env.COMPONENT_NAME }}",
-            "deployment_files": ${{ env.DEPLOY_TARGETS }}
-          }'
-
-      - name: Merging release changes to master
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.CI_PAT }}
-          event-type: merge
-          client-payload: '{
-            "commitish": "${{ github.event.release.target_commitish }}",
-            "source_branch": "${{ env.BRANCH_NAME }}",
-            "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
-
-      # target_commitish can be "develop" for releases that are solely based on tags
-      - name: Merging release changes to master (not using develop commitish, but tag ref)
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.CI_PAT }}
-          event-type: merge
-          client-payload: '{
-            "source_branch": "${{ env.BRANCH_NAME }}",
-            "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
+      - name: Register in prefect
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: docker run ${{ env.IMAGE_TAG }} prefect-toolbox register --project-name "${{ env.PROJECT_NAME }}" --src-dir /src --credentials "${{ secrets.PREFECT_CREDENTIALS }}" --prefect-server "${{ env.PREFECT_SERVER_URL }}" --image "${{ env.IMAGE_TAG }}"

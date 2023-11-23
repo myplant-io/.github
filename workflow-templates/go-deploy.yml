@@ -28,10 +28,6 @@ jobs:
       group: "deploy_${{ github.ref }}"
       cancel-in-progress: false
 
-    strategy:
-      matrix:
-        python-version: ['3.10']
-
     steps:
       - name: Set git to use LF
         run: |
@@ -177,12 +173,6 @@ jobs:
           echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
           echo "TAG: ${{ env.TAG }}"
           echo "VERSION: ${{ env.VERSION }}"
-
-      - name: Prepare python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          cache: "pip"
-          python-version: ${{ matrix.python-version }}
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')

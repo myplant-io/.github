@@ -15,7 +15,7 @@ on:
 jobs:
   merge:
     name: "Job: Merging branches"
-    runs-on: [ self-hosted, linux ]
+    runs-on: [self-hosted-standard]
 
     steps:
       - name: Set git to use LF
@@ -93,13 +93,13 @@ jobs:
 
       - name: Check that source branch has been found
         if: env.IS_DETACHED_HEAD == 'true' && env.SOURCE_BRANCH == ''
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: core.setFailed('Started in detached head and could not find source branch!')
 
       - name: Check that source branch is not develop
         if: env.SOURCE_BRANCH == 'develop' || env.SOURCE_BRANCH == 'refs/heads/develop'
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: core.setFailed('Not merging develop into other branches automatically. Please use release/hotfix/bugfix branches!')
 
