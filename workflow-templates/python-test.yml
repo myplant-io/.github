@@ -60,7 +60,7 @@ jobs:
           cache: "pip"
           python-version: ${{ matrix.python-version }}
 
-      - name: Check for pre-commit configuraiton
+      - name: Check for pre-commit configuration
         id: pre-commit-config
         uses: andstor/file-existence-action@v2
         with:
