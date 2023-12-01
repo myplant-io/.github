@@ -23,7 +23,7 @@ on:
 jobs:
   buildAndDeploy:
     name: "Job: Build and deploy"
-    runs-on: [ self-hosted, linux ]
+    runs-on: [self-hosted-standard]
     concurrency:
       group: "deploy_${{ github.ref }}"
       cancel-in-progress: false
@@ -183,33 +183,26 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Find Version Infos
-        id: versioning
+      - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
-        shell: bash
         run: |
             branchTag=$(git describe --tags)
-
             [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
-
-            # if there is no prior release, this will be the first one, set the ref to the initial commit to build the first release
-            lastRelTag=$(git tag -l | grep -v "${branchTag}" | grep -v ".*-.*" | tail -n 1) || lastRelTag=$(git rev-list --max-parents=0 HEAD)
-            lastTag=$(git tag -l | grep -vx "${branchTag}" | tail -n 1)
-            shaShort="$(echo ${GITHUB_SHA} | cut -c1-7)"
-
-            echo SHA_SHORT=$shaShort >> ${GITHUB_ENV}
-            echo LAST_REL_TAG=$lastRelTag >> ${GITHUB_ENV}
             echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
-            echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
 
-            if ${IS_RELEASE}; then
-              echo BUILD_FROM_TAG=$lastRelTag >> ${GITHUB_ENV}
-            else
-              echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
-            fi;
+      - name: Find Version Infos (LAST_RELEASE_TAG)
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        run: echo LAST_RELEASE_TAG=$(git tag -l --sort=v:refname | grep -v "${{ env.BRANCH_TAG }}" | grep -v ".*-.*" | tail -n 1) >> ${GITHUB_ENV}
+
+      - name: Find Version Infos (BUILD_FROM_TAG)
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
+        run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
+
+      - name: Find Version Infos (BUID_FROM_TAG)
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
 
       - name: Build changelog on manual release
-        id: build_changelog
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
         uses: mikepenz/release-changelog-builder-action@v4
         with:
@@ -263,15 +256,19 @@ jobs:
           fromTag: ${{ env.BUILD_FROM_TAG }}
           toTag: ${{ env.BRANCH_TAG }}
 
+      - name: Check release changelog existence
+        id: check_release_changelog
+        uses: andstor/file-existence-action@v2
+        with:
+          fail: false
+          files: "release_changelog.md"
+
       - name: Enhance changelog
-        id: enhance_changelog
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
-        shell: bash
-        run: |
-          sed -i "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g" release_changelog.md
+        if: steps.check_release_changelog.outputs.files_exists == 'true'
+        run: sed -i "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g" release_changelog.md
 
       - name: Update Release
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: steps.check_release_changelog.outputs.files_exists == 'true'
         uses: tubone24/update_release@v1.3.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -279,21 +276,29 @@ jobs:
         with:
           body_path: release_changelog.md
 
+      - name: Find last version (default)
+        run: echo LAST_VERSION="" >> ${GITHUB_ENV}
+
+      - name: Find last version
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true') && env.LAST_RELEASE_TAG != ''
+        run: |
+            lastTag=$(git tag -l --sort=v:refname | grep -vx "${{ env.BRANCH_TAG }}" | tail -n 1)
+            echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
+
       - name: Check Re-Tag docker image
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.LAST_VERSION != ''
         env:
-          relTag: ${{ env.VERSION }}
-          preRelTag: ${{ env.LAST_VERSION }}
-        shell: bash
+          releaseTag: ${{ env.VERSION }}
+          preReleaseTag: ${{ env.LAST_VERSION }}
         run: |
             echo "Check if tags are on same rev"
 
-            prevSHA=$(git rev-list -n 1 refs/tags/v$preRelTag)
-            curSHA=$(git rev-list -n 1 refs/tags/v$relTag)
+            prevSHA=$(git rev-list -n 1 refs/tags/v$preReleaseTag)
+            curSHA=$(git rev-list -n 1 refs/tags/v$releaseTag)
 
             if [ $prevSHA == $curSHA ]; then
+              echo "Adding release tag $releaseTag to image with pre-relase tag $preReleaseTag"
               echo RETAG=true >> ${GITHUB_ENV}
-              echo "Adding tag $relTag to image with tag $preRelTag"
             fi;
 
       - name: Configure AWS credentials

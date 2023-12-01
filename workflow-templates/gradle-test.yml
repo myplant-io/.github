@@ -19,7 +19,7 @@ on:
 jobs:
   testAndValidate:
     name: 'Job: Test and validate'
-    runs-on: [self-hosted, linux]
+    runs-on: [ self-hosted-standard ]
 
     steps:
       - name: Set git to use LF
@@ -91,7 +91,7 @@ jobs:
         run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'adopt'
           java-version: ${{ env.JAVA_VERSION }}

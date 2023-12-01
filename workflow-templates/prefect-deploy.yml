@@ -9,15 +9,11 @@
 name: Build and deploy
 
 on:
-  push:
-    branches: [develop, release/**, bugfix/**, hotfix/**]
-#    tags:
-#      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
-#      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
+  create:
   release:
-    types:
-      - released
-      - prereleased
+    types: [released, published]
+  push:
+    branches: [develop, release/**, hotfix/**]
   workflow_dispatch:
 
 jobs:
@@ -30,7 +26,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [16.x]
+        python-version: ['3.9']
 
     steps:
       - name: Set git to use LF
@@ -44,6 +40,20 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
+      - name: Checkout github actions repo
+        uses: actions/checkout@v4
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.6.2
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_READONLY_PAT }}
+
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v2
         with:
@@ -55,17 +65,9 @@ jobs:
         with:
           envFile: ".github/workflow-config.env"
 
-      - name: Checkout github actions repo
-        uses: actions/checkout@v4
-        with:
-          repository: myplant-io/github-actions
-          ref: v0.6.2
-          token: ${{ secrets.CI_PAT }}
-          path: .github/actions
-
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
-        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+        run: echo "COMPONENT_NAME=${{ github.event.repository.name }}" >> ${GITHUB_ENV}
 
       - name: Set env 'DOCKER_TAG_PREFIX'
         if: env.DOCKER_TAG_PREFIX == 'auto'
@@ -96,6 +98,17 @@ jobs:
           myToken: ${{ github.token }}
           view_top: 1
 
+      - name: Set env 'IS_AUTO_RELEASE' (a.k.a release triggered by tag)
+        run: echo IS_AUTO_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name != env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on auto release)
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_PRERELEASE=${{ contains(env.TAG, '-') == true }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on auto release)
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_RELEASE=${{ contains(env.TAG, '-') == false && startsWith(github.ref, 'refs/tags/') }} >> ${GITHUB_ENV}
+
       - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - tag based)
         if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
@@ -120,27 +133,8 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
         run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
 
-      - name: Initialize 'DEPLOY_TARGETS'
-        run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
-
       - name: Initialize 'RETAG'
         run: echo RETAG=false >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
-        if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' pre-release
-        if: env.IS_PRERELEASE == 'true' && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' for release
-        if: env.IS_RELEASE == 'true' &&  env.RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
-
-      - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
-        if: env.BRANCH_NAME == 'master'
-        run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
       - name: Log details
         run: |
@@ -154,11 +148,17 @@ jobs:
           echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
           echo "GITHUB_REF: ${GITHUB_REF}"
           echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "IS_AUTO_RELEASE: ${{ env.IS_AUTO_RELEASE }}"
           echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
           echo "IS_PRERELEASE: ${{ env.IS_PRERELEASE }}"
           echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
           echo "TAG: ${{ env.TAG }}"
           echo "VERSION: ${{ env.VERSION }}"
+
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
@@ -278,16 +278,6 @@ jobs:
               echo RETAG=true >> ${GITHUB_ENV}
             fi;
 
-      - name: Prepare node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Add registry credentials
-        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
-        env:
-          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -312,43 +302,16 @@ jobs:
           version: ${{ env.VERSION }}
           sha: ${{ env.SHA }}
 
-      - name: Create/restore cache for node_modules
-        uses: actions/cache@v3
-        id: node_modules-cache
-        if: env.RETAG == 'false'
-        with:
-          path: "**/node_modules"
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
-      - name: Install dependencies (if not previously cached)
-        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' }}
-        run: yarn install --frozen-lockfile
-
-      - name: Determine if config needs to be generated
-        id: npm_script_check
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: echo generate_config_exists=$(npm run | grep 'generate:config' | wc -l) >> ${GITHUB_OUTPUT}
-
-      - name: Generate config files
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && steps.npm_script_check.outputs.generate_config_exists != 0
-        run: yarn generate:config
-
-      - name: Validate code
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn validate
-
-      - name: Test code
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn test --ci --no-cache --silent
-
-      - name: Build application
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn build
-
       - name: Login to Amazon ECR
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         id: aws-login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Docker login (to AWS ECR)
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.aws-login-ecr.outputs.registry }}
 
       - name: Set up QEMU
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
@@ -360,7 +323,7 @@ jobs:
         run: echo contextFound=$(docker context ls | grep -w 'buildx' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Set up Docker Context for Buildx
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && steps.docker-context-check.outputs.contextFound == 0
+        if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && steps.docker-context-check.outputs.contextFound == 0
         run: docker context create buildx-context
 
       - name: Set up Docker Buildx
@@ -375,49 +338,13 @@ jobs:
         env:
           DOCKER_BUILDKIT: 1
         with:
-          context: .
           provenance: false
           push: true
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
+          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
 
-      - name: Deploy service
-        if: env.DEPLOY_TARGETS != 'none'
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.CI_PAT }}
-          repository: myplant-io/ci-deploy-action
-          event-type: deploy
-          client-payload: '{
-            "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
-            "docker_repository": "${{ env.DOCKER_REPOSITORY }}",
-            "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
-            "version": "${{ env.VERSION }}",
-            "component_name": "${{ env.COMPONENT_NAME }}",
-            "deployment_files": ${{ env.DEPLOY_TARGETS }}
-          }'
-
-      - name: Merging release changes to master
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.CI_PAT }}
-          event-type: merge
-          client-payload: '{
-            "commitish": "${{ github.event.release.target_commitish }}",
-            "source_branch": "${{ env.BRANCH_NAME }}",
-            "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
-
-      # target_commitish can be "develop" for releases that are solely based on tags
-      - name: Merging release changes to master (not using develop commitish, but tag ref)
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.CI_PAT }}
-          event-type: merge
-          client-payload: '{
-            "source_branch": "${{ env.BRANCH_NAME }}",
-            "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
+      - name: Register in prefect
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: docker run ${{ env.IMAGE_TAG }} prefect-toolbox register --project-name "${{ env.PROJECT_NAME }}" --src-dir /src --credentials "${{ secrets.PREFECT_CREDENTIALS }}" --prefect-server "${{ env.PREFECT_SERVER_URL }}" --image "${{ env.IMAGE_TAG }}"
