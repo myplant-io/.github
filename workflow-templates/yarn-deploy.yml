@@ -384,6 +384,7 @@ jobs:
           event-type: deploy
           client-payload: '{
             "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
+            "docker_repository": "${{ env.DOCKER_REPOSITORY }}",
             "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
             "version": "${{ env.VERSION }}",
             "component_name": "${{ env.COMPONENT_NAME }}",
