@@ -310,7 +310,7 @@ jobs:
         run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: "adopt"
           java-version: ${{ env.JAVA_VERSION }}
@@ -397,6 +397,7 @@ jobs:
           event-type: deploy
           client-payload: '{
             "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
+            "docker_repository": "${{ env.DOCKER_REPOSITORY }}",
             "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
             "version": "${{ env.VERSION }}",
             "component_name": "${{ env.COMPONENT_NAME }}",
