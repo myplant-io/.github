@@ -1,0 +1,7 @@
+{
+  "name": "Test on PR",
+  "description": "Test pull requests for Python projects",
+  "iconName": "icon-yarn",
+  "categories": ["Python"],
+  "filePatterns": ["poetry.lock", "requirements.txt"]
+}

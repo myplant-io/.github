@@ -178,9 +178,10 @@ jobs:
           echo "TAG: ${{ env.TAG }}"
           echo "VERSION: ${{ env.VERSION }}"
 
-      - name: Setup python
+      - name: Prepare python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
+          cache: "pip"
           python-version: ${{ matrix.python-version }}
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)

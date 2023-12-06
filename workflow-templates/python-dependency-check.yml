@@ -91,9 +91,10 @@ jobs:
           echo "dependency.track.projectname: ${{ env.COMPONENT_NAME }}"
           echo "dependency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
-      - name: Setup python
+      - name: Prepate python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
+          cache: "pip"
           python-version: ${{ matrix.python-version }}
 
       - name: Check poetry file existence
