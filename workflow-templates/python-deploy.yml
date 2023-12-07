@@ -179,7 +179,7 @@ jobs:
           echo "VERSION: ${{ env.VERSION }}"
 
       - name: Prepare python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           cache: "pip"
           python-version: ${{ matrix.python-version }}
