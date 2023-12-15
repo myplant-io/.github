@@ -125,7 +125,7 @@ jobs:
 
       - name: Upload audit report artifact
         if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: audit-report
@@ -142,7 +142,7 @@ jobs:
 
       - name: Upload SBOM artifact
         if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: SBOM
