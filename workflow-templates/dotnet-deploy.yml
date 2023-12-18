@@ -247,7 +247,7 @@ jobs:
             -o "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: Release (${{ matrix.dotnet-version }} - ${{ matrix.dotnet-rid }})
