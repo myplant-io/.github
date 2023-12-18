@@ -3,20 +3,20 @@
 #
 # Created by: Andreas Schachinger, Nikolaus Krismer
 ###
-name: Test and validate
+name: Validate and test
 
 on:
   pull_request:
-    branches: [ develop ]
+    branches: [develop]
     paths-ignore:
-      - ".github/workflows/*auto-update*"
+      - '.github/workflows/*auto-update*'
   push:
-    branches: [ develop, release/**, bugfix/**, hotfix/** ]
+    branches: [develop, release/**, bugfix/**, hotfix/**]
 
 jobs:
-  testAndValidate:
-    name: "Job: Test and validate"
-    runs-on: [ self-hosted-standard ]
+  validateAndTest:
+    name: 'Job: Validate and test'
+    runs-on: [self-hosted-standard]
     strategy:
       matrix:
         python-version: ['3.10']
@@ -57,7 +57,7 @@ jobs:
       - name: Prepare python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          cache: "pip"
+          cache: 'pip'
           python-version: ${{ matrix.python-version }}
 
       - name: Check for pre-commit configuration
@@ -65,7 +65,7 @@ jobs:
         uses: andstor/file-existence-action@v2
         with:
           fail: false
-          files: ".pre-commit-config.yaml"
+          files: '.pre-commit-config.yaml'
 
       - name: Install dependencies
         run: |

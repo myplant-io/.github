@@ -6,7 +6,7 @@
 #
 # Created by: Daniel Hons, Nikolaus Krismer
 ###
-name: Test and validate
+name: Validate and test
 
 on:
   # see https://github.com/dependabot/dependabot-core/issues/3253 why this is pull_request_target and not pull_request
@@ -17,9 +17,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  testAndValidate:
-    name: 'Job: Test and validate'
-    runs-on: [ self-hosted-standard ]
+  validateAndTest:
+    name: 'Job: Validate and test'
+    runs-on: [self-hosted-standard]
 
     steps:
       - name: Set git to use LF
