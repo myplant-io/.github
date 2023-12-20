@@ -85,6 +85,7 @@ jobs:
       - name: Install dependencies (poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
+          pip install poetry
           poetry config repositories.myplant_nexus https://nexus-dev.myplant.io/repository/myplantpy/simple
           poetry config http-basic.myplant_nexus myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config repositories.pypi https://pypi.org/simple
