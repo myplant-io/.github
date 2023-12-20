@@ -86,10 +86,10 @@ jobs:
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
           pip install poetry
-          poetry config repositories.myplant_nexus https://nexus-dev.myplant.io/repository/myplantpy/simple
-          poetry config http-basic.myplant_nexus myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
-          poetry config repositories.pypi https://pypi.org/simple
-          poetry install
+          poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
+          poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
+          poetry config virtualenvs.create false
+          poetry install --no-root
           
       - name: Run pre-commit (on PR)
         if: steps.pre-commit-config.outputs.files_exists == 'true' && env.BRANCH_NAME != 'develop'
