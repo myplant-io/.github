@@ -130,7 +130,7 @@ jobs:
           arguments: |
             ${{ env.GRADLE_SONARQUBE_TASK }} -Pversion=${{ env.VERSION }}
               -Dsonar.host.url=${{ secrets.SONAR_URL }}
-              -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+              -Dsonar.token=${{ secrets.SONAR_LOGIN }}
 
 
       - name: Sonarqube with gradle (on PR)
@@ -147,4 +147,4 @@ jobs:
               -Dsonar.qualitygate.wait=true
               -Dsonar.java.source=${{ env.JAVA_VERSION }}
               -Dsonar.host.url=${{ secrets.SONAR_URL }}
-              -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+              -Dsonar.token=${{ secrets.SONAR_LOGIN }}

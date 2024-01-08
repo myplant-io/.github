@@ -143,7 +143,7 @@ jobs:
         if: startsWith(github.event_name , 'pull_request') == false
         run: sonar-scanner
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
-          -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.branch.name=${{ env.BRANCH_NAME }}
@@ -155,7 +155,7 @@ jobs:
         if: startsWith(github.event_name , 'pull_request')
         run: sonar-scanner
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
-          -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.pullrequest.github.endpoint=https://api.github.com
