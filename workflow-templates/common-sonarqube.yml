@@ -126,7 +126,7 @@ jobs:
         if: startsWith(github.event_name , 'pull_request') == false
         run: sonar-scanner
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
-          -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
           -Dsonar.branch.name=${{ env.BRANCH_NAME }}
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
@@ -137,7 +137,7 @@ jobs:
         if: startsWith(github.event_name , 'pull_request')
         run: sonar-scanner
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
-          -Dsonar.login=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
