@@ -69,6 +69,10 @@ jobs:
         if: env.COMPONENT_NAME == 'auto'
         run: echo "COMPONENT_NAME=${{ github.event.repository.name }}" >> ${GITHUB_ENV}
 
+      - name: Set env 'DOCKER_REPOSITORY'
+        if: env.DOCKER_REPOSITORY == 'auto'
+        run: echo DOCKER_REPOSITORY=$(echo ${GITHUB_REPOSITORY} | sed 's:.*/::') >> ${GITHUB_ENV}
+
       - name: Set env 'DOCKER_TAG_PREFIX'
         if: env.DOCKER_TAG_PREFIX == 'auto'
         run: echo DOCKER_TAG_PREFIX="${COMPONENT_NAME}_" >> ${GITHUB_ENV}
@@ -161,6 +165,7 @@ jobs:
           echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
           echo "DEPLOY_TARGETS: ${{ env.DEPLOY_TARGETS }}"
           echo "DEPLOYMENT_REPO: ${{ env.DEPLOYMENT_REPO }}"
+          echo "DOCKER_REPOSITORY": ${{ env.DOCKER_REPOSITORY }}
           echo "DOCKER_TAG_PREFIX: ${{ env.DOCKER_TAG_PREFIX }}"
           echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
           echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
@@ -305,16 +310,18 @@ jobs:
         uses: ./.github/actions/check-docker-registry
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          version: ${{ env.VERSION }}
+          repository: ${{ env.DOCKER_REPOSITORY }}
           sha: ${{ env.LAST_VERSION }}
+          version: ${{ env.VERSION }}
 
       - name: Check docker registry
         id: check-docker-registry
         uses: ./.github/actions/check-docker-registry
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          version: ${{ env.VERSION }}
+          repository: ${{ env.DOCKER_REPOSITORY }}
           sha: ${{ env.SHA }}
+          version: ${{ env.VERSION }}
 
       - name: Login to Amazon ECR
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
