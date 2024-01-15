@@ -350,8 +350,14 @@ jobs:
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
           secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
 
-      - name: Register in prefect
+      - name: Register in prefect (staging)
+        if: env.IS_MANUAL_RELEASE == 'false' && env.IS_RELEASE == 'false'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: docker run ${{ env.IMAGE_TAG }} prefect-toolbox register --project-name "${{ env.PROJECT_NAME }}" --src-dir /src --credentials "${{ secrets.PREFECT_CREDENTIALS }}" --prefect-server "${{ env.STAGING_PREFECT_SERVER_URL }}" --image "${{ env.IMAGE_TAG }}"
+
+      - name: Register in prefect (production)
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         env:
           DOCKER_BUILDKIT: 1
-        run: docker run ${{ env.IMAGE_TAG }} prefect-toolbox register --project-name "${{ env.PROJECT_NAME }}" --src-dir /src --credentials "${{ secrets.PREFECT_CREDENTIALS }}" --prefect-server "${{ env.PREFECT_SERVER_URL }}" --image "${{ env.IMAGE_TAG }}"
+        run: docker run ${{ env.IMAGE_TAG }} prefect-toolbox register --project-name "${{ env.PROJECT_NAME }}" --src-dir /src --credentials "${{ secrets.PREFECT_CREDENTIALS }}" --prefect-server "${{ env.PROD_PREFECT_SERVER_URL }}" --image "${{ env.IMAGE_TAG }}"
