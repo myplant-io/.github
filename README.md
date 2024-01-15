@@ -67,7 +67,8 @@ Prefect would need the following:
 ```
 COMPONENT_NAME: auto
 DOCKER_TAG_PREFIX: auto
-PREFECT_SERVER_URL: 'https://prefect-dev.staging.myplant.io'
+STAGING_PREFECT_SERVER_URL: 'https://prefect-dev.staging.myplant.io'
+PROD_PREFECT_SERVER_URL: 'https://prefect-dev.myplant.io'
 PROJECT_NAME: 'prod-to-staging-dump'
 ```
 
