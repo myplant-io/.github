@@ -320,6 +320,10 @@ jobs:
         with:
           registry: ${{ steps.aws-login-ecr.outputs.registry }}
 
+      - name: Set env 'IMAGE_TAG'
+        shell: bash
+        run: echo IMAGE_TAG="${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}" >> ${GITHUB_ENV}
+
       - name: Set up QEMU
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/setup-qemu-action@v3
@@ -347,7 +351,7 @@ jobs:
         with:
           provenance: false
           push: true
-          tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
+          tags: env.IMAGE_TAG
           secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
 
       - name: Register in prefect (staging)
