@@ -382,9 +382,12 @@ jobs:
         env:
           DOCKER_BUILDKIT: 1
         with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           context: .
           provenance: false
           push: true
+          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
 
       - name: Deploy service
