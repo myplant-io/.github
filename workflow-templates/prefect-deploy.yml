@@ -349,10 +349,12 @@ jobs:
         env:
           DOCKER_BUILDKIT: 1
         with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           provenance: false
           push: true
-          tags: env.IMAGE_TAG
           secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
+          tags: env.IMAGE_TAG
 
       - name: Register in prefect (staging)
         if: env.IS_MANUAL_RELEASE == 'false' && env.IS_RELEASE == 'false'
