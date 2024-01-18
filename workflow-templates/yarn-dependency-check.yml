@@ -27,10 +27,6 @@ jobs:
       group: 'dependencyCheck_${{ github.ref }}'
       cancel-in-progress: true
 
-    strategy:
-      matrix:
-        node-version: [16.x]
-
     steps:
       - name: Set git to use LF
         run: |
@@ -62,6 +58,17 @@ jobs:
         with:
           envFile: '.github/workflow-config.env'
 
+      - name: Determine node version (check .nvmrc existence)
+        id: check_nvmrc_existence
+        uses: andstor/file-existence-action@v2
+        with:
+          fail: true
+          files: '.nvmrc'
+
+      - name: Determine node version (read from .nvmrc)
+        if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
+        run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+
       - name: Checkout github actions repository
         uses: actions/checkout@v4
         with:
@@ -82,20 +89,21 @@ jobs:
         if: github.event_name == 'repository_dispatch'
         run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
 
-      - name: Log details
+      - name: Log env context
+        run: echo ${{ toJson(env) }}
+
+      - name: Log github context
+        run: echo ${{ toJson(github) }}
+
+      - name: Log dependency tracker context
         run: |
-          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
-          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
-          echo "GITHUB_REF: ${GITHUB_REF}"
-          echo "GITHUB_SHA: ${GITHUB_SHA}"
           echo "dependency.track.projectname: ${{ env.COMPONENT_NAME }}"
           echo "dependency.track.projectversion: ${{ env.BRANCH_NAME }}"
 
-      - name: Prepare node.js ${{ matrix.node-version }}
+      - name: Prepare node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Add registry credentials
         run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
