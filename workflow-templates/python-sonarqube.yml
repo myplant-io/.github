@@ -106,14 +106,25 @@ jobs:
         if: env.BRANCH_NAME == 'master'
         run: echo SONAR_BASE_VERSION="${{ steps.getLatestVersion.outputs.tag_name }}" >> ${GITHUB_ENV}
    
-      - name: Log details
+      - uses: kenchan0130/actions-system-info@v1.2.1
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+   
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log github context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log sonar context
+        if: env.VERBOSE_LOGGING == 'true'
         run: |
-          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
-          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
-          echo "GITHUB_REF: ${GITHUB_REF}"
-          echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
           echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
           echo "sonar.projectKey: ${{ env.SONAR_KEY }}"
           echo "sonar.projectName: ${{ env.COMPONENT_NAME }}"
@@ -122,6 +133,19 @@ jobs:
           echo "sonar.pullrequest.branch: ${{ github.head_ref }}"
           echo "sonar.pullrequest.key: ${{ github.event.number }}"
           echo "sonar.pullrequest.github.repository: ${{ github.repository }}"
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: Setup sonarqube
         uses: warchant/setup-sonar-scanner@v7

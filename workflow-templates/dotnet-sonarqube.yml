@@ -68,13 +68,34 @@ jobs:
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
-      - name: Log details
+      - uses: kenchan0130/actions-system-info@v1.2.1
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log github context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
         run: |
-          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPO: ${{ github.event.repository.name }}"
-          echo "GITHUB_REF: ${GITHUB_REF}"
-          echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: Prepare dotnet environment
         uses: actions/setup-dotnet@v4

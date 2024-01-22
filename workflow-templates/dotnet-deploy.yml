@@ -119,21 +119,34 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
         run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
 
-      - name: Log details
+      - uses: kenchan0130/actions-system-info@v1.2.1
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log github context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
         run: |
-          echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
-          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
-          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
-          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
-          echo "GITHUB_REF: ${GITHUB_REF}"
-          echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
-          echo "IS_PRERELEASE: ${{ env.IS_PRERELEASE }}"
-          echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
-          echo "TAG: ${{ env.TAG }}"
-          echo "VERSION: ${{ env.VERSION }}"
-          echo "MY_VERSION: ${{ env.MY_VERSION }}"
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
