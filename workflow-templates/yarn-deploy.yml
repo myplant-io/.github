@@ -154,10 +154,14 @@ jobs:
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
       - name: Log env context
-        run: echo ${{ toJson(env) }}
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
 
       - name: Log github context
-        run: echo ${{ toJson(github) }}
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')

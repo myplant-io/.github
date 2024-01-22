@@ -54,10 +54,14 @@ jobs:
         run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
 
       - name: Log env context
-        run: echo ${{ toJson(env) }}
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
 
       - name: Log github context
-        run: echo ${{ toJson(github) }}
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
 
       - name: Prepare node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
