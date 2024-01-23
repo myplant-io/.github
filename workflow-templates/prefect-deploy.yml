@@ -354,7 +354,7 @@ jobs:
           provenance: false
           push: true
           secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
-          tags: env.IMAGE_TAG
+          tags: ${{ env.IMAGE_TAG }}
 
       - name: Register in prefect (staging)
         if: env.IS_MANUAL_RELEASE == 'false' && env.IS_RELEASE == 'false'
