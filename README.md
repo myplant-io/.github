@@ -45,6 +45,7 @@ Here is an example workflow configuration file:
 ```
 COMPONENT_NAME=auto
 DEPLOYMENT_REPO=myplant-io/deployment
+DOCKER_REPOSITORY=myplant-io
 DOCKER_TAG_PREFIX=auto
 GRADLE_BUILD_TASK=build test
 GRADLE_DEPENDENCY_CHECK_TASK=assemble cyclonedx dependencyCheckAnalyze
