@@ -74,6 +74,8 @@ PROD_PREFECT_SERVER_URL: 'https://prefect-dev.myplant.io'
 PROJECT_NAME: 'prod-to-staging-dump'
 ```
 
-- Most docker deployments actions (docker-deploy.yaml, yarn/yarn2-deploy) actions
+- Most docker deployment actions (docker-deploy.yaml, yarn/yarn2-deploy) actions
   require a DOCKER_REPOSITORY variable.
+- Yarn/Yarn2 projects will search for a node version in a .nvmrc file that is
+  located in the project's root folder.
 - Yarn/Yarn2 dependency checks need a SECURITY_LEVEL defined.
