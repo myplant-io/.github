@@ -161,7 +161,7 @@ jobs:
           arguments: |
             ${{ env.GRADLE_DEPENDENCY_CHECK_TASK }} -Pversion=${{ env.VERSION }}
             -Pcyclonedx.includeBomSerialNumber=false
-            -Pnvd.apiKey=${{ secrets.NVD_API_KEY }}
+            -Dnvd.apiKey=${{ secrets.NVD_API_KEY }}
 
       - name: Post process dependency check bom
         run: sed -i "s/type=jar//g" build/reports/bom.xml
