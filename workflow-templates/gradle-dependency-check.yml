@@ -132,7 +132,6 @@ jobs:
 
       - name: Dependency check with gradle
         uses: gradle/gradle-build-action@v2
-        continue-on-error: true
         with:
           arguments: |
             ${{ env.GRADLE_DEPENDENCY_CHECK_TASK }} -Pversion=${{ env.VERSION }}
