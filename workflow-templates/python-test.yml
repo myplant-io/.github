@@ -67,7 +67,7 @@ jobs:
         uses: andstor/file-existence-action@v2
         with:
           fail: false
-          files: "pyproject.toml"
+          files: "poetry.lock"
 
       - name: Prepare python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
