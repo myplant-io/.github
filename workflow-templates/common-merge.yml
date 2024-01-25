@@ -134,12 +134,11 @@ jobs:
 
       - name: Open PR to merge release changes
         if: env.AUTO_MERGE != 'true'
-        run: |
-          gh pr create
-          --base "${{ env.TARGET_BRANCH }}"
-          --head "${{ env.SOURCE_BRANCH }}"
-          --title "chore(release): merge ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}"
-          --body "Merging changes from ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}"
+        run: gh pr create \
+          --base "${{ env.TARGET_BRANCH }}" \
+          --head "${{ env.SOURCE_BRANCH }}" \
+          --title "chore(release): merge ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
+          --body "Merging changes from ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
           --label "automatically created"
         env:
           GH_TOKEN: ${{ github.token }}
