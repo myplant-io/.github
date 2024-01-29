@@ -159,7 +159,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Get java version from gradle
         run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
@@ -183,7 +183,7 @@ jobs:
 
       - name: Sonarqube with gradle
         if: startsWith(github.event_name, 'pull_request') == false
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@v3
         with:
           arguments: |
             ${{ env.GRADLE_SONARQUBE_TASK }} -Pversion=${{ env.VERSION }}
@@ -196,7 +196,7 @@ jobs:
 
       - name: Sonarqube with gradle (on PR)
         if: startsWith(github.event_name, 'pull_request')
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@v3
         with:
           arguments: |
             ${{ env.GRADLE_SONARQUBE_TASK }} -Pversion=${{ env.VERSION }}
