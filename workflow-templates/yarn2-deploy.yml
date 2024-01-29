@@ -41,7 +41,7 @@ jobs:
           fetch-depth: 0
 
       - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: true
           files: ".github/workflow-config.env"
@@ -53,7 +53,7 @@ jobs:
 
       - name: Determine node version (check .nvmrc existence)
         id: check_nvmrc_existence
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: true
           files: '.nvmrc'
@@ -257,7 +257,7 @@ jobs:
 
       - name: Check release changelog existence
         id: check_release_changelog
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: false
           files: "release_changelog.md"

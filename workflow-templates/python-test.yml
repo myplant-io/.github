@@ -64,7 +64,7 @@ jobs:
 
       - name: Check poetry existence
         id: check_poetry
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: false
           files: "poetry.lock"
@@ -77,7 +77,7 @@ jobs:
 
       - name: Check for pre-commit configuration
         id: pre-commit-config
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: false
           files: '.pre-commit-config.yaml'

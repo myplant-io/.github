@@ -48,7 +48,7 @@ jobs:
           ref: '${{ github.event.client_payload.branch }}'
 
       - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: true
           files: '.github/workflow-config.env'
@@ -69,7 +69,7 @@ jobs:
       - name: Check setting file existence
         id: check_settings_file
         if: env.COMPONENT_NAME == 'auto'
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: false
           files: 'settings.gradle'

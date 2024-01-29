@@ -59,7 +59,7 @@ jobs:
           password: ${{ secrets.DOCKER_READONLY_PAT }}
 
       - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: true
           files: ".github/workflow-config.env"
@@ -273,7 +273,7 @@ jobs:
 
       - name: Check release changelog existence
         id: check_release_changelog
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: false
           files: "release_changelog.md"
