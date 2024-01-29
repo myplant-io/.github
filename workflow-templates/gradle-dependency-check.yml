@@ -143,7 +143,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
 
       - name: Get java version from gradle
         run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
@@ -155,7 +155,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Dependency check with gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: |
             ${{ env.GRADLE_DEPENDENCY_CHECK_TASK }} -Pversion=${{ env.VERSION }}
