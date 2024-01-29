@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: true
           files: '.github/workflow-config.env'
@@ -121,7 +121,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Check poetry file existence
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         id: check-poetry-lock
         with:
           files: 'poetry.lock'

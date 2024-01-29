@@ -44,7 +44,7 @@ jobs:
 
       - name: Determine node version (check .nvmrc existence)
         id: check_nvmrc_existence
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: true
           files: '.nvmrc'
