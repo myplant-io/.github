@@ -134,16 +134,14 @@ jobs:
 
       - name: Open PR to merge release changes
         if: env.AUTO_MERGE != 'true'
-        uses: repo-sync/pull-request@v2
-        with:
-          source_branch: "${{ env.SOURCE_BRANCH }}"
-          destination_branch: "${{ env.TARGET_BRANCH }}"
-          pr_title: "chore(release): merge ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}"
-          pr_body: "Merging changes from ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}"
-          pr_label: "automatically created"
-          pr_draft: false
-          pr_allow_empty: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr create \
+          --base "${{ env.TARGET_BRANCH }}" \
+          --head "${{ env.SOURCE_BRANCH }}" \
+          --title "chore(release): merge ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
+          --body "Merging changes from ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
+          --label "automatically created"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Checkout git repository
         if: env.IS_DETACHED_HEAD == 'true' && env.AUTO_MERGE == 'true'
