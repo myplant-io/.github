@@ -144,7 +144,7 @@ jobs:
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: Setup sonarqube
-        uses: warchant/setup-sonar-scanner@v7
+        uses: warchant/setup-sonar-scanner@v8
 
       - name: Run sonarqube
         if: startsWith(github.event_name , 'pull_request') == false

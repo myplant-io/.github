@@ -170,7 +170,7 @@ jobs:
           go test -coverprofile=coverage.out . > testresults.out
 
       - name: Setup sonarqube
-        uses: warchant/setup-sonar-scanner@v7
+        uses: warchant/setup-sonar-scanner@v8
 
       - name: Run sonarqube
         if: startsWith(github.event_name , 'pull_request') == false
