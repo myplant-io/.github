@@ -264,6 +264,7 @@ jobs:
         run: docker context create buildx-context
 
       - name: Set up Docker Buildx
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/setup-buildx-action@v3
         with:
           endpoint: buildx-context
