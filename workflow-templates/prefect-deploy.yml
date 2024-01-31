@@ -9,11 +9,10 @@
 name: Build and deploy
 
 on:
-  create:
   release:
-    types: [released, published]
+    types: [released]
   push:
-    branches: [develop, release/**, hotfix/**]
+    branches: [develop]
   workflow_dispatch:
 
 jobs:
@@ -23,10 +22,6 @@ jobs:
     concurrency:
       group: "deploy_${{ github.ref }}"
       cancel-in-progress: false
-
-    strategy:
-      matrix:
-        python-version: ['3.9']
 
     steps:
       - name: Set git to use LF
@@ -55,7 +50,7 @@ jobs:
           password: ${{ secrets.DOCKER_READONLY_PAT }}
 
       - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v3
+        uses: andstor/file-existence-action@v2
         with:
           fail: true
           files: ".github/workflow-config.env"
@@ -102,24 +97,9 @@ jobs:
           myToken: ${{ github.token }}
           view_top: 1
 
-      - name: Set env 'IS_AUTO_RELEASE' (a.k.a release triggered by tag)
-        run: echo IS_AUTO_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name != env.TAG }} >> ${GITHUB_ENV}
-
-      - name: Set env 'IS_PRERELEASE' (on auto release)
-        if: env.IS_AUTO_RELEASE == 'true'
-        run: echo IS_PRERELEASE=${{ contains(env.TAG, '-') == true }} >> ${GITHUB_ENV}
-
-      - name: Set env 'IS_RELEASE' (on auto release)
-        if: env.IS_AUTO_RELEASE == 'true'
-        run: echo IS_RELEASE=${{ contains(env.TAG, '-') == false && startsWith(github.ref, 'refs/tags/') }} >> ${GITHUB_ENV}
-
       - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - tag based)
         if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
-
-      - name: Set env 'IS_PRERELEASE' (on manual release - tag based)
-        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
-        run: echo IS_PRERELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'true' }} >> ${GITHUB_ENV}
 
       - name: Set env 'IS_RELEASE' (on manual release - tag based)
         if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
@@ -129,72 +109,46 @@ jobs:
         if: github.event_name == 'release'
         run: echo IS_MANUAL_RELEASE=true >> ${GITHUB_ENV}
 
-      - name: Set env 'IS_PRERELEASE' (on manual release - release based)
-        if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
-        run: echo IS_PRERELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == true }} >> ${GITHUB_ENV}
-
       - name: Set env 'IS_RELEASE' (on manual release - release based)
         if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
         run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
 
-      - name: Initialize 'RETAG'
-        run: echo RETAG=false >> ${GITHUB_ENV}
-
-      - uses: kenchan0130/actions-system-info@v1.2.1
-        if: env.VERBOSE_LOGGING == 'true'
-        id: system-info
-
-      - name: Log env context
-        if: env.VERBOSE_LOGGING == 'true'
-        run: echo $JSON | jq
-        env:
-          JSON: ${{ toJSON(env) }}
-
-      - name: Log github context
-        if: env.VERBOSE_LOGGING == 'true'
-        run: echo $JSON | jq
-        env:
-          JSON: ${{ toJSON(github) }}
-
-      - name: Log system details
-        if: env.VERBOSE_LOGGING == 'true'
+      - name: Log details
         run: |
-          echo "os: ${{ runner.os }}"
-          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
-          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
-          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
-          echo "os.name: ${{ steps.system-info.outputs.name }}"
-          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
-          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
-          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
-          echo "os.release: ${{ steps.system-info.outputs.release }}"
-
-      - name: Setup python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+          echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
+          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
+          echo "DEPLOY_TARGETS: ${{ env.DEPLOY_TARGETS }}"
+          echo "DEPLOYMENT_REPO: ${{ env.DEPLOYMENT_REPO }}"
+          echo "DOCKER_REPOSITORY": ${{ env.DOCKER_REPOSITORY }}
+          echo "DOCKER_TAG_PREFIX: ${{ env.DOCKER_TAG_PREFIX }}"
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
+          echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
+          echo "TAG: ${{ env.TAG }}"
+          echo "VERSION: ${{ env.VERSION }}"
+          echo "SHA": ${{ env.SHA }}
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         run: |
             branchTag=$(git describe --tags)
             [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
             echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
 
       - name: Find Version Infos (LAST_RELEASE_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         run: echo LAST_RELEASE_TAG=$(git tag -l --sort=v:refname | grep -v "${{ env.BRANCH_TAG }}" | grep -v ".*-.*" | tail -n 1) >> ${GITHUB_ENV}
-
-      - name: Find Version Infos (BUILD_FROM_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
-        run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
 
       - name: Find Version Infos (BUID_FROM_TAG)
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
 
       - name: Build changelog on manual release
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         uses: mikepenz/release-changelog-builder-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -267,31 +221,6 @@ jobs:
         with:
           body_path: release_changelog.md
 
-      - name: Find last version (default)
-        run: echo LAST_VERSION="" >> ${GITHUB_ENV}
-
-      - name: Find last version
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true') && env.LAST_RELEASE_TAG != ''
-        run: |
-            lastTag=$(git tag -l --sort=v:refname | grep -vx "${{ env.BRANCH_TAG }}" | tail -n 1)
-            echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
-
-      - name: Check Re-Tag docker image
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.LAST_VERSION != ''
-        env:
-          releaseTag: ${{ env.VERSION }}
-          preReleaseTag: ${{ env.LAST_VERSION }}
-        run: |
-            echo "Check if tags are on same rev"
-
-            prevSHA=$(git rev-list -n 1 refs/tags/v$preReleaseTag)
-            curSHA=$(git rev-list -n 1 refs/tags/v$releaseTag)
-
-            if [ $prevSHA == $curSHA ]; then
-              echo "Adding release tag $releaseTag to image with pre-relase tag $preReleaseTag"
-              echo RETAG=true >> ${GITHUB_ENV}
-            fi;
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -299,74 +228,53 @@ jobs:
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
           aws-region: us-east-1
 
-      - name: Retag docker image
-        id: check-docker-registry-retag
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
-        uses: ./.github/actions/check-docker-registry
-        with:
-          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          repository: ${{ env.DOCKER_REPOSITORY }}
-          sha: ${{ env.LAST_VERSION }}
-          version: ${{ env.VERSION }}
-
       - name: Check docker registry
         id: check-docker-registry
         uses: ./.github/actions/check-docker-registry
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          repository: ${{ env.DOCKER_REPOSITORY }}
-          sha: ${{ env.SHA }}
           version: ${{ env.VERSION }}
+          sha: ${{ env.SHA }}
 
       - name: Login to Amazon ECR
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         id: aws-login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Docker login (to AWS ECR)
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/login-action@v3
         with:
           registry: ${{ steps.aws-login-ecr.outputs.registry }}
 
-      - name: Set env 'IMAGE_TAG'
-        shell: bash
-        run: echo IMAGE_TAG="${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}" >> ${GITHUB_ENV}
-
-      - name: Set up QEMU
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/setup-qemu-action@v3
-
       - name: Check for docker context
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         id: docker-context-check
         run: echo contextFound=$(docker context ls | grep -w 'buildx' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Set up Docker Context for Buildx
-        if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && steps.docker-context-check.outputs.contextFound == 0
+        if: steps.docker-context-check.outputs.contextFound == 0
         run: docker context create buildx-context
 
       - name: Set up Docker Buildx
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/setup-buildx-action@v3
         with:
           endpoint: buildx-context
 
+      - name: Set env 'IMAGE_TAG'
+        shell: bash
+        run: echo IMAGE_TAG="${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY_NAME }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}" >> ${GITHUB_ENV}
+
       - name: Build and push docker image
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        if: steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/build-push-action@v5
         env:
           DOCKER_BUILDKIT: 1
         with:
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           provenance: false
           push: true
-          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
           tags: ${{ env.IMAGE_TAG }}
+          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
 
       - name: Register in prefect (staging)
-        if: env.IS_MANUAL_RELEASE == 'false' && env.IS_RELEASE == 'false'
+        if: env.IS_MANUAL_RELEASE != 'true' && env.IS_RELEASE != 'true'
         env:
           DOCKER_BUILDKIT: 1
         run: docker run ${{ env.IMAGE_TAG }} prefect-toolbox register --project-name "${{ env.PROJECT_NAME }}" --src-dir /src --credentials "${{ secrets.PREFECT_CREDENTIALS }}" --prefect-server "${{ env.STAGING_PREFECT_SERVER_URL }}" --image "${{ env.IMAGE_TAG }}"
