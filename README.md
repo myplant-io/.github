@@ -45,6 +45,7 @@ Here is an example workflow configuration file:
 ```
 COMPONENT_NAME=auto
 DEPLOYMENT_REPO=myplant-io/deployment
+DOCKER_REPOSITORY=myplant-io
 DOCKER_TAG_PREFIX=auto
 GRADLE_BUILD_TASK=build test
 GRADLE_DEPENDENCY_CHECK_TASK=assemble cyclonedx dependencyCheckAnalyze
@@ -57,12 +58,24 @@ PUSH_DEPLOY_TARGET=["staging-io/${COMPONENT_NAME}.yaml"]
 PRE_RELEASE_DEPLOY_TARGET=none
 RELEASE_DEPLOY_TARGET=["production-io/${COMPONENT_NAME}.yaml"]
 VERBOSE_ARTIFACT_UPLOAD=false
+VERBOSE_LOGGING=false
 ```
 
 **Hints:**
 The files can slightly vary between build tools (the above one is for gradle),
 so please make sure that it contains everything that is needed.
 
-- Most docker deployments actions (docker-deploy.yaml, yarn/yarn2-deploy) actions
+Prefect would need the following:
+```
+COMPONENT_NAME: auto
+DOCKER_TAG_PREFIX: auto
+STAGING_PREFECT_SERVER_URL: 'https://prefect-dev.staging.myplant.io'
+PROD_PREFECT_SERVER_URL: 'https://prefect-dev.myplant.io'
+PROJECT_NAME: 'prod-to-staging-dump'
+```
+
+- Most docker deployment actions (docker-deploy.yaml, yarn/yarn2-deploy) actions
   require a DOCKER_REPOSITORY variable.
+- Yarn/Yarn2 projects will search for a node version in a .nvmrc file that is
+  located in the project's root folder.
 - Yarn/Yarn2 dependency checks need a SECURITY_LEVEL defined.

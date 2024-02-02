@@ -24,7 +24,7 @@ jobs:
   sonarqube:
     name: 'Job: Sonarqube'
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
-    runs-on: [ self-hosted-standard ]
+    runs-on: [self-hosted-standard]
     concurrency:
       group: 'sonarqube_${{ github.ref }}'
       cancel-in-progress: true
@@ -60,20 +60,20 @@ jobs:
         with:
           envFile: '.github/workflow-config.env'
 
-      - name: Set env 'SHA'
-        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
-      - name: Set env 'VERSION' to SHA (for untagged deployments)
-        if: startsWith(github.ref, 'refs/tags/') == false
-        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
+      - name: Set env SONAR_KEY
+        run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
 
-      - name: Set env 'TAG' (for tagged deployment)
-        if: startsWith(github.ref, 'refs/tags/')
-        run: echo TAG="${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+      - name: Default SONAR_PREFIX to io.myplant
+        if: env.SONAR_PREFIX == ''
+        run: echo SONAR_PREFIX="io.myplant" >> ${GITHUB_ENV}
 
-      - name: Set 'VERSION' (for tagged deployment)
-        if: startsWith(github.ref, 'refs/tags/')
-        run: echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
+      - name: Apply SONAR_PREFIX to SONAR_KEY
+        if: env.SONAR_PREFIX != ''
+        run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
         if: github.event_name != 'repository_dispatch'
@@ -105,7 +105,7 @@ jobs:
       - name: Set env 'SONAR_BASE_VERSION'
         if: env.BRANCH_NAME == 'master'
         run: echo SONAR_BASE_VERSION="${{ steps.getLatestVersion.outputs.tag_name }}" >> ${GITHUB_ENV}
-
+   
       - uses: kenchan0130/actions-system-info@v1.2.1
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
@@ -147,66 +147,31 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
-      - name: Prepare gradle properties
-        run: printf "\n$GRADLE_PROPS" >> gradle.properties
-        env:
-          GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
+      - name: Setup sonarqube
+        uses: warchant/setup-sonar-scanner@v8
 
-      - name: Validate gradle wrapper
-        uses: gradle/wrapper-validation-action@v2
+      - name: Run sonarqube
+        if: startsWith(github.event_name , 'pull_request') == false
+        run: sonar-scanner
+          -Dsonar.host.url=${{ secrets.SONAR_URL }}
+          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.branch.name=${{ env.BRANCH_NAME }}
+          -Dsonar.projectKey=${{ env.SONAR_KEY }}
+          -Dsonar.projectName=${{ env.COMPONENT_NAME }}
+          -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+          -Dsonar.qualitygate.wait=true
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
-
-      - name: Prepare gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Get java version from gradle
-        run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
-
-      - name: Prepare java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'adopt'
-          java-version: ${{ env.JAVA_VERSION }}
-
-      - name: Configure AWS credentials (to enable test to download containers)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
-          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR
-        id: aws-login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Sonarqube with gradle
-        if: startsWith(github.event_name, 'pull_request') == false
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: |
-            ${{ env.GRADLE_SONARQUBE_TASK }} -Pversion=${{ env.VERSION }}
-              -Dsonar.host.url=${{ secrets.SONAR_URL }}
-              -Dsonar.token=${{ secrets.SONAR_LOGIN }}
-              -Dsonar.branch.name=${{ env.BRANCH_NAME }}
-              -Dsonar.java.source=${{ env.JAVA_VERSION }}
-              -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
-              -Dsonar.qualitygate.wait=true
-
-      - name: Sonarqube with gradle (on PR)
-        if: startsWith(github.event_name, 'pull_request')
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: |
-            ${{ env.GRADLE_SONARQUBE_TASK }} -Pversion=${{ env.VERSION }}
-              -Dsonar.host.url=${{ secrets.SONAR_URL }}
-              -Dsonar.token=${{ secrets.SONAR_LOGIN }}
-              -Dsonar.java.source=${{ env.JAVA_VERSION }}
-              -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
-              -Dsonar.pullrequest.github.endpoint=https://api.github.com
-              -Dsonar.pullrequest.github.repository=${{ github.repository }}
-              -Dsonar.pullrequest.base=${{ github.base_ref }}
-              -Dsonar.pullrequest.branch=${{ github.head_ref }}
-              -Dsonar.pullrequest.key=${{ github.event.number }}
-              -Dsonar.qualitygate.wait=true
+      - name: Run sonarqube (on PR)
+        if: startsWith(github.event_name , 'pull_request')
+        run: sonar-scanner
+          -Dsonar.host.url=${{ secrets.SONAR_URL }}
+          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.projectKey=${{ env.SONAR_KEY }}
+          -Dsonar.projectName=${{ env.COMPONENT_NAME }}
+          -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+          -Dsonar.pullrequest.github.endpoint=https://api.github.com
+          -Dsonar.pullrequest.github.repository=${{ github.repository }}
+          -Dsonar.pullrequest.base=${{ github.base_ref }}
+          -Dsonar.pullrequest.branch=${{ github.head_ref }}
+          -Dsonar.pullrequest.key=${{ github.event.number }}
+          -Dsonar.qualitygate.wait=true

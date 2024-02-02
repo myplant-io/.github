@@ -14,12 +14,14 @@ on:
           - 'yarn2'
           - 'dotnet'
           - 'python'
+          - 'prefect'
+          - 'go'
         default: 'auto-detection'
         description: Choose a project type
       repository:
         required: true
         type: string
-        description: Target repository name (without myplant-io/)
+        description: Target repository name (WITH myplant-io/ or myplant-io-analytics/)
 
 env:
   INPUT_TYPE: ${{ github.event.inputs.type }}
@@ -43,7 +45,7 @@ jobs:
       - name: checkout github target repo
         uses: actions/checkout@v4
         with:
-          repository: myplant-io/${{ inputs.repository }}
+          repository: ${{ inputs.repository }}
           ref: develop
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -68,6 +70,8 @@ jobs:
         id: project-auto-detection
         working-directory: ./target
         if: env.INPUT_TYPE == 'auto-detection'
+        env: 
+          TARGET_REPO: ${{ inputs.repository }}
         shell: bash
         run: |
           if [[ -f "build.gradle" || -f "build.gradle.kts" ]]; then
@@ -93,8 +97,16 @@ jobs:
             echo "Dotnet project detected"
             echo INPUT_TYPE=dotnet >> ${GITHUB_ENV}
           elif [[ -f "requirements.txt" || -f "pyproject.toml" ]]; then
-            echo "Python project detected"
-            echo INPUT_TYPE=python >> ${GITHUB_ENV}
+            if [[ $TARGET_REPO == "prefect"* ]]; then
+              echo "Prefect project detected"
+              echo INPUT_TYPE=prefect >> ${GITHUB_ENV}
+            else
+              echo "Python project detected"
+              echo INPUT_TYPE=python >> ${GITHUB_ENV}
+            fi
+          elif [[ -f "go.mod" ]]; then
+            echo "go project detected"
+            echo INPUT_TYPE=go >> ${GITHUB_ENV}
           else
             echo "could not detect project type"
             exit 1
@@ -131,7 +143,7 @@ jobs:
         uses: actions-js/push@v1.4
         with:
           branch: chore/install-gh-actions
-          repository: myplant-io/${{ inputs.repository }}
+          repository: ${{ inputs.repository }}
           directory: ./target
           github_token: ${{ secrets.CI_PAT }}
           message: 'chore: install default github workflows'

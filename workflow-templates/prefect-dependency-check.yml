@@ -5,7 +5,7 @@
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
 #
-# Created by: Nikolaus Krismer
+# Created by: Nikolaus Krismer and Nikolaus Brunner
 ###
 name: Dependency check
 
@@ -23,9 +23,10 @@ jobs:
   dependencyCheck:
     name: 'Job: Dependency check'
     runs-on: [self-hosted-standard]
-    concurrency:
-      group: 'dependencyCheck_${{ github.ref }}'
-      cancel-in-progress: true
+
+    strategy:
+      matrix:
+        python-version: ['3.10']
 
     steps:
       - name: Set git to use LF
@@ -40,13 +41,6 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
-      - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v4
-        if: github.event_name == 'repository_dispatch'
-        with:
-          fetch-depth: 0
-          ref: '${{ github.event.client_payload.branch }}'
-
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
         with:
@@ -58,28 +52,33 @@ jobs:
         with:
           envFile: '.github/workflow-config.env'
 
-      - name: Determine node version (check .nvmrc existence)
-        id: check_nvmrc_existence
-        uses: andstor/file-existence-action@v3
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v4
+        if: github.event_name == 'repository_dispatch'
         with:
-          fail: true
-          files: '.nvmrc'
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
 
-      - name: Determine node version (read from .nvmrc)
-        if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
-        run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+      - name: Checkout github actions repository
+        uses: actions/checkout@v4
+        with:
+          repository: myplant-io/github-actions
+          ref: v0.6.2
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
-        if: github.event_name != 'repository_dispatch'
-        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+        run: echo BRANCH_NAME="${GITHUB_REF/refs\/heads\//}" >> ${GITHUB_ENV}
 
-      - name: Set env 'BRANCH_NAME' (for dispatched runs)
-        if: github.event_name == 'repository_dispatch'
-        run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
+      - name: Set env 'SHA'
+        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
+
+      - name: Set 'VERSION' to SHA
+        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
 
       - uses: kenchan0130/actions-system-info@v1.2.1
         if: env.VERBOSE_LOGGING == 'true'
@@ -116,65 +115,43 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
-      - name: Prepare node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+      - name: Setup python
+        uses: actions/setup-python@v5
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          python-version: ${{ matrix.python-version }}
 
-      - name: Add registry credentials
-        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> ${GITHUB_ENV}
-        env:
-          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
-
-      - name: Create/restore cache for yarn
-        uses: actions/cache@v4
-        id: yarn-cache
+      - name: Check poetry file existence
+        uses: andstor/file-existence-action@v3
+        id: check-poetry-lock
         with:
-          path: .yarn
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
+          files: 'poetry.lock'
 
-      - name: Install dependencies
-        run: yarn install --immutable
-
-      - name: Install npm-audit-html report
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
-        run: yarn add --dev npm-audit-html
-
-      - name: Perform audit
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
-        continue-on-error: true
-        run: yarn npm audit --environment production --severity ${SECURITY_LEVEL} --json | yarn npm-audit-html
-
-      - name: Upload audit report artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
-        uses: actions/upload-artifact@v4
+      - name: CycloneDX Python Generate SBOM with poetry
+        uses: ./.github/actions/python-generate-sbom
+        if: steps.check-poetry-lock.outputs.files_exists == 'true'
         with:
-          if-no-files-found: error
-          name: audit-report
-          path: npm-audit.html
+          inputfile: './poetry.lock'
+          type: 'p'
+          output: './bom.xml'
 
-      - name: Install @cyclonedx/cdxgen
-        run: yarn add --dev @cyclonedx/cdxgen@v8.6.2
-
-      - name: Create SBOM using cyclonedx
-        run: yarn cdxgen --output bom.xml --required-only
-
-      - name: Revert lockfile changes (caused by cdxgen and npm-audit-html install)
-        run: git checkout -- package.json yarn.lock
+      - name: CycloneDX Python Generate SBOM with pip
+        uses: ./.github/actions/python-generate-sbom
+        if: steps.check-poetry-lock.outputs.files_exists == 'false'
+        with:
+          inputfile: './requirements.txt'
+          type: 'r'
+          output: './bom.xml'
 
       - name: Upload SBOM artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: SBOM
-          path: bom.xml
+          path: './bom.xml'
 
       - name: Publish dependency check result to tracker
         id: upload-dependency-track
-        uses: myplant-io/github-actions/upload-dependency-track@v1
+        uses: ./.github/actions/upload-dependency-track
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           bomfilename: './bom.xml'

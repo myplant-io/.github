@@ -14,7 +14,7 @@ jobs:
   updateGitHubActions:
     name: 'Job: Update GH actions'
     if: ${{ github.actor == 'dependabot[bot]' }}
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted-standard]
     concurrency:
       group: 'update_${{ github.ref }}'
       cancel-in-progress: false
@@ -107,18 +107,34 @@ jobs:
         if: steps.determine-type-yarn2.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=yarn2 >> ${GITHUB_ENV}
 
-      - name: Log details
+      - uses: kenchan0130/actions-system-info@v1.2.1
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log github context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
         run: |
-          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
-          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
-          echo "GITHUB_REF: ${GITHUB_REF}"
-          echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
-          echo "SOURCE_DIR: ${{ env.SOURCE_DIR }}"
-          echo "TARGET_DIR: ${{ env.TARGET_DIR }}"
-          echo "PROJECT_TYPE: ${{ env.PROJECT_TYPE }}"
-          echo "FILE_TYPE: ${{ env.FILE_TYPE }}"
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: List source contents
         run: ls ${{ env.SOURCE_DIR }}

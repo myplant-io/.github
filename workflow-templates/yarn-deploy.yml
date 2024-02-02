@@ -23,14 +23,10 @@ on:
 jobs:
   buildAndDeploy:
     name: "Job: Build and deploy"
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted-standard]
     concurrency:
       group: "deploy_${{ github.ref }}"
       cancel-in-progress: false
-
-    strategy:
-      matrix:
-        node-version: [16.x]
 
     steps:
       - name: Set git to use LF
@@ -45,7 +41,7 @@ jobs:
           fetch-depth: 0
 
       - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: true
           files: ".github/workflow-config.env"
@@ -55,9 +51,24 @@ jobs:
         with:
           envFile: ".github/workflow-config.env"
 
+      - name: Determine node version (check .nvmrc existence)
+        id: check_nvmrc_existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: ".nvmrc"
+
+      - name: Determine node version (read from .nvmrc)
+        if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
+        run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'DOCKER_REPOSITORY'
+        if: env.DOCKER_REPOSITORY == 'auto'
+        run: echo DOCKER_REPOSITORY=$(echo ${GITHUB_REPOSITORY} | sed 's:.*/::') >> ${GITHUB_ENV}
 
       - name: Set env 'DOCKER_TAG_PREFIX'
         if: env.DOCKER_TAG_PREFIX == 'auto'
@@ -134,51 +145,55 @@ jobs:
         if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
-      - name: Log details
-        run: |
-          echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
-          echo "COMPONENT_NAME: ${{ env.COMPONENT_NAME }}"
-          echo "DEPLOY_TARGETS: ${{ env.DEPLOY_TARGETS }}"
-          echo "DEPLOYMENT_REPO: ${{ env.DEPLOYMENT_REPO }}"
-          echo "DOCKER_TAG_PREFIX: ${{ env.DOCKER_TAG_PREFIX }}"
-          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
-          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
-          echo "GITHUB_REF: ${GITHUB_REF}"
-          echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "IS_MANUAL_RELEASE: ${{ env.IS_MANUAL_RELEASE }}"
-          echo "IS_PRERELEASE: ${{ env.IS_PRERELEASE }}"
-          echo "IS_RELEASE: ${{ env.IS_RELEASE }}"
-          echo "TAG: ${{ env.TAG }}"
-          echo "VERSION: ${{ env.VERSION }}"
+      - uses: kenchan0130/actions-system-info@v1.2.1
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
 
-      - name: Find Version Infos
-        id: versioning
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log github context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
-        shell: bash
         run: |
             branchTag=$(git describe --tags)
-
             [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
-
-            # if there is no prior release, this will be the first one, set the ref to the initial commit to build the first release
-            lastRelTag=$(git tag -l --sort=v:refname | grep -v "${branchTag}" | grep -v ".*-.*" | tail -n 1) || lastRelTag=$(git rev-list --max-parents=0 HEAD)
-            lastTag=$(git tag -l --sort=v:refname | grep -vx "${branchTag}" | tail -n 1)
-            shaShort="$(echo ${GITHUB_SHA} | cut -c1-7)"
-
-            echo SHA_SHORT=$shaShort >> ${GITHUB_ENV}
-            echo LAST_REL_TAG=$lastRelTag >> ${GITHUB_ENV}
             echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
-            echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
 
-            if ${IS_RELEASE}; then
-              echo BUILD_FROM_TAG=$lastRelTag >> ${GITHUB_ENV}
-            else
-              echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
-            fi;
+      - name: Find Version Infos (LAST_RELEASE_TAG)
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        run: echo LAST_RELEASE_TAG=$(git tag -l --sort=v:refname | grep -v "${{ env.BRANCH_TAG }}" | grep -v ".*-.*" | tail -n 1) >> ${GITHUB_ENV}
+
+      - name: Find Version Infos (BUILD_FROM_TAG)
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
+        run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
+
+      - name: Find Version Infos (BUID_FROM_TAG)
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
 
       - name: Build changelog on manual release
-        id: build_changelog
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
         uses: mikepenz/release-changelog-builder-action@v4
         with:
@@ -229,18 +244,22 @@ jobs:
               ]
             }
           outputFile: release_changelog.md
-          fromTag: ${{ steps.versioning.outputs.buildFromTag }}
-          toTag: ${{ steps.versioning.outputs.relTag }}
+          fromTag: ${{ env.BUILD_FROM_TAG }}
+          toTag: ${{ env.BRANCH_TAG }}
+
+      - name: Check release changelog existence
+        id: check_release_changelog
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: "release_changelog.md"
 
       - name: Enhance changelog
-        id: enhance_changelog
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
-        shell: bash
-        run: |
-          sed -i "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g" release_changelog.md
+        if: steps.check_release_changelog.outputs.files_exists == 'true'
+        run: sed -i "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g" release_changelog.md
 
       - name: Update Release
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: steps.check_release_changelog.outputs.files_exists == 'true'
         uses: tubone24/update_release@v1.3.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -248,27 +267,35 @@ jobs:
         with:
           body_path: release_changelog.md
 
+      - name: Find last version (default)
+        run: echo LAST_VERSION="" >> ${GITHUB_ENV}
+
+      - name: Find last version
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true') && env.LAST_RELEASE_TAG != ''
+        run: |
+            lastTag=$(git tag -l --sort=v:refname | grep -vx "${{ env.BRANCH_TAG }}" | tail -n 1)
+            echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
+
       - name: Check Re-Tag docker image
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.LAST_VERSION != ''
         env:
-          relTag: ${{ env.VERSION }}
-          preRelTag: ${{ env.LAST_VERSION }}
-        shell: bash
+          releaseTag: ${{ env.VERSION }}
+          preReleaseTag: ${{ env.LAST_VERSION }}
         run: |
             echo "Check if tags are on same rev"
 
-            prevSHA=$(git rev-list -n 1 refs/tags/v$preRelTag)
-            curSHA=$(git rev-list -n 1 refs/tags/v$relTag)
+            prevSHA=$(git rev-list -n 1 refs/tags/v$preReleaseTag)
+            curSHA=$(git rev-list -n 1 refs/tags/v$releaseTag)
 
             if [ $prevSHA == $curSHA ]; then
+              echo "Adding release tag $releaseTag to image with pre-relase tag $preReleaseTag"
               echo RETAG=true >> ${GITHUB_ENV}
-              echo "Adding tag $relTag to image with tag $preRelTag"
             fi;
 
-      - name: Prepare node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - name: Prepare node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Add registry credentials
         run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
@@ -288,19 +315,21 @@ jobs:
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          version: ${{ env.VERSION }}
+          repository: ${{ env.DOCKER_REPOSITORY }}
           sha: ${{ env.LAST_VERSION }}
+          version: ${{ env.VERSION }}
 
       - name: Check docker registry
         id: check-docker-registry
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          version: ${{ env.VERSION }}
+          repository: ${{ env.DOCKER_REPOSITORY }}
           sha: ${{ env.SHA }}
+          version: ${{ env.VERSION }}
 
       - name: Create/restore cache for node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: node_modules-cache
         if: env.RETAG == 'false'
         with:
@@ -362,20 +391,24 @@ jobs:
         env:
           DOCKER_BUILDKIT: 1
         with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           context: .
           provenance: false
           push: true
+          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
 
       - name: Deploy service
         if: env.DEPLOY_TARGETS != 'none'
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
           repository: myplant-io/ci-deploy-action
           event-type: deploy
           client-payload: '{
             "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
+            "docker_repository": "${{ env.DOCKER_REPOSITORY }}",
             "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
             "version": "${{ env.VERSION }}",
             "component_name": "${{ env.COMPONENT_NAME }}",
@@ -384,7 +417,7 @@ jobs:
 
       - name: Merging release changes to master
         if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
@@ -398,7 +431,7 @@ jobs:
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
         if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
