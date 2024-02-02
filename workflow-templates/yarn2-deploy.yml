@@ -55,14 +55,6 @@ jobs:
         with:
           envFile: ".github/workflow-config.env"
 
-      - name: Checkout github actions repo
-        uses: actions/checkout@v4
-        with:
-          repository: myplant-io/github-actions
-          ref: v0.6.2
-          token: ${{ secrets.CI_PAT }}
-          path: .github/actions
-
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
@@ -293,7 +285,7 @@ jobs:
       - name: Retag docker image
         id: check-docker-registry-retag
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
-        uses: ./.github/actions/check-docker-registry
+        uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
           version: ${{ env.VERSION }}
@@ -301,7 +293,7 @@ jobs:
 
       - name: Check docker registry
         id: check-docker-registry
-        uses: ./.github/actions/check-docker-registry
+        uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
           version: ${{ env.VERSION }}

@@ -138,18 +138,9 @@ jobs:
           fetch-depth: 0
           ref: "${{ env.SOURCE_BRANCH }}"
 
-      - name: Checkout github actions repo
-        if: env.AUTO_MERGE == 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: myplant-io/github-actions
-          ref: v0.6.2
-          token: ${{ secrets.CI_PAT }}
-          path: .github/actions
-
       - name: Merging release changes into target branch
         if: env.AUTO_MERGE == 'true'
-        uses: ./.github/actions/merge-branch
+        uses: myplant-io/github-actions/merge-branch@v1
         with:
           source-branch: ${{ env.SOURCE_BRANCH }}
           target-branch: ${{ env.TARGET_BRANCH }}

@@ -59,14 +59,6 @@ jobs:
           fetch-depth: 0
           ref: '${{ github.event.client_payload.branch }}'
 
-      - name: Checkout github actions repository
-        uses: actions/checkout@v4
-        with:
-          repository: myplant-io/github-actions
-          ref: v0.6.2
-          token: ${{ secrets.CI_PAT }}
-          path: .github/actions
-
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
@@ -103,7 +95,7 @@ jobs:
           files: 'poetry.lock'
 
       - name: CycloneDX Python Generate SBOM with poetry
-        uses: ./.github/actions/python-generate-sbom
+        uses: myplant-io/github-actions/python-generate-sbom@v1
         if: steps.check-poetry-lock.outputs.files_exists == 'true'
         with:
           inputfile: './poetry.lock'
@@ -111,7 +103,7 @@ jobs:
           output: './bom.xml'
 
       - name: CycloneDX Python Generate SBOM with pip
-        uses: ./.github/actions/python-generate-sbom
+        uses: myplant-io/github-actions/python-generate-sbom@v1
         if: steps.check-poetry-lock.outputs.files_exists == 'false'
         with:
           inputfile: './requirements.txt'
@@ -127,7 +119,7 @@ jobs:
 
       - name: Publish dependency check result to tracker
         id: upload-dependency-track
-        uses: ./.github/actions/upload-dependency-track
+        uses: myplant-io/github-actions/upload-dependency-track@v1
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           bomfilename: './bom.xml'

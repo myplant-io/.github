@@ -62,14 +62,6 @@ jobs:
         with:
           envFile: '.github/workflow-config.env'
 
-      - name: Checkout github actions repository
-        uses: actions/checkout@v4
-        with:
-          repository: myplant-io/github-actions
-          ref: v0.6.2
-          token: ${{ secrets.CI_PAT }}
-          path: .github/actions
-
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
@@ -147,7 +139,7 @@ jobs:
 
       - name: Publish dependency check result to tracker
         id: upload-dependency-track
-        uses: ./.github/actions/upload-dependency-track
+        uses: myplant-io/github-actions/upload-dependency-track@v1
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           bomfilename: './bom.xml'
