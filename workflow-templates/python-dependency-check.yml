@@ -123,17 +123,17 @@ jobs:
         uses: myplant-io/github-actions/python-generate-sbom@v1
         if: steps.check-poetry-lock.outputs.files_exists == 'true'
         with:
-          inputfile: './poetry.lock'
-          type: 'p'
+          input: './'
           output: './bom.xml'
+          type: 'poetry'
 
       - name: CycloneDX Python Generate SBOM with pip
         uses: myplant-io/github-actions/python-generate-sbom@v1
         if: steps.check-poetry-lock.outputs.files_exists == 'false'
         with:
-          inputfile: './requirements.txt'
-          type: 'r'
+          input: './requirements.txt'
           output: './bom.xml'
+          type: 'requirements'
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
