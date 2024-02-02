@@ -132,7 +132,7 @@ jobs:
         if: steps.check-poetry-lock.outputs.files_exists == 'true'
         with:
           inputfile: './poetry.lock'
-          type: 'p'
+          type: 'poetry'
           output: './bom.xml'
 
       - name: CycloneDX Python Generate SBOM with pip
