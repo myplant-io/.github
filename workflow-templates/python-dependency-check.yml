@@ -131,7 +131,6 @@ jobs:
         uses: ./.github/actions/python-generate-sbom
         if: steps.check-poetry-lock.outputs.files_exists == 'true'
         with:
-          inputfile: './poetry.lock'
           type: 'poetry'
           output: './bom.xml'
 
@@ -139,7 +138,6 @@ jobs:
         uses: ./.github/actions/python-generate-sbom
         if: steps.check-poetry-lock.outputs.files_exists == 'false'
         with:
-          inputfile: './requirements.txt'
           type: 'requirements'
           output: './bom.xml'
 
