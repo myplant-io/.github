@@ -14,8 +14,8 @@ on:
     branches: [develop, release/**, bugfix/**, hotfix/**]
 
 jobs:
-  validateAndTest:
-    name: 'Job: Validate and test'
+  validate:
+    name: 'Job: Validate'
     runs-on: [self-hosted-standard]
     strategy:
       matrix:
@@ -67,7 +67,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: "poetry.lock"
+          files: 'poetry.lock'
 
       - name: Prepare python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -107,10 +107,106 @@ jobs:
         if: steps.pre-commit-config.outputs.files_exists == 'true' && env.BRANCH_NAME == 'develop'
         run: SKIP=no-commit-to-branch pre-commit run --show-diff-on-failure --color=always --all-files
 
-      - name: Test with pytest (pip)
+  validateAndTest:
+    name: 'Job: Test'
+    runs-on: [self-hosted-standard]
+    strategy:
+      matrix:
+        python-version: ['3.10']
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - uses: kenchan0130/actions-system-info@v1.2.1
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log github context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - name: Check poetry existence
+        id: check_poetry
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'poetry.lock'
+
+      - name: Prepare python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          cache: 'pip'
+          python-version: ${{ matrix.python-version }}
+
+      - name: Check for pre-commit configuration
+        id: pre-commit-config
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: '.pre-commit-config.yaml'
+
+      - name: Install dependencies (pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
+        run: |
+          pip install -r requirements.txt \
+               --index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpy/simple" \
+               --extra-index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpyexternal/simple" \
+               --extra-index-url "https://pypi.org/simple"
+
+      - name: Install dependencies (poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: |
+          pip install poetry
+          poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
+          poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
+          poetry config virtualenvs.create false
+          poetry install --no-root
+
+      - name: Check for installed pytest (pip)
+        id: check_pip_pytest
+        if: steps.check_poetry.outputs.files_exists == 'false'
+        run: echo pytestInstalled=$(pip --show --no-color 'pytest' | grep -i 'pytest' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Check for installed pytest (poetry)
+        id: check_poetry_pytest
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        # run: echo pytestInstalled=$(poetry install --dry-run --sync --no-ansi | grep -i 'pytest' | wc -l) >> ${GITHUB_OUTPUT}
+        run: echo pytestInstalled=$(poetry show --no-ansi 'pytest' | grep -i 'pytest' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Test with pytest (pip)
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_pip_pytest.outputs.pytestInstalled != 0
         run: pytest
 
       - name: Test with pytest (poetry)
-        if: steps.check_poetry.outputs.files_exists == 'true'
+        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_poetry_pytest.outputs.pytestInstalled != 0
         run: poetry run pytest
