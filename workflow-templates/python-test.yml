@@ -197,11 +197,29 @@ jobs:
         if: steps.check_poetry.outputs.files_exists == 'false'
         run: echo pytestInstalled=$(pip --show --no-color 'pytest' | grep -i 'pytest' | wc -l) >> ${GITHUB_OUTPUT}
 
+      - name: Skip tests (no pytest installed)
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_pip_pytest.outputs.pytestInstalled == 0
+        run: |
+          echo "No pytest installed (via pip). Skipping tests."
+          gh run cancel ${{ github.run_id }}
+          gh run watch ${{ github.run_id }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Check for installed pytest (poetry)
         id: check_poetry_pytest
         if: steps.check_poetry.outputs.files_exists == 'true'
         # run: echo pytestInstalled=$(poetry install --dry-run --sync --no-ansi | grep -i 'pytest' | wc -l) >> ${GITHUB_OUTPUT}
         run: echo pytestInstalled=$(poetry show --no-ansi 'pytest' | grep -i 'pytest' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Skip tests (no pytest installed via poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_poetry_pytest.outputs.pytestInstalled == 0
+        run: |
+          echo "No pytest installed (via poetry). Skipping tests."
+          gh run cancel ${{ github.run_id }}
+          gh run watch ${{ github.run_id }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test with pytest (pip)
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_pip_pytest.outputs.pytestInstalled != 0
