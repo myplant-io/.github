@@ -107,7 +107,7 @@ jobs:
         if: steps.pre-commit-config.outputs.files_exists == 'true' && env.BRANCH_NAME == 'develop'
         run: SKIP=no-commit-to-branch pre-commit run --show-diff-on-failure --color=always --all-files
 
-  validateAndTest:
+  test:
     name: 'Job: Test'
     runs-on: [self-hosted-standard]
     strategy:
