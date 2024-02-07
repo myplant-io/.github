@@ -124,6 +124,7 @@ jobs:
 
   test:
     name: 'Job: Test '
+    needs: ['validate']
     runs-on: [self-hosted-standard]
 
     steps:
