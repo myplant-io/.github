@@ -38,7 +38,7 @@ jobs:
           fail: false
           files: '.python-version'
 
-      - name: Use pyproject.toml as python version file
+      - name: Use .python-version as python version file
         if: steps.check_file_python_version.outputs.files_exists == 'true'
         run: echo PYTHON_VERSION_FILE=".python-version" >> ${GITHUB_ENV}
 
