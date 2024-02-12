@@ -24,7 +24,7 @@ jobs:
   setup:
     name: 'Job: Python setup'
     outputs:
-    pythonVersionFile: ${{steps.set_outputs.outputs.pythonVersionFile}}
+      pythonVersionFile: ${{steps.set_outputs.outputs.pythonVersionFile}}
 
     steps:
       - name: Check python version determination (pyproject.toml)
