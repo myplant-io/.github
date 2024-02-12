@@ -148,7 +148,7 @@ jobs:
 
       - name: Add pre-commit dev-dependency (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true' && steps.pre-commit-config.outputs.files_exists == 'true'
-        run: poetry add --dev pre-commit
+        run: poetry add --group dev pre-commit
 
       - name: Install dependencies (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.pre-commit-config.outputs.files_exists == 'true'
@@ -260,7 +260,7 @@ jobs:
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config virtualenvs.create false
-          poetry add --dev pytest
+          poetry add --group dev pytest
           poetry install --no-root
 
       - name: Check for test availability
