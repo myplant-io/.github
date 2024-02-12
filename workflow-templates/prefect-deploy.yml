@@ -17,10 +17,10 @@ on:
 
 jobs:
   buildAndDeploy:
-    name: "Job: Build and deploy"
+    name: 'Job: Build and deploy'
     runs-on: [self-hosted-standard]
     concurrency:
-      group: "deploy_${{ github.ref }}"
+      group: 'deploy_${{ github.ref }}'
       cancel-in-progress: false
 
     steps:
@@ -35,14 +35,6 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
-      - name: Checkout github actions repo
-        uses: actions/checkout@v4
-        with:
-          repository: myplant-io/github-actions
-          ref: v0.6.2
-          token: ${{ secrets.CI_PAT }}
-          path: .github/actions
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -53,12 +45,12 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
@@ -145,9 +137,9 @@ jobs:
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         run: |
-            branchTag=$(git describe --tags)
-            [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
-            echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
+          branchTag=$(git describe --tags)
+          [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
+          echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
 
       - name: Find Version Infos (LAST_RELEASE_TAG)
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
@@ -216,7 +208,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: "release_changelog.md"
+          files: 'release_changelog.md'
 
       - name: Enhance changelog
         if: steps.check_release_changelog.outputs.files_exists == 'true'
@@ -240,7 +232,7 @@ jobs:
 
       - name: Check docker registry
         id: check-docker-registry
-        uses: ./.github/actions/check-docker-registry
+        uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
           version: ${{ env.VERSION }}
@@ -282,7 +274,7 @@ jobs:
           provenance: false
           push: true
           tags: ${{ env.IMAGE_TAG }}
-          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
+          secrets: 'nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}'
 
       - name: Register in prefect (staging)
         if: env.IS_MANUAL_RELEASE != 'true' && env.IS_RELEASE != 'true'
