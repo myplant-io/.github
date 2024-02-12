@@ -117,6 +117,10 @@ jobs:
           fail: false
           files: 'poetry.lock'
 
+      - name: Install poetry
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: pip install poetry
+
       - name: Prepare python (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
         uses: actions/setup-python@v5
@@ -150,7 +154,6 @@ jobs:
       - name: Install dependencies (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
-          pip install poetry
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config virtualenvs.create false
@@ -218,6 +221,10 @@ jobs:
           fail: false
           files: 'poetry.lock'
 
+      - name: Install poetry
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: pip install poetry
+
       - name: Prepare python (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
         uses: actions/setup-python@v5
@@ -251,7 +258,6 @@ jobs:
       - name: Install dependencies (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
-          pip install poetry
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config virtualenvs.create false
