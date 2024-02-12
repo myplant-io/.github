@@ -28,6 +28,17 @@ jobs:
       pythonVersionFile: ${{steps.set_outputs.outputs.pythonVersionFile}}
 
     steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        if: github.event_name != 'repository_dispatch'
+        with:
+          sparse-checkout: .
+
       - name: Check python version determination (pyproject.toml)
         id: check_file_pyproject
         uses: andstor/file-existence-action@v3
