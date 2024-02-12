@@ -150,7 +150,7 @@ jobs:
 
       - name: Create Pull Request
         if: env.INPUT_TYPE != 'auto-detect'
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v6
         with:
           title: 'chore: install default github workflows'
           token: ${{ secrets.CI_PAT }}
