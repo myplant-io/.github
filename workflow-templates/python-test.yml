@@ -7,11 +7,10 @@ name: Validate and test
 
 on:
   pull_request:
-    branches: [develop]
+    branches: [develop, release/**, bugfix/**, hotfix/**]
     paths-ignore:
       - '.github/workflows/*auto-update*'
-  push:
-    branches: [develop, release/**, bugfix/**, hotfix/**]
+  workflow_dispatch:
 
 jobs:
   validate:
@@ -97,6 +96,7 @@ jobs:
                --index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpy/simple" \
                --extra-index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpyexternal/simple" \
                --extra-index-url "https://pypi.org/simple"
+          pip install pre-commit
 
       - name: Install dependencies (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
@@ -105,6 +105,7 @@ jobs:
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config virtualenvs.create false
+          poetry add --dev pre-commit
           poetry install --no-root
 
       - name: Run pre-commit (on PR)
@@ -199,7 +200,7 @@ jobs:
                --index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpy/simple" \
                --extra-index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpyexternal/simple" \
                --extra-index-url "https://pypi.org/simple"
-          pip install pre-commit
+          pip install pytest
 
       - name: Install dependencies (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
@@ -208,42 +209,26 @@ jobs:
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config virtualenvs.create false
-          poetry add --dev pre-commit
+          poetry add --dev pytest
           poetry install --no-root
 
-      - name: Check for installed pytest (with pip)
-        id: check_pip_pytest
-        if: steps.check_poetry.outputs.files_exists == 'false'
-        run: echo pytestInstalled=$(pip --show --no-color 'pytest' | grep -i 'pytest' | wc -l) >> ${GITHUB_OUTPUT}
+      - name: Check for available test(s)
+        id: check_test
+        run: echo testCount=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_OUTPUT}
 
-      - name: Skip tests (no pytest installed)
-        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_pip_pytest.outputs.pytestInstalled == 0
+      - name: Skip tests (no test found)
+        if: steps.check_test.outputs.testCount == 0
         run: |
-          echo "No pytest installed (via pip). Skipping tests."
-          gh run cancel ${{ github.run_id }}
-          gh run watch ${{ github.run_id }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check for installed pytest (with poetry)
-        id: check_poetry_pytest
-        if: steps.check_poetry.outputs.files_exists == 'true'
-        # run: echo pytestInstalled=$(poetry install --dry-run --sync --no-ansi | grep -i 'pytest' | wc -l) >> ${GITHUB_OUTPUT}
-        run: echo pytestInstalled=$(poetry show --no-ansi 'pytest' | grep -i 'pytest' | wc -l) >> ${GITHUB_OUTPUT}
-
-      - name: Skip tests (no pytest installed via poetry)
-        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_poetry_pytest.outputs.pytestInstalled == 0
-        run: |
-          echo "No pytest installed (via poetry). Skipping tests."
+          echo "No test(s) found. Skipping..."
           gh run cancel ${{ github.run_id }}
           gh run watch ${{ github.run_id }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test with pytest (pip)
-        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_pip_pytest.outputs.pytestInstalled != 0
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test.outputs.testCount != 0
         run: pytest
 
       - name: Test with pytest (poetry)
-        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_poetry_pytest.outputs.pytestInstalled != 0
+        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_test.outputs.testCount != 0
         run: poetry run pytest
