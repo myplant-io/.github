@@ -199,6 +199,7 @@ jobs:
                --index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpy/simple" \
                --extra-index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpyexternal/simple" \
                --extra-index-url "https://pypi.org/simple"
+          pip install pre-commit
 
       - name: Install dependencies (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
@@ -207,6 +208,7 @@ jobs:
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config virtualenvs.create false
+          poetry add --dev pre-commit
           poetry install --no-root
 
       - name: Check for installed pytest (with pip)
