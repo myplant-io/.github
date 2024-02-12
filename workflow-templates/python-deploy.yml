@@ -23,6 +23,7 @@ on:
 jobs:
   setup:
     name: 'Job: Python setup'
+    runs-on: [self-hosted-standard]
     outputs:
       pythonVersionFile: ${{steps.set_outputs.outputs.pythonVersionFile}}
 
