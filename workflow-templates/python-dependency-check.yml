@@ -88,27 +88,6 @@ jobs:
         with:
           envFile: '.github/workflow-config.env'
 
-      - name: Check python version determination (pyproject.toml)
-        id: check_file_pyproject
-        uses: andstor/file-existence-action@v3
-        with:
-          fail: false
-          files: 'pyproject.toml'
-
-      - name: Check python version determination (.python-version)
-        if: steps.check_file_pyproject.outputs.files_exists == 'false'
-        id: check_file_python_version
-        uses: andstor/file-existence-action@v3
-        with:
-          fail: false
-          files: '.python-version'
-
-      - name: Check python version determination
-        if: steps.check_file_pyproject.outputs.files_exists == 'false' &&  steps.check_file_python_version.outputs.files_exists == 'false'
-        run: |
-          echo "::error Either pyproject.toml or .python-version must exists (and contain a python version number)"
-          exit 1
-
       - name: Checkout git repository (for dispatched runs)
         uses: actions/checkout@v4
         if: github.event_name == 'repository_dispatch'
