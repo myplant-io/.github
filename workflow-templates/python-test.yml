@@ -117,9 +117,9 @@ jobs:
           fail: false
           files: 'poetry.lock'
 
-      - name: Install poetry
+      - name: Prepare poetry
         if: steps.check_poetry.outputs.files_exists == 'true'
-        run: pip install poetry
+        uses: snok/install-poetry@v1
 
       - name: Prepare python (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
@@ -142,30 +142,36 @@ jobs:
           fail: false
           files: '.pre-commit-config.yaml'
 
+      - name: Install pre-commit (with pip)
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.pre-commit-config.outputs.files_exists == 'true'
+        run: pip install pre-commit
+
+      - name: Add pre-commit dev-dependency (with poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true' && steps.pre-commit-config.outputs.files_exists == 'true'
+        run: poetry add --group dev pre-commit
+
       - name: Install dependencies (with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false'
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.pre-commit-config.outputs.files_exists == 'true'
         run: |
           pip install -r requirements.txt \
                --index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpy/simple" \
                --extra-index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpyexternal/simple" \
                --extra-index-url "https://pypi.org/simple"
-          pip install pre-commit
 
       - name: Install dependencies (with poetry)
-        if: steps.check_poetry.outputs.files_exists == 'true'
+        if: steps.check_poetry.outputs.files_exists == 'true' && steps.pre-commit-config.outputs.files_exists == 'true'
         run: |
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config virtualenvs.create false
-          poetry add --dev pre-commit
           poetry install --no-root
 
       - name: Run pre-commit (on PR)
-        if: steps.pre-commit-config.outputs.files_exists == 'true' && env.BRANCH_NAME != 'develop'
+        if: env.BRANCH_NAME != 'develop' && steps.pre-commit-config.outputs.files_exists == 'true'
         run: pre-commit run --show-diff-on-failure --color=always --all-files
 
       - name: Run pre-commit (on develop)
-        if: steps.pre-commit-config.outputs.files_exists == 'true' && env.BRANCH_NAME == 'develop'
+        if: env.BRANCH_NAME == 'develop' && steps.pre-commit-config.outputs.files_exists == 'true'
         run: SKIP=no-commit-to-branch pre-commit run --show-diff-on-failure --color=always --all-files
 
   test:
@@ -221,9 +227,9 @@ jobs:
           fail: false
           files: 'poetry.lock'
 
-      - name: Install poetry
+      - name: Prepare poetry
         if: steps.check_poetry.outputs.files_exists == 'true'
-        run: pip install poetry
+        uses: snok/install-poetry@v1
 
       - name: Prepare python (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
@@ -239,14 +245,7 @@ jobs:
           cache: 'poetry'
           python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
 
-      - name: Check for pre-commit configuration
-        id: pre-commit-config
-        uses: andstor/file-existence-action@v3
-        with:
-          fail: false
-          files: '.pre-commit-config.yaml'
-
-      - name: Install dependencies (with pip)
+      - name: Install dependencies (including pytest; with pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
         run: |
           pip install -r requirements.txt \
@@ -255,16 +254,16 @@ jobs:
                --extra-index-url "https://pypi.org/simple"
           pip install pytest
 
-      - name: Install dependencies (with poetry)
+      - name: Install dependencies (including pytest; with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config virtualenvs.create false
-          poetry add --dev pytest
+          poetry add --group dev pytest
           poetry install --no-root
 
-      - name: Check for available test(s)
+      - name: Check for test availability
         id: check_test
         run: echo testCount=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_OUTPUT}
 
