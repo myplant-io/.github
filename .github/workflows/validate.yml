@@ -1,16 +1,18 @@
-name: Validate
+name: Validate Workflows
 
 on:
   pull_request:
 
 jobs:
   validate:
-    name: "Job: Validate workflow syntax (with prettier)"
+    name: 'Job: Validate workflows'
     runs-on: [self-hosted-standard]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actionsx/prettier@v2
+      - name: Validate workflows with prettier
+        uses: actionsx/prettier@v2
         with:
           args: --check .
