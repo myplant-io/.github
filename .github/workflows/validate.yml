@@ -1,0 +1,16 @@
+name: Validate
+
+on:
+  pull_request:
+
+jobs:
+  validate:
+    name: "Job: Validate workflow syntax (with prettier)"
+    runs-on: [self-hosted-standard]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actionsx/prettier@v2
+        with:
+          args: --check .
