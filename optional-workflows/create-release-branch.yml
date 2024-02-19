@@ -38,9 +38,9 @@ jobs:
           preRelTag: ${{ steps.tag_version.outputs.new_tag }}
         run: |
           nextRelease=${preRelTag%-*}
-          echo "::set-output name=next-release::$nextRelease"
-          echo "::set-output name=name::release/$nextRelease"
-          echo "::set-output name=source-branch::${GITHUB_REF#refs/heads/}"
+          echo next-release="$nextRelease" >> ${GITHUB_OUTPUT}
+          echo name="release/$nextRelease" >> ${GITHUB_OUTPUT}
+          echo source-branch="${GITHUB_REF#refs/heads/}" >> ${GITHUB_OUTPUT}
 
       - name: Look for existing branch
         id: branch-exists
@@ -48,11 +48,10 @@ jobs:
           branch: ${{ steps.branch-names.outputs.name }}
         run: |
           branchExists=$(git ls-remote --heads origin ${branch})
-
           if [[ -z ${branchExists} ]]; then
-              echo "::set-output name=exists::false"
+              echo exists="false" >> ${GITHUB_OUTPUT}
           else
-              echo "::set-output name=exists::true"
+              echo exists="true" >> ${GITHUB_OUTPUT}
           fi
 
       - uses: peterjgrainger/action-create-branch@v2.0.1
@@ -70,7 +69,7 @@ jobs:
         env:
           BRANCH: ${{ steps.branch-names.outputs.source-branch }}
           RELEASE: ${{ steps.branch-names.outputs.next-release }}
-        run: echo "::set-output name=message::Merge branch $BRANCH into release $RELEASE"
+        run: echo message="Merge branch $BRANCH into release $RELEASE" >> ${GITHUB_OUTPUT}
 
       - name: Merge for PreRelease
         if:  ${{ steps.branch-exists.outputs.exists == 'true' }}

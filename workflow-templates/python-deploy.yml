@@ -70,7 +70,7 @@ jobs:
 
       - id: set_outputs
         name: Set python version file
-        run: echo "::set-output name=pythonVersionFile::${{ env.PYTHON_VERSION_FILE}}"
+        run: echo pythonVersionFile="${{ env.PYTHON_VERSION_FILE}}" >> ${GITHUB_OUTPUT}
 
   buildAndDeploy:
     name: "Job: Build and deploy"
