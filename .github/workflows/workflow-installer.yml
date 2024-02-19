@@ -70,7 +70,7 @@ jobs:
         id: project-auto-detection
         working-directory: ./target
         if: env.INPUT_TYPE == 'auto-detection'
-        env: 
+        env:
           TARGET_REPO: ${{ inputs.repository }}
         shell: bash
         run: |

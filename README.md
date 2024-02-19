@@ -66,6 +66,7 @@ The files can slightly vary between build tools (the above one is for gradle),
 so please make sure that it contains everything that is needed.
 
 Prefect would need the following:
+
 ```
 COMPONENT_NAME: auto
 DOCKER_TAG_PREFIX: auto

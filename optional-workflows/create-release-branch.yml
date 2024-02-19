@@ -6,7 +6,7 @@
 #
 # HINT: It is possible to merge directly into those feature branches without negative impact to the pipeline
 
-name: "Create Pre/Release branch"
+name: 'Create Pre/Release branch'
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
         uses: mathieudutour/github-tag-action@v5.6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          tag_prefix: "v"
+          tag_prefix: 'v'
           dry_run: true
           append_to_pre_release_tag: false
 
@@ -55,7 +55,7 @@ jobs:
           fi
 
       - uses: peterjgrainger/action-create-branch@v2.0.1
-        if:  ${{ steps.branch-exists.outputs.exists == 'false' }}
+        if: ${{ steps.branch-exists.outputs.exists == 'false' }}
         name: Create branch for release cycle
         env:
           # Use another token then GITHUB_TOKEN to trigger subsequent workflows
@@ -64,7 +64,7 @@ jobs:
           branch: ${{ steps.branch-names.outputs.name }}
 
       - name: Prepare commit message
-        if:  ${{ steps.branch-exists.outputs.exists == 'true' }}
+        if: ${{ steps.branch-exists.outputs.exists == 'true' }}
         id: commit-message
         env:
           BRANCH: ${{ steps.branch-names.outputs.source-branch }}
@@ -72,7 +72,7 @@ jobs:
         run: echo message="Merge branch $BRANCH into release $RELEASE" >> ${GITHUB_OUTPUT}
 
       - name: Merge for PreRelease
-        if:  ${{ steps.branch-exists.outputs.exists == 'true' }}
+        if: ${{ steps.branch-exists.outputs.exists == 'true' }}
         uses: tukasz/direct-merge-action@master
         with:
           # Use another token then GITHUB_TOKEN to trigger subsequent workflows
