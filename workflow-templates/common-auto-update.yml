@@ -1,5 +1,5 @@
 ###
-# GitHub action that updates github actions from the template repository.
+# Updates local GitHub actions with new releases from the template repository.
 #
 # Created by: Nikolaus Krismer
 ###
@@ -34,7 +34,7 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Checkout github actions repo
+      - name: Checkout GitHub actions repo
         uses: actions/checkout@v4
         with:
           repository: myplant-io/.github
@@ -77,7 +77,7 @@ jobs:
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
 
-      - name: Determine file extensions for github action files
+      - name: Determine file extensions
         run: echo FILE_TYPE=$(ls ${{ env.TARGET_DIR }}/auto-update* |  tr . \\n | tail -n1) >> ${GITHUB_ENV}
 
       - name: Set project type to gradle
@@ -117,7 +117,7 @@ jobs:
         env:
           JSON: ${{ toJSON(env) }}
 
-      - name: Log github context
+      - name: Log GitHub context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:
@@ -142,7 +142,7 @@ jobs:
       - name: List target contents
         run: ls ${{ env.TARGET_DIR }}
 
-      - name: Move relevant github actions in place
+      - name: Move relevant GitHub actions in place
         if: env.PROJECT_TYPE != 'unknown'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
@@ -152,7 +152,7 @@ jobs:
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }} 2>/dev/null || :
 
-      - name: Move relevant github actions in place
+      - name: Move relevant GitHub actions in place
         if: env.PROJECT_TYPE == 'unknown'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}

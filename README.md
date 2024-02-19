@@ -1,6 +1,6 @@
-# Github Template Repository
+# GitHub Template Repository
 
-Shared workflow templates (for github actions).
+Shared workflow templates (for GitHub actions).
 
 :warning: This is a public repo. :warning:  
 To learn why this is the case, have a look at the following issue:

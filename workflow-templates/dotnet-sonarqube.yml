@@ -78,7 +78,7 @@ jobs:
         env:
           JSON: ${{ toJSON(env) }}
 
-      - name: Log github context
+      - name: Log GitHub context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:

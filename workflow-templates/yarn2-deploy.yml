@@ -99,7 +99,7 @@ jobs:
           myToken: ${{ github.token }}
           view_top: 1
 
-      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - tag based)
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - tag based)
         if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
 
@@ -111,7 +111,7 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'false' }} >> ${GITHUB_ENV}
 
-      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - release based)
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - release based)
         if: github.event_name == 'release'
         run: echo IS_MANUAL_RELEASE=true >> ${GITHUB_ENV}
 
@@ -155,7 +155,7 @@ jobs:
         env:
           JSON: ${{ toJSON(env) }}
 
-      - name: Log github context
+      - name: Log GitHub context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:
