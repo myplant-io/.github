@@ -14,7 +14,7 @@ on:
 
 jobs:
   merge:
-    name: "Job: Merging branches"
+    name: 'Job: Merging branches'
     runs-on: [self-hosted-standard]
 
     steps:
@@ -67,7 +67,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: "${{ env.SOURCE_BRANCH }}"
+          ref: ${{ env.SOURCE_BRANCH }}
 
       - name: Set env 'HAS_CURRENT_BRANCH'
         run: echo HAS_CURRENT_BRANCH="$(git branch --show-current | wc -l)" >> ${GITHUB_ENV}
@@ -149,7 +149,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: "${{ env.SOURCE_BRANCH }}"
+          ref: ${{ env.SOURCE_BRANCH }}
 
       - name: Merging release changes into target branch
         if: env.AUTO_MERGE == 'true'

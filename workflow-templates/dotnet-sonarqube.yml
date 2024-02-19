@@ -26,7 +26,7 @@ jobs:
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: [self-hosted-standard]
     concurrency:
-      group: 'sonarqube_${{ github.ref }}'
+      group: sonarqube_${{ github.ref }}
       cancel-in-progress: true
 
     strategy:

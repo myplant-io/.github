@@ -22,9 +22,9 @@ on:
 jobs:
   dependencyCheck:
     name: 'Job: Dependency check'
-    runs-on: [ self-hosted-standard ]
+    runs-on: [self-hosted-standard]
     concurrency:
-      group: 'dependencyCheck_${{ github.ref }}'
+      group: dependencyCheck_${{ github.ref }}
       cancel-in-progress: true
 
     steps:

@@ -20,7 +20,7 @@ jobs:
     name: 'Job: Build and deploy'
     runs-on: [self-hosted-standard]
     concurrency:
-      group: 'deploy_${{ github.ref }}'
+      group: deploy_${{ github.ref }}
       cancel-in-progress: false
 
     steps:
@@ -274,7 +274,7 @@ jobs:
           provenance: false
           push: true
           tags: ${{ env.IMAGE_TAG }}
-          secrets: 'nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}'
+          secrets: nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
 
       - name: Register in prefect (staging)
         if: env.IS_MANUAL_RELEASE != 'true' && env.IS_RELEASE != 'true'

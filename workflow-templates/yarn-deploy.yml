@@ -22,10 +22,10 @@ on:
 
 jobs:
   buildAndDeploy:
-    name: "Job: Build and deploy"
+    name: 'Job: Build and deploy'
     runs-on: [self-hosted-standard]
     concurrency:
-      group: "deploy_${{ github.ref }}"
+      group: deploy_${{ github.ref }}
       cancel-in-progress: false
 
     steps:
@@ -44,19 +44,19 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Determine node version (check .nvmrc existence)
         id: check_nvmrc_existence
         uses: andstor/file-existence-action@v3
         with:
           fail: true
-          files: ".nvmrc"
+          files: '.nvmrc'
 
       - name: Determine node version (read from .nvmrc)
         if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
@@ -252,7 +252,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: "release_changelog.md"
+          files: 'release_changelog.md'
 
       - name: Enhance changelog
         if: steps.check_release_changelog.outputs.files_exists == 'true'
@@ -332,7 +332,7 @@ jobs:
         id: node_modules-cache
         if: env.RETAG == 'false'
         with:
-          path: "**/node_modules"
+          path: '**/node_modules'
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Install dependencies (if not previously cached)
@@ -395,7 +395,7 @@ jobs:
           context: .
           provenance: false
           push: true
-          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
+          secrets: nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
 
       - name: Deploy service

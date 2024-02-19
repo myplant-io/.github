@@ -16,7 +16,7 @@ jobs:
     if: ${{ github.actor == 'dependabot[bot]' }}
     runs-on: [self-hosted-standard]
     concurrency:
-      group: 'update_${{ github.ref }}'
+      group: update_${{ github.ref }}
       cancel-in-progress: false
 
     steps:
@@ -32,7 +32,7 @@ jobs:
         id: dependabot-metadata
         uses: dependabot/fetch-metadata@v1.6.0
         with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout GitHub actions repo
         uses: actions/checkout@v4

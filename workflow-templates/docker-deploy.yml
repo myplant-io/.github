@@ -22,10 +22,10 @@ on:
 
 jobs:
   buildAndDeploy:
-    name: "Job: Build and deploy"
+    name: 'Job: Build and deploy'
     runs-on: [self-hosted-standard]
     concurrency:
-      group: "deploy_${{ github.ref }}"
+      group: deploy_${{ github.ref }}
       cancel-in-progress: false
 
     steps:
@@ -44,12 +44,12 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
@@ -252,7 +252,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: "release_changelog.md"
+          files: 'release_changelog.md'
 
       - name: Enhance changelog
         if: steps.check_release_changelog.outputs.files_exists == 'true'
@@ -357,7 +357,7 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
           push: true
-          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
+          secrets: nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
 
       - name: Deploy service

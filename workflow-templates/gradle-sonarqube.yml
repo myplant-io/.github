@@ -24,9 +24,9 @@ jobs:
   sonarqube:
     name: 'Job: Sonarqube'
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
-    runs-on: [ self-hosted-standard ]
+    runs-on: [self-hosted-standard]
     concurrency:
-      group: 'sonarqube_${{ github.ref }}'
+      group: sonarqube_${{ github.ref }}
       cancel-in-progress: true
 
     steps:
@@ -109,7 +109,7 @@ jobs:
       - uses: kenchan0130/actions-system-info@v1.2.1
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-   
+
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq

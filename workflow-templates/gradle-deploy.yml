@@ -22,10 +22,10 @@ on:
 
 jobs:
   buildAndDeploy:
-    name: "Job: Build and deploy"
+    name: 'Job: Build and deploy'
     runs-on: [self-hosted-standard]
     concurrency:
-      group: "deploy_${{ github.ref }}"
+      group: deploy_${{ github.ref }}
       cancel-in-progress: false
 
     steps:
@@ -50,12 +50,12 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Check setting file existence
         id: check_settings_file
@@ -63,7 +63,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: "settings.gradle"
+          files: 'settings.gradle'
 
       - name: Set env 'COMPONENT_NAME' (settings are present)
         if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
@@ -259,7 +259,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: "release_changelog.md"
+          files: 'release_changelog.md'
 
       - name: Enhance changelog
         if: steps.check_release_changelog.outputs.files_exists == 'true'
@@ -318,7 +318,7 @@ jobs:
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: "adopt"
+          distribution: 'adopt'
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Configure AWS credentials (to enable test to download containers)
@@ -376,7 +376,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-result
-          path: "build/reports/tests"
+          path: 'build/reports/tests'
 
       - name: Compress test report folders (for multirepo)
         if: failure() && steps.gradle-project-stats.outputs.project-count != '0'
