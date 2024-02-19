@@ -11,9 +11,9 @@ name: Build and deploy
 on:
   push:
     branches: [develop, release/**, bugfix/**, hotfix/**]
-#    tags:
-#      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
-#      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
+  #    tags:
+  #      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
+  #      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
   release:
     types:
       - released
@@ -22,7 +22,7 @@ on:
 
 jobs:
   setup:
-    name: 'Job: Python setup'
+    name: "Job: Python setup"
     runs-on: [self-hosted-standard]
     outputs:
       pythonVersionFile: ${{steps.set_outputs.outputs.pythonVersionFile}}
@@ -43,7 +43,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: 'pyproject.toml'
+          files: "pyproject.toml"
 
       - name: Use pyproject.toml as python version file
         if: steps.check_file_pyproject.outputs.files_exists == 'true'
@@ -55,7 +55,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: '.python-version'
+          files: ".python-version"
 
       - name: Use .python-version as python version file
         if: steps.check_file_python_version.outputs.files_exists == 'true'
@@ -73,7 +73,7 @@ jobs:
 
   buildAndDeploy:
     name: "Job: Build and deploy"
-    needs: ['setup']
+    needs: ["setup"]
     runs-on: [self-hosted-standard]
     concurrency:
       group: "deploy_${{ github.ref }}"
@@ -236,7 +236,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: 'poetry.lock'
+          files: "poetry.lock"
 
       - name: Prepare poetry
         if: steps.check_poetry.outputs.files_exists == 'true'
@@ -246,22 +246,22 @@ jobs:
         if: steps.check_poetry.outputs.files_exists == 'false'
         uses: actions/setup-python@v5
         with:
-          cache: 'pip'
+          cache: "pip"
           python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
 
       - name: Prepare python (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         uses: actions/setup-python@v5
         with:
-          cache: 'poetry'
+          cache: "poetry"
           python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
         run: |
-            branchTag=$(git describe --tags)
-            [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
-            echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
+          branchTag=$(git describe --tags)
+          [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
+          echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
 
       - name: Find Version Infos (LAST_RELEASE_TAG)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
@@ -355,8 +355,8 @@ jobs:
       - name: Find last version
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true') && env.LAST_RELEASE_TAG != ''
         run: |
-            lastTag=$(git tag -l --sort=v:refname | grep -vx "${{ env.BRANCH_TAG }}" | tail -n 1)
-            echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
+          lastTag=$(git tag -l --sort=v:refname | grep -vx "${{ env.BRANCH_TAG }}" | tail -n 1)
+          echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
 
       - name: Check Re-Tag docker image
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.LAST_VERSION != ''
@@ -364,15 +364,14 @@ jobs:
           releaseTag: ${{ env.VERSION }}
           preReleaseTag: ${{ env.LAST_VERSION }}
         run: |
-            echo "Check if tags are on same rev"
+          echo "Check if tags are on same rev"
+          prevSHA=$(git rev-list -n 1 refs/tags/v$preReleaseTag)
+          curSHA=$(git rev-list -n 1 refs/tags/v$releaseTag)
 
-            prevSHA=$(git rev-list -n 1 refs/tags/v$preReleaseTag)
-            curSHA=$(git rev-list -n 1 refs/tags/v$releaseTag)
-
-            if [ $prevSHA == $curSHA ]; then
-              echo "Adding release tag $releaseTag to image with pre-relase tag $preReleaseTag"
-              echo RETAG=true >> ${GITHUB_ENV}
-            fi;
+          if [ $prevSHA == $curSHA ]; then
+            echo "Adding release tag $releaseTag to image with pre-relase tag $preReleaseTag"
+            echo RETAG=true >> ${GITHUB_ENV}
+          fi;
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -457,8 +456,7 @@ jobs:
             "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
             "version": "${{ env.VERSION }}",
             "component_name": "${{ env.COMPONENT_NAME }}",
-            "deployment_files": ${{ env.DEPLOY_TARGETS }}
-          }'
+            "deployment_files": ${{ env.DEPLOY_TARGETS }}}'
 
       - name: Merging release changes to master
         if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
@@ -470,8 +468,7 @@ jobs:
             "commitish": "${{ github.event.release.target_commitish }}",
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
+            "tag": "${{ env.TAG }}"}'
 
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
@@ -483,5 +480,4 @@ jobs:
           client-payload: '{
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
+            "tag": "${{ env.TAG }}"}'

@@ -11,9 +11,9 @@ name: Build and deploy
 on:
   push:
     branches: [develop, release/**, bugfix/**, hotfix/**]
-#    tags:
-#      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
-#      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
+  #    tags:
+  #      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
+  #      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
   release:
     types:
       - released
@@ -143,9 +143,9 @@ jobs:
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
         run: |
-            branchTag=$(git describe --tags)
-            [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
-            echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
+          branchTag=$(git describe --tags)
+          [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
+          echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
 
       - name: Find Version Infos (LAST_RELEASE_TAG)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
@@ -283,8 +283,7 @@ jobs:
             "commitish": "${{ github.event.release.target_commitish }}",
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
+            "tag": "${{ env.TAG }}"}'
 
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
@@ -296,5 +295,4 @@ jobs:
           client-payload: '{
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
+            "tag": "${{ env.TAG }}"}'

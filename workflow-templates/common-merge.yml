@@ -185,5 +185,4 @@ jobs:
             "auto_merge": true,
             "source_branch": "master",
             "target_branch": "develop",
-            "tag": "${{ env.TAG }}"
-          }'
+            "tag": "${{ env.TAG }}"}'
