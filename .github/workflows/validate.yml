@@ -1,4 +1,4 @@
-name: Validate Workflows
+name: Validate workflows
 
 on:
   pull_request:
