@@ -314,7 +314,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test with pytest (with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test.outputs.testCount != 0
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount != 0
         run: pytest
 
       - name: Test with pytest (with poetry)
