@@ -1,10 +1,6 @@
-# Github Template Repository
+# GitHub Template Repository
 
-Shared workflow templates (for github actions).
-
-:warning: This is a public repo. :warning:  
-To learn why this is the case, have a look at the following issue:
-https://github.com/github/roadmap/issues/98
+Shared workflow templates (for GitHub actions).
 
 ## GitHub dependabot configuration
 
@@ -66,6 +62,7 @@ The files can slightly vary between build tools (the above one is for gradle),
 so please make sure that it contains everything that is needed.
 
 Prefect would need the following:
+
 ```
 COMPONENT_NAME: auto
 DOCKER_TAG_PREFIX: auto

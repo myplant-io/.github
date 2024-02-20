@@ -11,9 +11,9 @@ name: Build and deploy
 on:
   push:
     branches: [develop, release/**, bugfix/**, hotfix/**]
-#    tags:
-#      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
-#      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
+  #    tags:
+  #      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
+  #      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
   release:
     types:
       - released
@@ -35,7 +35,6 @@ jobs:
 
       - name: Checkout git repository
         uses: actions/checkout@v4
-        if: github.event_name != 'repository_dispatch'
         with:
           sparse-checkout: .
 
@@ -73,11 +72,11 @@ jobs:
         run: echo pythonVersionFile="${{ env.PYTHON_VERSION_FILE}}" >> ${GITHUB_OUTPUT}
 
   buildAndDeploy:
-    name: "Job: Build and deploy"
+    name: 'Job: Build and deploy'
     needs: ['setup']
     runs-on: [self-hosted-standard]
     concurrency:
-      group: "deploy_${{ github.ref }}"
+      group: deploy_${{ github.ref }}
       cancel-in-progress: false
 
     steps:
@@ -102,12 +101,12 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
@@ -157,7 +156,7 @@ jobs:
         if: env.IS_AUTO_RELEASE == 'true'
         run: echo IS_RELEASE=${{ contains(env.TAG, '-') == false && startsWith(github.ref, 'refs/tags/') }} >> ${GITHUB_ENV}
 
-      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - tag based)
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - tag based)
         if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
 
@@ -169,7 +168,7 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'false' }} >> ${GITHUB_ENV}
 
-      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - release based)
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - release based)
         if: github.event_name == 'release'
         run: echo IS_MANUAL_RELEASE=true >> ${GITHUB_ENV}
 
@@ -213,7 +212,7 @@ jobs:
         env:
           JSON: ${{ toJSON(env) }}
 
-      - name: Log github context
+      - name: Log GitHub context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:
@@ -260,9 +259,9 @@ jobs:
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
         run: |
-            branchTag=$(git describe --tags)
-            [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
-            echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
+          branchTag=$(git describe --tags)
+          [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
+          echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
 
       - name: Find Version Infos (LAST_RELEASE_TAG)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
@@ -335,7 +334,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: "release_changelog.md"
+          files: 'release_changelog.md'
 
       - name: Enhance changelog
         if: steps.check_release_changelog.outputs.files_exists == 'true'
@@ -356,8 +355,8 @@ jobs:
       - name: Find last version
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true') && env.LAST_RELEASE_TAG != ''
         run: |
-            lastTag=$(git tag -l --sort=v:refname | grep -vx "${{ env.BRANCH_TAG }}" | tail -n 1)
-            echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
+          lastTag=$(git tag -l --sort=v:refname | grep -vx "${{ env.BRANCH_TAG }}" | tail -n 1)
+          echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
 
       - name: Check Re-Tag docker image
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.LAST_VERSION != ''
@@ -365,15 +364,14 @@ jobs:
           releaseTag: ${{ env.VERSION }}
           preReleaseTag: ${{ env.LAST_VERSION }}
         run: |
-            echo "Check if tags are on same rev"
+          echo "Check if tags are on same rev"
+          prevSHA=$(git rev-list -n 1 refs/tags/v$preReleaseTag)
+          curSHA=$(git rev-list -n 1 refs/tags/v$releaseTag)
 
-            prevSHA=$(git rev-list -n 1 refs/tags/v$preReleaseTag)
-            curSHA=$(git rev-list -n 1 refs/tags/v$releaseTag)
-
-            if [ $prevSHA == $curSHA ]; then
-              echo "Adding release tag $releaseTag to image with pre-relase tag $preReleaseTag"
-              echo RETAG=true >> ${GITHUB_ENV}
-            fi;
+          if [ $prevSHA == $curSHA ]; then
+            echo "Adding release tag $releaseTag to image with pre-relase tag $preReleaseTag"
+            echo RETAG=true >> ${GITHUB_ENV}
+          fi;
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -442,7 +440,7 @@ jobs:
           context: .
           provenance: false
           push: true
-          secrets: "nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}"
+          secrets: nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
 
       - name: Deploy service
@@ -458,8 +456,7 @@ jobs:
             "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
             "version": "${{ env.VERSION }}",
             "component_name": "${{ env.COMPONENT_NAME }}",
-            "deployment_files": ${{ env.DEPLOY_TARGETS }}
-          }'
+            "deployment_files": ${{ env.DEPLOY_TARGETS }}}'
 
       - name: Merging release changes to master
         if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
@@ -471,8 +468,7 @@ jobs:
             "commitish": "${{ github.event.release.target_commitish }}",
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
+            "tag": "${{ env.TAG }}"}'
 
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
@@ -484,5 +480,4 @@ jobs:
           client-payload: '{
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
+            "tag": "${{ env.TAG }}"}'

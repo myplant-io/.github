@@ -34,7 +34,6 @@ jobs:
 
       - name: Checkout git repository
         uses: actions/checkout@v4
-        if: github.event_name != 'repository_dispatch'
         with:
           sparse-checkout: .
 
@@ -136,7 +135,7 @@ jobs:
         env:
           JSON: ${{ toJSON(env) }}
 
-      - name: Log github context
+      - name: Log GitHub context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:

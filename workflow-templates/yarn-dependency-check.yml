@@ -24,7 +24,7 @@ jobs:
     name: 'Job: Dependency check'
     runs-on: [self-hosted-standard]
     concurrency:
-      group: 'dependencyCheck_${{ github.ref }}'
+      group: dependencyCheck_${{ github.ref }}
       cancel-in-progress: true
 
     steps:
@@ -97,7 +97,7 @@ jobs:
         env:
           JSON: ${{ toJSON(env) }}
 
-      - name: Log github context
+      - name: Log GitHub context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:

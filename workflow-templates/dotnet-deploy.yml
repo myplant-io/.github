@@ -11,9 +11,9 @@ name: Build and deploy
 on:
   push:
     branches: [develop, release/**, bugfix/**, hotfix/**]
-#    tags:
-#      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
-#      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
+  #    tags:
+  #      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
+  #      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
   release:
     types:
       - released
@@ -22,16 +22,16 @@ on:
 
 jobs:
   buildAndDeploy:
-    name: "Job: Build and deploy"
+    name: 'Job: Build and deploy'
     runs-on: [self-hosted-standard]
     concurrency:
-      group: "deploy_${{ github.ref }}"
+      group: deploy_${{ github.ref }}
       cancel-in-progress: false
 
     strategy:
       matrix:
-        dotnet-version: ["6.0.x"]
-        dotnet-rid: ["win-x64"]
+        dotnet-version: ['6.0.x']
+        dotnet-rid: ['win-x64']
 
     steps:
       - name: Set git to use LF
@@ -49,12 +49,12 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: true
-          files: ".github/workflow-config.env"
+          files: '.github/workflow-config.env'
 
       - name: Load workflow config (.env file)
         uses: cardinalby/export-env-action@v2
         with:
-          envFile: ".github/workflow-config.env"
+          envFile: '.github/workflow-config.env'
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
@@ -87,7 +87,7 @@ jobs:
           myToken: ${{ github.token }}
           view_top: 1
 
-      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - tag based)
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - tag based)
         if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
 
@@ -99,7 +99,7 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'false' }} >> ${GITHUB_ENV}
 
-      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in github - release based)
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - release based)
         if: github.event_name == 'release'
         run: echo IS_MANUAL_RELEASE=true >> ${GITHUB_ENV}
 
@@ -121,7 +121,7 @@ jobs:
         env:
           JSON: ${{ toJSON(env) }}
 
-      - name: Log github context
+      - name: Log GitHub context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:
@@ -143,9 +143,9 @@ jobs:
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
         run: |
-            branchTag=$(git describe --tags)
-            [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
-            echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
+          branchTag=$(git describe --tags)
+          [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
+          echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
 
       - name: Find Version Infos (LAST_RELEASE_TAG)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
@@ -218,7 +218,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: "release_changelog.md"
+          files: 'release_changelog.md'
 
       - name: Enhance changelog
         if: steps.check_release_changelog.outputs.files_exists == 'true'
@@ -256,20 +256,20 @@ jobs:
         with:
           if-no-files-found: error
           name: Release (${{ matrix.dotnet-version }} - ${{ matrix.dotnet-rid }})
-          path: "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}/"
+          path: 'build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}/'
 
       - name: Create release artifact archive
         if: env.IS_RELEASE == 'true'
         uses: vimtor/action-zip@v1
         with:
-          files: "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-rid }}_${{ matrix.dotnet-rid }}/*"
-          dest: "${{ env.COMPONENT_NAME }}_${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip"
+          files: 'build/${{ env.MY_VERSION }}_${{ matrix.dotnet-rid }}_${{ matrix.dotnet-rid }}/*'
+          dest: '${{ env.COMPONENT_NAME }}_${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip'
 
       - name: Upload release artifact (as assets)
         if: env.IS_RELEASE == 'true'
         uses: AButler/upload-release-assets@v3.0
         with:
-          files: "${{ env.COMPONENT_NAME }}_${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip"
+          files: '${{ env.COMPONENT_NAME }}_${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip'
           release-tag: ${{ env.TAG }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -283,8 +283,7 @@ jobs:
             "commitish": "${{ github.event.release.target_commitish }}",
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
+            "tag": "${{ env.TAG }}"}'
 
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
@@ -296,5 +295,4 @@ jobs:
           client-payload: '{
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"
-          }'
+            "tag": "${{ env.TAG }}"}'

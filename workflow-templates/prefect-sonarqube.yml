@@ -26,7 +26,7 @@ jobs:
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: [self-hosted-standard]
     concurrency:
-      group: 'sonarqube_${{ github.ref }}'
+      group: sonarqube_${{ github.ref }}
       cancel-in-progress: true
 
     steps:
@@ -105,18 +105,18 @@ jobs:
       - name: Set env 'SONAR_BASE_VERSION'
         if: env.BRANCH_NAME == 'master'
         run: echo SONAR_BASE_VERSION="${{ steps.getLatestVersion.outputs.tag_name }}" >> ${GITHUB_ENV}
-   
+
       - uses: kenchan0130/actions-system-info@v1.2.1
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-   
+
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(env) }}
 
-      - name: Log github context
+      - name: Log GitHub context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:

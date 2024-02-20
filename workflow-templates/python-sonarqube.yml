@@ -26,7 +26,7 @@ jobs:
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: [self-hosted-standard]
     concurrency:
-      group: 'sonarqube_${{ github.ref }}'
+      group: sonarqube_${{ github.ref }}
       cancel-in-progress: true
 
     steps:
@@ -115,7 +115,7 @@ jobs:
         env:
           JSON: ${{ toJSON(env) }}
 
-      - name: Log github context
+      - name: Log GitHub context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:

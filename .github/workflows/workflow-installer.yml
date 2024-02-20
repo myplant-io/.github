@@ -28,7 +28,7 @@ env:
 
 jobs:
   install:
-    runs-on: [ubuntu-latest]
+    runs-on: ubuntu-latest
     steps:
       - name: Set git to use LF
         run: |
@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
           path: source
 
-      - name: checkout github target repo
+      - name: Checkout GitHub target repo
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.repository }}
@@ -52,7 +52,7 @@ jobs:
           token: ${{ secrets.CI_PAT }}
           path: target
 
-      - name: Determine file extensions for github action files
+      - name: Determine file extensions
         working-directory: ./target
         shell: bash
         run: |
@@ -66,11 +66,11 @@ jobs:
             echo FILE_TYPE=yml >> ${GITHUB_ENV}
           fi
 
-      - name: project auto-detection
+      - name: Determine project type
         id: project-auto-detection
         working-directory: ./target
         if: env.INPUT_TYPE == 'auto-detection'
-        env: 
+        env:
           TARGET_REPO: ${{ inputs.repository }}
         shell: bash
         run: |
@@ -127,7 +127,7 @@ jobs:
           mkdir -p target/.github/
           mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-dependabot.yml target/.github/dependabot.${{ env.FILE_TYPE }} 2>/dev/null || :
 
-      - name: Move relevant github actions in place
+      - name: Move relevant GitHub actions in place
         if: env.INPUT_TYPE != 'auto-detect'
         run: |
           mkdir -p target/.github/workflows/
@@ -146,13 +146,13 @@ jobs:
           repository: ${{ inputs.repository }}
           directory: ./target
           github_token: ${{ secrets.CI_PAT }}
-          message: 'chore: install default github workflows'
+          message: 'chore: install default GitHub action workflows'
 
       - name: Create Pull Request
         if: env.INPUT_TYPE != 'auto-detect'
         uses: peter-evans/create-pull-request@v6
         with:
-          title: 'chore: install default github workflows'
+          title: 'chore: install default GitHub action workflows'
           token: ${{ secrets.CI_PAT }}
           path: ./target
           branch: chore/install-gh-actions
