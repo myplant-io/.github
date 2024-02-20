@@ -40,6 +40,12 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_READONLY_PAT }}
+
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
         with:
@@ -51,20 +57,9 @@ jobs:
         with:
           envFile: '.github/workflow-config.env'
 
-      - name: Determine node version (check .nvmrc existence)
-        id: check_nvmrc_existence
-        uses: andstor/file-existence-action@v3
-        with:
-          fail: true
-          files: '.nvmrc'
-
-      - name: Determine node version (read from .nvmrc)
-        if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
-        run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
-
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
-        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+        run: echo "COMPONENT_NAME=${{ github.event.repository.name }}" >> ${GITHUB_ENV}
 
       - name: Set env 'DOCKER_REPOSITORY'
         if: env.DOCKER_REPOSITORY == 'auto'
@@ -99,6 +94,17 @@ jobs:
           myToken: ${{ github.token }}
           view_top: 1
 
+      - name: Set env 'IS_AUTO_RELEASE' (a.k.a release triggered by tag)
+        run: echo IS_AUTO_RELEASE=${{ startsWith(github.ref, 'refs/tags/') && steps.latest_release.outputs.tag_name != env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on auto release)
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_PRERELEASE=${{ contains(env.TAG, '-') == true }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on auto release)
+        if: env.IS_AUTO_RELEASE == 'true'
+        run: echo IS_RELEASE=${{ contains(env.TAG, '-') == false && startsWith(github.ref, 'refs/tags/') }} >> ${GITHUB_ENV}
+
       - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - tag based)
         if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
@@ -126,9 +132,6 @@ jobs:
       - name: Initialize 'DEPLOY_TARGETS'
         run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
 
-      - name: Initialize 'RETAG'
-        run: echo RETAG=false >> ${GITHUB_ENV}
-
       - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
         run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
@@ -144,6 +147,9 @@ jobs:
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
+
+      - name: Initialize 'RETAG'
+        run: echo RETAG=false >> ${GITHUB_ENV}
 
       - uses: kenchan0130/actions-system-info@v1.2.1
         if: env.VERBOSE_LOGGING == 'true'
@@ -291,16 +297,6 @@ jobs:
             echo RETAG=true >> ${GITHUB_ENV}
           fi;
 
-      - name: Prepare node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Add registry credentials
-        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
-        env:
-          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -311,7 +307,7 @@ jobs:
       - name: Retag docker image
         id: check-docker-registry-retag
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
-        uses: myplant-io/github-actions/check-docker-registry@v1
+        uses: myplant-io/github-actions/check-docker-registry
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
           repository: ${{ env.DOCKER_REPOSITORY }}
@@ -320,50 +316,23 @@ jobs:
 
       - name: Check docker registry
         id: check-docker-registry
-        uses: myplant-io/github-actions/check-docker-registry@v1
+        uses: myplant-io/github-actions/check-docker-registry
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
           repository: ${{ env.DOCKER_REPOSITORY }}
           sha: ${{ env.SHA }}
           version: ${{ env.VERSION }}
 
-      - name: Create/restore cache for node_modules
-        uses: actions/cache@v4
-        id: node_modules-cache
-        if: env.RETAG == 'false'
-        with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-
-      - name: Install dependencies (if not previously cached)
-        if: ${{ steps.node_modules-cache.outputs.cache-hit != 'true' && env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' }}
-        run: yarn install --frozen-lockfile
-
-      - name: Determine if config needs to be generated
-        id: npm_script_check
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: echo generate_config_exists=$(npm run | grep 'generate:config' | wc -l) >> ${GITHUB_OUTPUT}
-
-      - name: Generate config files
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && steps.npm_script_check.outputs.generate_config_exists != 0
-        run: yarn generate:config
-
-      - name: Validate code
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn validate
-
-      - name: Test code
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn test --ci --no-cache --silent
-
-      - name: Build application
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn build
-
       - name: Login to Amazon ECR
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         id: aws-login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Docker login (to AWS ECR)
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.aws-login-ecr.outputs.registry }}
 
       - name: Set up QEMU
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
@@ -375,7 +344,7 @@ jobs:
         run: echo contextFound=$(docker context ls | grep -w 'buildx' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Set up Docker Context for Buildx
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && steps.docker-context-check.outputs.contextFound == 0
+        if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && steps.docker-context-check.outputs.contextFound == 0
         run: docker context create buildx-context
 
       - name: Set up Docker Buildx
@@ -392,7 +361,6 @@ jobs:
         with:
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          context: .
           provenance: false
           push: true
           secrets: nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
@@ -407,7 +375,6 @@ jobs:
           event-type: deploy
           client-payload: '{
             "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
-            "docker_repository": "${{ env.DOCKER_REPOSITORY }}",
             "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
             "version": "${{ env.VERSION }}",
             "component_name": "${{ env.COMPONENT_NAME }}",

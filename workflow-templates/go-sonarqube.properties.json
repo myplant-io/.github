@@ -1,0 +1,7 @@
+{
+  "name": "Sonarqube integration",
+  "description": "Sonarqube for go projects",
+  "iconName": "icon-sonarqube",
+  "categories": ["Go"],
+  "filePatterns": ["go.mod"]
+}

@@ -6,7 +6,7 @@
 #
 # Created by: Daniel Hons, Nikolaus Krismer
 ###
-name: Test and validate
+name: Validate and test
 
 on:
   # see https://github.com/dependabot/dependabot-core/issues/3253 why this is pull_request_target and not pull_request
@@ -17,9 +17,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  testAndValidate:
-    name: 'Job: Test and validate'
-    runs-on: [self-hosted, linux]
+  validateAndTest:
+    name: 'Job: Validate and test'
+    runs-on: [self-hosted-standard]
 
     steps:
       - name: Set git to use LF
@@ -43,7 +43,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           fail: true
           files: '.github/workflow-config.env'
@@ -64,14 +64,34 @@ jobs:
       - name: Set env 'VERSION' to SHA
         run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
 
-      - name: Log details
+      - uses: kenchan0130/actions-system-info@v1.2.1
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
         run: |
-          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
-          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
-          echo "GITHUB_REF: ${GITHUB_REF}"
-          echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "VERSION: ${{ env.VERSION }}"
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: Prepare gradle properties
         run: printf "\n$GRADLE_PROPS" >> gradle.properties
@@ -79,19 +99,19 @@ jobs:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
       - name: Validate gradle wrapper
-        uses: gradle/wrapper-validation-action@v1
+        uses: gradle/wrapper-validation-action@v2
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Get java version from gradle
         run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'adopt'
           java-version: ${{ env.JAVA_VERSION }}
@@ -108,7 +128,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Test with gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v3
         with:
           arguments: ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}
 
@@ -127,7 +147,7 @@ jobs:
 
       - name: Compress and upload test report folders
         if: failure() && steps.gradle-project-stats.outputs.project-count == '0'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-result
           path: 'build/reports/tests'
@@ -140,7 +160,7 @@ jobs:
 
       - name: Upload test results (for multirepo)
         if: failure() && steps.gradle-project-stats.outputs.project-count != '0'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-result
           path: test-results.zip

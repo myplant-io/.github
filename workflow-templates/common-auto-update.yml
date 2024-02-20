@@ -1,5 +1,5 @@
 ###
-# GitHub action that updates github actions from the template repository.
+# Updates local GitHub actions with new releases from the template repository.
 #
 # Created by: Nikolaus Krismer
 ###
@@ -14,9 +14,9 @@ jobs:
   updateGitHubActions:
     name: 'Job: Update GH actions'
     if: ${{ github.actor == 'dependabot[bot]' }}
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted-standard]
     concurrency:
-      group: 'update_${{ github.ref }}'
+      group: update_${{ github.ref }}
       cancel-in-progress: false
 
     steps:
@@ -26,15 +26,15 @@ jobs:
           git config --global core.eol lf
 
       - name: Allow dependabot to check for version
-        uses: myplant-io/.github@v1.0.0
+        uses: myplant-io/.github@v1.1.0
 
       - name: Dependabot metadata
         id: dependabot-metadata
         uses: dependabot/fetch-metadata@v1.6.0
         with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkout github actions repo
+      - name: Checkout GitHub actions repo
         uses: actions/checkout@v4
         with:
           repository: myplant-io/.github
@@ -77,7 +77,7 @@ jobs:
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
 
-      - name: Determine file extensions for github action files
+      - name: Determine file extensions
         run: echo FILE_TYPE=$(ls ${{ env.TARGET_DIR }}/auto-update* |  tr . \\n | tail -n1) >> ${GITHUB_ENV}
 
       - name: Set project type to gradle
@@ -107,18 +107,34 @@ jobs:
         if: steps.determine-type-yarn2.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=yarn2 >> ${GITHUB_ENV}
 
-      - name: Log details
+      - uses: kenchan0130/actions-system-info@v1.2.1
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
         run: |
-          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
-          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
-          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
-          echo "GITHUB_REF: ${GITHUB_REF}"
-          echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "BRANCH_NAME: ${{ env.BRANCH_NAME }}"
-          echo "SOURCE_DIR: ${{ env.SOURCE_DIR }}"
-          echo "TARGET_DIR: ${{ env.TARGET_DIR }}"
-          echo "PROJECT_TYPE: ${{ env.PROJECT_TYPE }}"
-          echo "FILE_TYPE: ${{ env.FILE_TYPE }}"
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: List source contents
         run: ls ${{ env.SOURCE_DIR }}
@@ -126,7 +142,7 @@ jobs:
       - name: List target contents
         run: ls ${{ env.TARGET_DIR }}
 
-      - name: Move relevant github actions in place
+      - name: Move relevant GitHub actions in place
         if: env.PROJECT_TYPE != 'unknown'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
@@ -136,7 +152,7 @@ jobs:
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }} 2>/dev/null || :
 
-      - name: Move relevant github actions in place
+      - name: Move relevant GitHub actions in place
         if: env.PROJECT_TYPE == 'unknown'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}

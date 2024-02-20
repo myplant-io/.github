@@ -5,13 +5,15 @@
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
 #
-# Created by: Nikolaus Krismer
+# Created by: Daniel Hons, Nikolaus Krismer
 ###
 name: Sonarqube
 
 on:
   pull_request:
-    branches: [develop]
+    branches: [develop, main, master]
+    paths-ignore:
+      - '.github/workflows/*auto-update*'
   push:
     branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
   repository_dispatch:
@@ -58,23 +60,16 @@ jobs:
         with:
           envFile: '.github/workflow-config.env'
 
-      - name: Determine node version (check .nvmrc existence)
-        id: check_nvmrc_existence
-        uses: andstor/file-existence-action@v3
-        with:
-          fail: true
-          files: '.nvmrc'
-
-      - name: Determine node version (read from .nvmrc)
-        if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
-        run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
-
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
       - name: Set env SONAR_KEY
         run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
+
+      - name: Default SONAR_PREFIX to io.myplant
+        if: env.SONAR_PREFIX == ''
+        run: echo SONAR_PREFIX="io.myplant" >> ${GITHUB_ENV}
 
       - name: Apply SONAR_PREFIX to SONAR_KEY
         if: env.SONAR_PREFIX != ''
@@ -152,45 +147,27 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
-      - name: Prepare node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+      - uses: actions/setup-go@v5
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          go-version: '${{ env.GO_VERSION }}'
 
-      - name: Add registry credentials
-        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> ${GITHUB_ENV}
-        env:
-          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
-
-      - name: Create/restore cache for webpack
-        uses: actions/cache@v4
-        id: webpack-cache
+      - uses: extractions/netrc@v1
         with:
-          path: '.cache'
-          key: ${{ runner.os }}-webpack-${{ env.VERSION }}
-          restore-keys: ${{ runner.os }}-webpack-
+          machine: github.com
+          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          password: ${{ secrets.CI_PAT }}
 
-      - name: Create/restore cache for yarn
-        uses: actions/cache@v4
-        id: yarn-cache
+      - uses: extractions/netrc@v1
         with:
-          path: .yarn
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: ${{ runner.os }}-yarn-
+          machine: api.github.com
+          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          password: ${{ secrets.CI_PAT }}
 
-      - name: Install dependencies
-        run: yarn install --immutable
-
-      - name: Determine if config needs to be generated
-        id: npm_script_check
-        run: echo generate_config_exists=$(npm run | grep 'generate:config' | wc -l) >> ${GITHUB_OUTPUT}
-
-      - name: Generate config files
-        if: steps.npm_script_check.outputs.generate_config_exists != 0
-        run: yarn generate:config
-
-      - name: Run tests
-        run: yarn test --coverage
+      - name: Tests
+        run: |
+          go mod tidy
+          go build .
+          go test -coverprofile=coverage.out . > testresults.out
 
       - name: Setup sonarqube
         uses: warchant/setup-sonar-scanner@v8
@@ -201,11 +178,11 @@ jobs:
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
           -Dsonar.token=${{ secrets.SONAR_LOGIN }}
           -Dsonar.branch.name=${{ env.BRANCH_NAME }}
-          -Dsonar.exclusions="**/__generated__/**, **/__mocks__/**, **/__tests__/**"
-          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+          -Dsonar.go.coverage.reportPaths=coverage.out
+          -Dsonar.go.tests.reportPaths=testresults.out
           -Dsonar.qualitygate.wait=true
 
       - name: Run sonarqube (on PR)
@@ -213,8 +190,6 @@ jobs:
         run: sonar-scanner
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
           -Dsonar.token=${{ secrets.SONAR_LOGIN }}
-          -Dsonar.exclusions="**/__generated__/**, **/__mocks__/**, **/__tests__/**"
-          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
@@ -223,4 +198,6 @@ jobs:
           -Dsonar.pullrequest.base=${{ github.base_ref }}
           -Dsonar.pullrequest.branch=${{ github.head_ref }}
           -Dsonar.pullrequest.key=${{ github.event.number }}
+          -Dsonar.go.coverage.reportPaths=coverage.out
+          -Dsonar.go.tests.reportPaths=testresults.out
           -Dsonar.qualitygate.wait=true
