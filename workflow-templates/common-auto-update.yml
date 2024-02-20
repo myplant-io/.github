@@ -107,34 +107,15 @@ jobs:
         if: steps.determine-type-yarn2.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=yarn2 >> ${GITHUB_ENV}
 
-      - uses: kenchan0130/actions-system-info@v1.2.1
-        if: env.VERBOSE_LOGGING == 'true'
-        id: system-info
-
       - name: Log env context
-        if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(env) }}
 
       - name: Log GitHub context
-        if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(github) }}
-
-      - name: Log system details
-        if: env.VERBOSE_LOGGING == 'true'
-        run: |
-          echo "os: ${{ runner.os }}"
-          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
-          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
-          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
-          echo "os.name: ${{ steps.system-info.outputs.name }}"
-          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
-          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
-          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
-          echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: List source contents
         run: ls ${{ env.SOURCE_DIR }}
