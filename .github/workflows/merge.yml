@@ -103,35 +103,15 @@ jobs:
         with:
           script: core.setFailed('Not merging develop into other branches automatically. Please use release/hotfix/bugfix branches!')
 
-      - uses: kenchan0130/actions-system-info@v1.2.1
-        if: env.VERBOSE_LOGGING == 'true'
-        id: system-info
-
       - name: Log env context
-        if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(env) }}
 
       - name: Log GitHub context
-        if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(github) }}
-
-      - name: Log system details
-        if: env.VERBOSE_LOGGING == 'true'
-        run: |
-          echo "os: ${{ runner.os }}"
-          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
-          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
-          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
-          echo "os.name: ${{ steps.system-info.outputs.name }}"
-          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
-          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
-          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
-          echo "os.release: ${{ steps.system-info.outputs.release }}"
-
       - name: Open PR to merge release changes
         if: env.AUTO_MERGE != 'true'
         run: |
@@ -149,11 +129,20 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ env.SOURCE_BRANCH }}
+          ref: "${{ env.SOURCE_BRANCH }}"
+
+      - name: Checkout github actions repo
+        if: env.AUTO_MERGE == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: myplant-io/github-actions
+          ref: v1.0.1
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
 
       - name: Merging release changes into target branch
         if: env.AUTO_MERGE == 'true'
-        uses: myplant-io/github-actions/merge-branch@v1
+        uses: ./.github/actions/merge-branch
         with:
           source-branch: ${{ env.SOURCE_BRANCH }}
           target-branch: ${{ env.TARGET_BRANCH }}
