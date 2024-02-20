@@ -2,10 +2,6 @@
 
 Shared workflow templates (for GitHub actions).
 
-:warning: This is a public repo. :warning:  
-To learn why this is the case, have a look at the following issue:
-https://github.com/github/roadmap/issues/98
-
 ## GitHub dependabot configuration
 
 It is recommended to enable a dependabot for checking on new version of the
