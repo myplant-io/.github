@@ -1,0 +1,188 @@
+###
+# GitHub action that allows to merge branches (e.g. changes from master to
+# develop or after a release the released branch to master).
+#
+# Created by: Nikolaus Krismer
+###
+name: Merge branches
+
+on:
+  push:
+    branches: [master, main]
+  repository_dispatch:
+    types: [merge]
+
+jobs:
+  merge:
+    name: 'Job: Merging branches'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      # AUTO_MERGE decides if changes are merged directly (auto_merge == true) or if a PR is opened for merging changes (auto_merge == false)
+      - name: Initialize 'AUTO_MERGE'
+        run: echo AUTO_MERGE="false" >> ${GITHUB_ENV}
+
+      - name: Activate 'AUTO_MERGE'
+        if: github.event.client_payload.auto_merge == 'true'
+        run: echo AUTO_MERGE="true" >> ${GITHUB_ENV}
+
+      - name: Set env 'SOURCE_BRANCH'
+        if: github.event_name != 'repository_dispatch'
+        run: echo SOURCE_BRANCH="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SOURCE_BRANCH' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo SOURCE_BRANCH="${{ github.event.client_payload.source_branch }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SOURCE_BRANCH' (for dispatched runs using commitish)
+        if: github.event_name == 'repository_dispatch' && github.event.client_payload.commitish != ''
+        run: echo SOURCE_BRANCH="${{ github.event.client_payload.commitish }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'TARGET_BRANCH'
+        if: github.event_name != 'repository_dispatch'
+        run: echo TARGET_BRANCH="develop" >> ${GITHUB_ENV}
+
+      - name: Set env 'TARGET_BRANCH' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo TARGET_BRANCH="${{ github.event.client_payload.target_branch }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'TAG' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo TAG="${{ github.event.client_payload.tag }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'TITLE'
+        if: github.event_name != 'repository_dispatch'
+        run: echo TITLE="merge master into ${{ env.TARGET_BRANCH }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'TITLE' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo TITLE="merge ${{ env.TAG }} into ${{ env.TARGET_BRANCH }}" >> ${GITHUB_ENV}
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_BRANCH }}
+
+      - name: Set env 'HAS_CURRENT_BRANCH'
+        run: echo HAS_CURRENT_BRANCH="$(git branch --show-current | wc -l)" >> ${GITHUB_ENV}
+
+      - name: Initialize 'IS_DETACHED_HEAD'
+        run: echo IS_DETACHED_HEAD="false" >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_DETACHED_HEAD'
+        if: env.HAS_CURRENT_BRANCH == 0
+        run: echo IS_DETACHED_HEAD="true" >> ${GITHUB_ENV}
+
+      - name: Find commit for source
+        if: env.IS_DETACHED_HEAD == 'true'
+        run: echo SOURCE_COMMIT="$(git rev-parse HEAD)" >> ${GITHUB_ENV}
+
+      - name: Show refs used for finding source branch
+        if: env.IS_DETACHED_HEAD == 'true'
+        run: git show-ref
+
+      - name: Find source branch for PR
+        if: env.IS_DETACHED_HEAD == 'true'
+        run: echo SOURCE_BRANCH="$(git show-ref | grep "origin" | grep -v "origin/develop" | grep ${{ env.SOURCE_COMMIT }} | awk '{print $2}' | cut -f 4- -d '/')" >> ${GITHUB_ENV}
+
+      - name: Check that source branch has been found
+        if: env.IS_DETACHED_HEAD == 'true' && env.SOURCE_BRANCH == ''
+        uses: actions/github-script@v7
+        with:
+          script: core.setFailed('Started in detached head and could not find source branch!')
+
+      - name: Check that source branch is not develop
+        if: env.SOURCE_BRANCH == 'develop' || env.SOURCE_BRANCH == 'refs/heads/develop'
+        uses: actions/github-script@v7
+        with:
+          script: core.setFailed('Not merging develop into other branches automatically. Please use release/hotfix/bugfix branches!')
+
+      - uses: kenchan0130/actions-system-info@v1.2.1
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - name: Open PR to merge release changes
+        if: env.AUTO_MERGE != 'true'
+        run: |
+          gh pr create \
+            --base "${{ env.TARGET_BRANCH }}" \
+            --head "${{ env.SOURCE_BRANCH }}" \
+            --title "chore(release): merge ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
+            --body "Merging changes from ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
+            --label "automatically created"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Checkout git repository
+        if: env.IS_DETACHED_HEAD == 'true' && env.AUTO_MERGE == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_BRANCH }}
+
+      - name: Merging release changes into target branch
+        if: env.AUTO_MERGE == 'true'
+        uses: myplant-io/github-actions/merge-branch@v1
+        with:
+          source-branch: ${{ env.SOURCE_BRANCH }}
+          target-branch: ${{ env.TARGET_BRANCH }}
+
+      # If auto_merge was used, we need to trigger some gh actions by hand
+      - name: Check target branch after merge (sonarqube)
+        if: env.AUTO_MERGE == 'true'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: sonarqube
+          client-payload: '{"branch": "${{ env.TARGET_BRANCH }}"}'
+
+      - name: Check target branch after merge (dependencyCheck)
+        if: env.AUTO_MERGE == 'true' && env.TARGET_BRANCH == 'master'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: dependencyCheck
+          client-payload: '{"branch": "${{ env.TARGET_BRANCH }}"}'
+
+      - name: Merging changes on master branch back into develop
+        if: env.AUTO_MERGE == 'true' && env.TARGET_BRANCH == 'master'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "auto_merge": true,
+            "source_branch": "master",
+            "target_branch": "develop",
+            "tag": "${{ env.TAG }}"}'
