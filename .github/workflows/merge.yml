@@ -115,8 +115,7 @@ jobs:
 
       - name: Prepare label for PR creation
         if: env.AUTO_MERGE != 'true'
-        run: |
-          gh label create "automatically created" --force --color "ededed" --description "Automatically created (by GitHub action)"
+        run: gh label create "automatically created" --force --color "ededed" --description "Automatically created (by GitHub action)"
         env:
           GH_TOKEN: ${{ github.token }}
 
