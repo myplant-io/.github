@@ -117,6 +117,8 @@ jobs:
         if: env.AUTO_MERGE != 'true'
         run: |
           gh label create "automatically created" --force --color "ededed" --description "Automatically created (by GitHub action)"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Open PR to merge release changes
         if: env.AUTO_MERGE != 'true'
