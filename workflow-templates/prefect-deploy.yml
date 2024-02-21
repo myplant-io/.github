@@ -9,10 +9,10 @@
 name: Build and deploy
 
 on:
-  release:
-    types: [released]
   push:
     branches: [develop]
+  release:
+    types: [prereleased, released]
   workflow_dispatch:
 
 jobs:
