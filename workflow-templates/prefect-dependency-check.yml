@@ -88,6 +88,13 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v4
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
+
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
         with:
@@ -98,13 +105,6 @@ jobs:
         uses: cardinalby/export-env-action@v2
         with:
           envFile: '.github/workflow-config.env'
-
-      - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v4
-        if: github.event_name == 'repository_dispatch'
-        with:
-          fetch-depth: 0
-          ref: '${{ github.event.client_payload.branch }}'
 
       - name: Set env 'COMPONENT_NAME'
         if: env.COMPONENT_NAME == 'auto'
