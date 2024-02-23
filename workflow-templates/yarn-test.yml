@@ -122,8 +122,8 @@ jobs:
         if: steps.npm_script_check.outputs.generate_config_exists != 0
         run: yarn generate:config
 
-      - name: Run tests
-        run: yarn test --ci --no-cache --silent
+      - name: Run validation
+        run: yarn validate
 
   test:
     name: 'Job: Test'
