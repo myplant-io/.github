@@ -42,6 +42,17 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
       - name: Determine node version (check .nvmrc existence)
         id: check_nvmrc_existence
         uses: andstor/file-existence-action@v3
@@ -147,6 +158,17 @@ jobs:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
 
       - name: Determine node version (check .nvmrc existence)
         id: check_nvmrc_existence
