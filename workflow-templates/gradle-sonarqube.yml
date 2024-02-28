@@ -126,7 +126,6 @@ jobs:
         if: env.VERBOSE_LOGGING == 'true'
         run: |
           echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
-          echo "sonar.projectKey: ${{ env.SONAR_KEY }}"
           echo "sonar.projectName: ${{ env.COMPONENT_NAME }}"
           echo "sonar.projectVersion: ${{ env.SONAR_BASE_VERSION }}"
           echo "sonar.pullrequest.base: ${{ github.base_ref }}"
@@ -162,7 +161,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Get java version from gradle
-        run: echo "JAVA_VERSION=$(./gradlew -q :javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
+        run: echo "JAVA_VERSION=$(./gradlew -q javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
