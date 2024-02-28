@@ -210,7 +210,7 @@ jobs:
 
       - name: Publish dependency check result to tracker
         id: upload-dependency-track
-        uses: myplant-io/github-actions/upload-dependency-track
+        uses: myplant-io/github-actions/upload-dependency-track@v1
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           bomfilename: './bom.xml'
