@@ -151,13 +151,13 @@ jobs:
         with:
           go-version: '${{ env.GO_VERSION }}'
 
-      - uses: extractions/netrc@v1
+      - uses: extractions/netrc@v2
         with:
           machine: github.com
           username: ${{ env.GITHUB_ACTION_USERNAME }}
           password: ${{ secrets.CI_PAT }}
 
-      - uses: extractions/netrc@v1
+      - uses: extractions/netrc@v2
         with:
           machine: api.github.com
           username: ${{ env.GITHUB_ACTION_USERNAME }}
