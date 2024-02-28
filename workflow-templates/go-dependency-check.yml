@@ -68,9 +68,10 @@ jobs:
       - name: Set 'VERSION' to SHA
         run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
 
-      - uses: kenchan0130/actions-system-info@v1.2.1
+      - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
+        uses: kenchan0130/actions-system-info@v1.2.1
 
       - name: Log dependency tracker context
         if: env.VERBOSE_LOGGING == 'true'
