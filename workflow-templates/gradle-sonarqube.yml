@@ -126,7 +126,6 @@ jobs:
         if: env.VERBOSE_LOGGING == 'true'
         run: |
           echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
-          echo "sonar.projectKey: ${{ env.SONAR_KEY }}"
           echo "sonar.projectName: ${{ env.COMPONENT_NAME }}"
           echo "sonar.projectVersion: ${{ env.SONAR_BASE_VERSION }}"
           echo "sonar.pullrequest.base: ${{ github.base_ref }}"
