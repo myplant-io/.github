@@ -441,5 +441,5 @@ jobs:
             "tag": "${{ env.TAG }}"}'
 
       - name: Restore full-cache (for next build)
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         run: yarn build:unshrink
