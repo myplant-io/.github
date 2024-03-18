@@ -71,9 +71,10 @@ jobs:
         if: github.event_name == 'repository_dispatch'
         run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
 
-      - uses: kenchan0130/actions-system-info@v1.2.1
+      - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
+        uses: kenchan0130/actions-system-info@v1.2.1
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'

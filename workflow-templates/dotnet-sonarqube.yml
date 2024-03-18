@@ -68,9 +68,10 @@ jobs:
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
-      - uses: kenchan0130/actions-system-info@v1.2.1
+      - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
+        uses: kenchan0130/actions-system-info@v1.2.1
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'

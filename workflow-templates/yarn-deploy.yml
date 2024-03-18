@@ -143,9 +143,10 @@ jobs:
         if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
-      - uses: kenchan0130/actions-system-info@v1.2.1
+      - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
+        uses: kenchan0130/actions-system-info@v1.2.1
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'

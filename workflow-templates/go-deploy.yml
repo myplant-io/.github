@@ -149,9 +149,10 @@ jobs:
       - name: Initialize 'RETAG'
         run: echo RETAG=false >> ${GITHUB_ENV}
 
-      - uses: kenchan0130/actions-system-info@v1.2.1
+      - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
+        uses: kenchan0130/actions-system-info@v1.2.1
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
@@ -305,7 +306,7 @@ jobs:
       - name: Retag docker image
         id: check-docker-registry-retag
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
-        uses: myplant-io/github-actions/check-docker-registry
+        uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
           repository: ${{ env.DOCKER_REPOSITORY }}
@@ -314,7 +315,7 @@ jobs:
 
       - name: Check docker registry
         id: check-docker-registry
-        uses: myplant-io/github-actions/check-docker-registry
+        uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
           repository: ${{ env.DOCKER_REPOSITORY }}
