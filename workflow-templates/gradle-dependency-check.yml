@@ -4,6 +4,7 @@
 #
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
+#  - myplant-io/gradle-plugins >=3.6
 #
 # Created by: Nikolaus Krismer
 ###
@@ -20,12 +21,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  dependencyCheck:
-    name: 'Job: Dependency check'
+  setup:
+    name: 'Job: Setup dependency check'
     runs-on: [self-hosted-standard]
-    concurrency:
-      group: dependencyCheck_${{ github.ref }}
-      cancel-in-progress: true
+    outputs:
+      branch-name: ${{ steps.results.outputs.branch-name }}
+      component-name: ${{ steps.results.outputs.component-name }}
+      java-version: ${{ steps.results.outputs.java-version }}
+      project-details: ${{ steps.results.outputs.project-details }}
+      project-names: ${{ steps.results.outputs.project-names }}
+      subproject-count: ${{ steps.gradle-project-stats.outputs.subproject-count }}
+      version: ${{ steps.results.outputs.version }}
 
     steps:
       - name: Set git to use LF
@@ -147,16 +153,136 @@ jobs:
           distribution: 'adopt'
           java-version: ${{ env.JAVA_VERSION }}
 
+      - name: Determine number of gradle (sub)projects
+        id: gradle-project-stats
+        run: echo subproject-count="$(./gradlew -q projects | grep -- '--- Project' | cut -d ':' -f 2 | sed "s/'$//" | wc -l)" >> ${GITHUB_OUTPUT}
+
+      - name: Finding gradle subproject(s)
+        id: gradle-projects
+        if: steps.gradle-project-stats.outputs.subproject-count != '0'
+        run: echo subprojects="$(./gradlew -q projects | grep -- '--- Project' | cut -d ':' -f 2 | sed "s/'$//" | tr '\n' ' ' | xargs)" >> ${GITHUB_OUTPUT}
+
+      - name: Prepare JSON meta information (single project)
+        if: steps.gradle-project-stats.outputs.subproject-count == '0'
+        run: |
+          echo PROJECT_DETAILS_JSON="[$(./gradlew -q getProjectMetaJson)]" >> ${GITHUB_ENV}
+          echo PROJECT_NAMES="'[\"ROOT_PROJECT\"]'" >> ${GITHUB_ENV}
+
+      - name: Prepare JSON meta information (multirepo)
+        if: steps.gradle-project-stats.outputs.subproject-count != '0'
+        run: |
+          IFS=' ' read -ra subprojects <<< "${{ steps.gradle-projects.outputs.subprojects }}"
+          for p in ${subprojects[@]}; do
+            value=$(./gradlew -q :${p}:getProjectMetaJson)
+            json+=", ${value}"
+            names+=", \"${p}\""
+          done
+          echo PROJECT_DETAILS_JSON="'[${json:2}]'" >> ${GITHUB_ENV}
+          echo PROJECT_NAMES="'[${names:2}]'" >> ${GITHUB_ENV}
+
+      - name: Publish job information
+        id: results
+        run: |
+          echo branch-name=${{ env.BRANCH_NAME }} >> ${GITHUB_OUTPUT}
+          echo component-name=${{ env.COMPONENT_NAME }} >> ${GITHUB_OUTPUT}
+          echo java-version=${{ env.JAVA_VERSION }} >> ${GITHUB_OUTPUT}
+          echo project-details=${{ env.PROJECT_DETAILS_JSON }} >> ${GITHUB_OUTPUT}
+          echo project-names=${{ env.PROJECT_NAMES }} >> ${GITHUB_OUTPUT}
+          echo version=${{ env.VERSION }} >> ${GITHUB_OUTPUT}
+
+  dependencyCheck:
+    name: 'Job: Dependency check (${{ matrix.project-name }})'
+    needs: ['setup']
+    runs-on: [self-hosted-standard]
+
+    strategy:
+      max-parallel: 1
+      matrix:
+        project-name: ${{fromJSON(needs.setup.outputs.project-names)}}
+
+    steps:
+      - name: Get project details
+        id: project-details
+        if: matrix.project-name != 'ROOT_PROJECT'
+        run: echo json=$(jq -r '.[] | select(.name == "${{ matrix.project-name }}")' <<< "$JSON") >> ${GITHUB_OUTPUT}
+        env:
+          JSON: ${{ needs.setup.outputs.project-details }}
+
+      - name: Get project build dir (multirepo)
+        if: matrix.project-name != 'ROOT_PROJECT'
+        run: echo BUILD_DIR=$(jq -r '.buildDir' <<< "$DETAILS") >> ${GITHUB_ENV}
+        env:
+          DETAILS: ${{ steps.project-details.outputs.json }}
+
+      - name: Get project build dir (single project)
+        if: matrix.project-name == 'ROOT_PROJECT'
+        run: echo BUILD_DIR="build" >> ${GITHUB_ENV}
+
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Prepare gradle properties
+        run: printf "\n$GRADLE_PROPS" >> gradle.properties
+        env:
+          GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
+
+      - name: Validate gradle wrapper
+        uses: gradle/wrapper-validation-action@v2
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Prepare gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Prepare java ${{ needs.setup.outputs.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: ${{ needs.setup.outputs.java-version }}
+
+      - name: Prepare gradle task (single project)
+        if: matrix.project-name == 'ROOT_PROJECT'
+        run: echo DC_TASK="${{ env.GRADLE_DEPENDENCY_CHECK_TASK }}" >> ${GITHUB_ENV}
+
+      - name: Prepare gradle task (multi repo)
+        if: matrix.project-name != 'ROOT_PROJECT'
+        run: |
+          IFS=' ' read -ra gradle_tasks <<< "${{ env.GRADLE_DEPENDENCY_CHECK_TASK }}"
+          for task in ${gradle_tasks[@]}; do
+            all_tasks+=" :${{ matrix.project-name }}:${task}"
+          done
+          echo DC_TASK=${all_tasks:1} >> ${GITHUB_ENV}
+
       - name: Dependency check with gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           arguments: |
-            ${{ env.GRADLE_DEPENDENCY_CHECK_TASK }} -Pversion=${{ env.VERSION }}
+            ${{ env.DC_TASK }} -Pversion=${{ needs.setup.outputs.version }}
             -Pcyclonedx.includeBomSerialNumber=false
             -Dnvd.apiKey=${{ secrets.NVD_API_KEY }}
 
       - name: Post process dependency check bom
-        run: sed -i "s/type=jar//g" build/reports/bom.xml
+        run: sed -i "s/type=jar//g" ${{ env.BUILD_DIR }}/reports/bom.xml
 
       - name: Upload SBOM artifact
         if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == 'true' }}
@@ -164,13 +290,4 @@ jobs:
         with:
           if-no-files-found: error
           name: SBOM
-          path: 'build/reports/bom.xml'
-
-      - name: Publish dependency check result to tracker
-        id: upload-dependency-track
-        uses: myplant-io/github-actions/upload-dependency-track@v1
-        with:
-          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          bomfilename: 'build/reports/bom.xml'
-          projectname: ${{ env.COMPONENT_NAME }}
-          projectversion: ${{ env.BRANCH_NAME }}
+          path: '${{ env.BUILD_DIR }}/reports/bom.xml'
