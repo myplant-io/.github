@@ -370,23 +370,23 @@ jobs:
       - name: Determine number of gradle (sub)projects
         id: gradle-project-stats
         if: failure()
-        run: echo "project-count=$(./gradlew tasks --all | grep ':assemble' | cut -d ':' -f 1 | wc -l)" >> ${GITHUB_OUTPUT}
+        run: echo subproject-count="$(./gradlew tasks --all | grep ':assemble' | cut -d ':' -f 1 | wc -l)" >> ${GITHUB_OUTPUT}
 
       - name: Compress and upload test report folders
-        if: failure() && steps.gradle-project-stats.outputs.project-count == '0'
+        if: failure() && steps.gradle-project-stats.outputs.subproject-count == '0'
         uses: actions/upload-artifact@v4
         with:
           name: test-result
           path: 'build/reports/tests'
 
       - name: Compress test report folders (for multirepo)
-        if: failure() && steps.gradle-project-stats.outputs.project-count != '0'
+        if: failure() && steps.gradle-project-stats.outputs.subproject-count != '0'
         run: |
           folders=$(./gradlew tasks --all | grep ':assemble' | cut -d ':' -f 1 | sort -u | sed 's#$#/build/reports/tests#' | xargs)
           zip -qq -r test-results.zip $(echo ${folders})
 
       - name: Upload test results (for multirepo)
-        if: failure() && steps.gradle-project-stats.outputs.project-count != '0'
+        if: failure() && steps.gradle-project-stats.outputs.subproject-count != '0'
         uses: actions/upload-artifact@v4
         with:
           name: test-result
