@@ -6,7 +6,7 @@
 name: Update GitHub actions
 
 on:
-  pull_request_target:
+  pull_request:
     paths:
       - '.github/workflows/*auto-update*'
 
