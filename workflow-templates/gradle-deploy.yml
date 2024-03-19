@@ -3,6 +3,7 @@
 #
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
+#  - myplant-io/gradle-plugins >=3.7.1
 #
 # Created by: Daniel Hons, Nikolaus Krismer
 ###
