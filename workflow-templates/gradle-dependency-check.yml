@@ -278,8 +278,8 @@ jobs:
         with:
           arguments: |
             ${{ env.DC_TASK }} -Pversion=${{ needs.setup.outputs.version }}
-            -Pcyclonedx.includeBomSerialNumber=false
-            -Dnvd.apiKey=${{ secrets.NVD_API_KEY }}
+              -Pcyclonedx.includeBomSerialNumber=false
+              -Dnvd.apiKey=${{ secrets.NVD_API_KEY }}
 
       - name: Post process dependency check bom
         run: sed -i "s/type=jar//g" ${{ env.BUILD_DIR }}/reports/bom.xml
