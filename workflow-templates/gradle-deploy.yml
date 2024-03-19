@@ -383,7 +383,7 @@ jobs:
         if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && env.GRADLE_DEPLOY_TASK != 'none'
         uses: gradle/actions/setup-gradle@v3
         with:
-          arguments: ${{ env.GRADLE_DEPLOY_TASK }} -Pversion=${{ env.VERSION }}
+          arguments: ${{ env.GRADLE_DEPLOY_TASK }} -Pversion=${{ env.VERSION }} -PrepositoryName=${{ env.DOCKER_REPOSITORY }}
 
       - name: Deploy Service
         if: env.DEPLOY_TARGETS != 'none' && env.GRADLE_DEPLOY_TASK != 'none'
