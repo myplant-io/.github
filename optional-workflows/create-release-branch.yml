@@ -13,7 +13,8 @@ on:
 
 jobs:
   start-release-cycle:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted-standard]
+
     steps:
       - name: Checkout git repository
         uses: actions/checkout@v2

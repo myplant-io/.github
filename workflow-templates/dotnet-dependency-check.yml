@@ -18,6 +18,7 @@ on:
   repository_dispatch:
     types: [dependencyCheck]
   workflow_dispatch:
+
 jobs:
   test:
     name: 'Job: Test (with dotnet directly)'
