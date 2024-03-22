@@ -55,7 +55,7 @@ jobs:
               echo exists="true" >> ${GITHUB_OUTPUT}
           fi
 
-      - uses: peterjgrainger/action-create-branch@v2.0.1
+      - uses: peterjgrainger/action-create-branch@v3.0.0
         if: ${{ steps.branch-exists.outputs.exists == 'false' }}
         name: Create branch for release cycle
         env:
