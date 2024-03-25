@@ -73,6 +73,10 @@ jobs:
         if: env.DOCKER_REPOSITORY == 'auto'
         run: echo DOCKER_REPOSITORY=$(echo ${GITHUB_REPOSITORY} | sed 's:.*/::') >> ${GITHUB_ENV}
 
+      - name: Set env 'DOCKER_REPOSITORY' (fallback to default)
+        if: env.DOCKER_REPOSITORY == ''
+        run: echo DOCKER_REPOSITORY='myplant-io' >> ${GITHUB_ENV}
+
       - name: Set env 'DOCKER_TAG_PREFIX'
         if: env.DOCKER_TAG_PREFIX == 'auto'
         run: echo DOCKER_TAG_PREFIX="${COMPONENT_NAME}_" >> ${GITHUB_ENV}

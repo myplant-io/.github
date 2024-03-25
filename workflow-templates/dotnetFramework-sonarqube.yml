@@ -1,0 +1,160 @@
+###
+# GitHub action that analyzes the code with the sonarqube scanner and pushes
+# the result to the myplant sonarqube (sonar-dev.myplant-io).
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Nikolaus Krismer
+###
+name: Sonarqube
+
+on:
+  pull_request:
+    branches: [develop]
+    paths-ignore:
+      - '.github/workflows/*auto-update*'
+  push:
+    branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
+  repository_dispatch:
+    types: [sonarqube]
+  workflow_dispatch:
+
+jobs:
+  sonarqube:
+    name: 'Job: Sonarqube'
+    if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
+    runs-on: windows-latest
+    concurrency:
+      group: sonarqube_${{ github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      matrix:
+        dotnet-version: ['4.5.2']
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        if: github.event_name != 'repository_dispatch'
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v4
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SOLUTION_NAME'
+        if: env.SOLUTION_NAME == 'auto'
+        run: echo SOLUTION_NAME="${COMPONENT_NAME}.sln" >> ${GITHUB_ENV}
+
+      - name: Set env SONAR_KEY
+        run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
+
+      - name: Apply SONAR_PREFIX to SONAR_KEY
+        if: env.SONAR_PREFIX != ''
+        run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
+
+      - name: Get action system info
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+        uses: kenchan0130/actions-system-info@v1.2.1
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - name: Set up JDK 17 for sonar check
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore Packages
+        run: nuget restore ${{ env.SOLUTION_NAME }}
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~\sonar\cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache SonarQube scanner
+        id: cache-sonar-scanner
+        uses: actions/cache@v4
+        with:
+          path: $env:APPDATA\.sonar\scanner
+          key: ${{ runner.os }}-sonar-scanner
+          restore-keys: ${{ runner.os }}-sonar-scanner
+
+      - name: Install SonarQube scanner
+        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          New-Item -Path $env:APPDATA\.sonar\scanner -ItemType Directory
+          dotnet tool update dotnet-sonarscanner --tool-path $env:APPDATA\.sonar\scanner
+          echo "$env:APPDATA\.sonar\scanner" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Build and analyze
+        shell: powershell
+        run: |
+          dotnet-sonarscanner begin /n:"${{ env.COMPONENT_NAME }}" /k:"${{ env.SONAR_KEY }}" /d:sonar.login="${{ secrets.SONAR_LOGIN }}" /d:sonar.host.url="${{ secrets.SONAR_URL }}" /d:sonar.qualitygate.wait=true
+          msbuild ${{ env.SOLUTION_NAME }} -t:rebuild -property:Configuration=Release
+          dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_LOGIN }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

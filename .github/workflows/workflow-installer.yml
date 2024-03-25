@@ -12,7 +12,8 @@ on:
           - 'gradle'
           - 'yarn'
           - 'yarn2'
-          - 'dotnet'
+          - 'dotnetCore'
+          - 'dotnetFramework'
           - 'python'
           - 'prefect'
           - 'go'
@@ -29,6 +30,7 @@ env:
 jobs:
   install:
     runs-on: ubuntu-latest
+
     steps:
       - name: Set git to use LF
         run: |
@@ -94,8 +96,8 @@ jobs:
               exit 1
             fi
           elif [[ -f "Program.cs" || $(ls -1 *.sln 2>/dev/null | wc -l) != 0 ]]; then
-            echo "Dotnet project detected"
-            echo INPUT_TYPE=dotnet >> ${GITHUB_ENV}
+            echo "DotnetCore project detected"
+            echo INPUT_TYPE=dotnetCore >> ${GITHUB_ENV}
           elif [[ -f "requirements.txt" || -f "pyproject.toml" ]]; then
             if [[ $TARGET_REPO == "prefect"* ]]; then
               echo "Prefect project detected"

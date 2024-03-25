@@ -6,7 +6,7 @@ updates:
       interval: 'daily'
     open-pull-requests-limit: 5
   - package-ecosystem: 'github-actions'
-    directory: 'optional-templates/'
+    directory: 'optional-workflows/'
     schedule:
       interval: 'daily'
     open-pull-requests-limit: 5
