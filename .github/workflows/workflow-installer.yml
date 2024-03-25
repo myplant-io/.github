@@ -29,7 +29,7 @@ env:
 
 jobs:
   install:
-    runs-on: [self-hosted-standard]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Set git to use LF
