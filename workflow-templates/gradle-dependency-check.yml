@@ -26,7 +26,6 @@ jobs:
     runs-on: [self-hosted-standard]
     outputs:
       branch-name: ${{ steps.results.outputs.branch-name }}
-      component-name: ${{ steps.results.outputs.component-name }}
       java-version: ${{ steps.results.outputs.java-version }}
       project-details: ${{ steps.results.outputs.project-details }}
       project-names: ${{ steps.results.outputs.project-names }}
@@ -184,7 +183,6 @@ jobs:
         id: results
         run: |
           echo branch-name=${{ env.BRANCH_NAME }} >> ${GITHUB_OUTPUT}
-          echo component-name=${{ env.COMPONENT_NAME }} >> ${GITHUB_OUTPUT}
           echo java-version=${{ env.JAVA_VERSION }} >> ${GITHUB_OUTPUT}
           echo project-details=${{ env.PROJECT_DETAILS_JSON }} >> ${GITHUB_OUTPUT}
           echo project-names=${{ env.PROJECT_NAMES }} >> ${GITHUB_OUTPUT}
@@ -298,5 +296,5 @@ jobs:
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           bomfilename: '${{ env.BUILD_DIR }}/reports/bom.xml'
-          projectname: ${{ needs.setup.outputs.component-name }}
+          projectname: ${{ matrix.project-name }}
           projectversion: ${{ needs.setup.outputs.branch-name }}
