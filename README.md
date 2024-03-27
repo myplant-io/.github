@@ -36,7 +36,7 @@ updates:
 Next to the workflow files itself (e.g. _.github/gradle-deploy.yml_) you will
 need a _.github/workflow-config.env_ file for the actions to work.
 
-Here is an example workflow configuration file:
+Here is an example workflow configuration file (useable for java microservices built with gradle):
 
 ```
 COMPONENT_NAME=auto
@@ -50,6 +50,24 @@ GRADLE_PUBLISH_SHA=false
 GRADLE_PUBLISH_TASK=none
 GRADLE_SONARQUBE_TASK=test sonarqube
 GRADLE_TEST_TASK=test
+PUSH_DEPLOY_TARGET=["staging-io/${COMPONENT_NAME}.yaml"]
+PRE_RELEASE_DEPLOY_TARGET=none
+RELEASE_DEPLOY_TARGET=["production-io/${COMPONENT_NAME}.yaml"]
+VERBOSE_ARTIFACT_UPLOAD=false
+VERBOSE_LOGGING=false
+```
+
+Another example workflow configuration file (useable for python microservices) could look like this:
+
+```
+COMPONENT_NAME=auto
+DEPLOYMENT_REPO=myplant-io/deployment
+DOCKER_REPOSITORY=myplant-io
+#DOCKER_REPOSITORY=none
+DOCKER_TAG_PREFIX=auto
+PUBLISH_SHA=false
+PUBLISH_TARGETS=["myplant_nexus", "myplant_nexus_external"]
+#PUBLISH_TARGETS=none
 PUSH_DEPLOY_TARGET=["staging-io/${COMPONENT_NAME}.yaml"]
 PRE_RELEASE_DEPLOY_TARGET=none
 RELEASE_DEPLOY_TARGET=["production-io/${COMPONENT_NAME}.yaml"]
