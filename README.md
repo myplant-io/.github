@@ -66,12 +66,11 @@ DOCKER_REPOSITORY=myplant-io
 #DOCKER_REPOSITORY=none
 DOCKER_TAG_PREFIX=auto
 PUBLISH_SHA=false
-PUBLISH_TARGETS=["myplant_nexus", "myplant_nexus_external"]
-#PUBLISH_TARGETS=none
+PUBLISH_TARGET=["myplant_nexus", "myplant_nexus_external"]
+#PUBLISH_TARGET=none
 PUSH_DEPLOY_TARGET=["staging-io/${COMPONENT_NAME}.yaml"]
 PRE_RELEASE_DEPLOY_TARGET=none
 RELEASE_DEPLOY_TARGET=["production-io/${COMPONENT_NAME}.yaml"]
-VERBOSE_ARTIFACT_UPLOAD=false
 VERBOSE_LOGGING=false
 ```
 
