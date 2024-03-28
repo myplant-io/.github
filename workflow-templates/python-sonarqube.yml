@@ -21,8 +21,59 @@ on:
   workflow_dispatch:
 
 jobs:
+  setup:
+    name: 'Job: Python setup'
+    runs-on: [self-hosted-standard]
+    outputs:
+      pythonVersionFile: ${{steps.set_outputs.outputs.pythonVersionFile}}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .
+
+      - name: Check python version determination (pyproject.toml)
+        id: check_file_pyproject
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'pyproject.toml'
+
+      - name: Use pyproject.toml as python version file
+        if: steps.check_file_pyproject.outputs.files_exists == 'true'
+        run: echo PYTHON_VERSION_FILE="pyproject.toml" >> ${GITHUB_ENV}
+
+      - name: Check python version determination (.python-version)
+        if: steps.check_file_pyproject.outputs.files_exists == 'false'
+        id: check_file_python_version
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: '.python-version'
+
+      - name: Use .python-version as python version file
+        if: steps.check_file_python_version.outputs.files_exists == 'true'
+        run: echo PYTHON_VERSION_FILE=".python-version" >> ${GITHUB_ENV}
+
+      - name: Check python version determination
+        if: steps.check_file_pyproject.outputs.files_exists == 'false' &&  steps.check_file_python_version.outputs.files_exists == 'false'
+        run: |
+          echo "::error Either pyproject.toml or .python-version must exists (and contain a python version number)"
+          exit 1
+
+      - id: set_outputs
+        name: Set python version file
+        run: echo pythonVersionFile="${{ env.PYTHON_VERSION_FILE}}" >> ${GITHUB_OUTPUT}
+
   sonarqube:
     name: 'Job: Sonarqube'
+    needs: ['setup']
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: [self-hosted-standard]
     concurrency:
