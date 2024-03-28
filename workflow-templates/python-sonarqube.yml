@@ -243,7 +243,6 @@ jobs:
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
-          poetry config virtualenvs.create false
 
       - name: Install dependencies (including pytest; with pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
