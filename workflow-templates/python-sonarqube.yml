@@ -21,8 +21,59 @@ on:
   workflow_dispatch:
 
 jobs:
+  setup:
+    name: 'Job: Python setup'
+    runs-on: [self-hosted-standard]
+    outputs:
+      pythonVersionFile: ${{steps.set_outputs.outputs.pythonVersionFile}}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .
+
+      - name: Check python version determination (pyproject.toml)
+        id: check_file_pyproject
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'pyproject.toml'
+
+      - name: Use pyproject.toml as python version file
+        if: steps.check_file_pyproject.outputs.files_exists == 'true'
+        run: echo PYTHON_VERSION_FILE="pyproject.toml" >> ${GITHUB_ENV}
+
+      - name: Check python version determination (.python-version)
+        if: steps.check_file_pyproject.outputs.files_exists == 'false'
+        id: check_file_python_version
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: '.python-version'
+
+      - name: Use .python-version as python version file
+        if: steps.check_file_python_version.outputs.files_exists == 'true'
+        run: echo PYTHON_VERSION_FILE=".python-version" >> ${GITHUB_ENV}
+
+      - name: Check python version determination
+        if: steps.check_file_pyproject.outputs.files_exists == 'false' &&  steps.check_file_python_version.outputs.files_exists == 'false'
+        run: |
+          echo "::error Either pyproject.toml or .python-version must exists (and contain a python version number)"
+          exit 1
+
+      - id: set_outputs
+        name: Set python version file
+        run: echo pythonVersionFile="${{ env.PYTHON_VERSION_FILE}}" >> ${GITHUB_OUTPUT}
+
   sonarqube:
     name: 'Job: Sonarqube'
+    needs: ['setup']
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: [self-hosted-standard]
     concurrency:
@@ -192,7 +243,6 @@ jobs:
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
-          poetry config virtualenvs.create false
 
       - name: Install dependencies (including pytest; with pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
@@ -220,24 +270,6 @@ jobs:
         run: |
           source .venv/bin/activate
           echo testCount=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_OUTPUT}
-
-      - name: Skip tests (no test found with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount == 0
-        run: |
-          echo "No test(s) found. Skipping..."
-          gh run cancel ${{ github.run_id }}
-          gh run watch ${{ github.run_id }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Skip tests (no test found with poetry)
-        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_test_poetry.outputs.testCount == 0
-        run: |
-          echo "No test(s) found. Skipping..."
-          gh run cancel ${{ github.run_id }}
-          gh run watch ${{ github.run_id }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test with pytest (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount != 0

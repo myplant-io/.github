@@ -142,7 +142,7 @@ jobs:
 
       - name: Commit and push changes
         if: env.INPUT_TYPE != 'auto-detect'
-        uses: actions-js/push@v1.4
+        uses: actions-js/push@v1.5
         with:
           branch: chore/install-gh-actions
           repository: ${{ inputs.repository }}

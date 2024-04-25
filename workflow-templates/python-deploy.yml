@@ -394,7 +394,7 @@ jobs:
 
       - name: Retag docker image
         id: check-docker-registry-retag
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true' && env.DOCKER_REPOSITORY != 'none'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
@@ -404,6 +404,7 @@ jobs:
 
       - name: Check docker registry
         id: check-docker-registry
+        if: env.DOCKER_REPOSITORY != 'none'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
