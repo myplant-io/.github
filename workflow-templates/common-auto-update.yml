@@ -141,7 +141,7 @@ jobs:
           mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
 
       - name: Commit and push changes
-        uses: actions-js/push@v1.4
+        uses: actions-js/push@v1.5
         with:
           branch: ${{ env.BRANCH_NAME }}
           directory: ${{ env.TARGET_DIR }}
