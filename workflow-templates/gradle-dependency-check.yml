@@ -135,7 +135,7 @@ jobs:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
       - name: Validate gradle wrapper
-        uses: gradle/wrapper-validation-action@v2
+        uses: gradle/actions/wrapper-validation@v3
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
@@ -244,7 +244,7 @@ jobs:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
       - name: Validate gradle wrapper
-        uses: gradle/wrapper-validation-action@v2
+        uses: gradle/actions/wrapper-validation@v3
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
