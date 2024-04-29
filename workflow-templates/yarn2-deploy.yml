@@ -70,6 +70,10 @@ jobs:
         if: env.DOCKER_REPOSITORY == 'auto'
         run: echo DOCKER_REPOSITORY=$(echo ${GITHUB_REPOSITORY} | sed 's:.*/::') >> ${GITHUB_ENV}
 
+      - name: Set env 'DOCKER_REPOSITORY' (fallback to default)
+        if: env.DOCKER_REPOSITORY == ''
+        run: echo DOCKER_REPOSITORY='myplant-io' >> ${GITHUB_ENV}
+
       - name: Set env 'DOCKER_TAG_PREFIX'
         if: env.DOCKER_TAG_PREFIX == 'auto'
         run: echo DOCKER_TAG_PREFIX="${COMPONENT_NAME}_" >> ${GITHUB_ENV}
@@ -145,9 +149,10 @@ jobs:
         if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
-      - uses: kenchan0130/actions-system-info@v1.2.1
+      - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
+        uses: kenchan0130/actions-system-info@v1.2.1
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
@@ -440,5 +445,5 @@ jobs:
             "tag": "${{ env.TAG }}"}'
 
       - name: Restore full-cache (for next build)
-        if: env.RETAG == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         run: yarn build:unshrink

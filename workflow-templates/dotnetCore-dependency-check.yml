@@ -1,33 +1,28 @@
 ###
-# GitHub action that analyzes the code with the sonarqube scanner and pushes
-# the result to the myplant sonarqube (sonar-dev.myplant-io).
+# GitHub action that creates a Software-Bill-of-Material (SBOM) and pushes the
+# result to the myplant dependency tracker (dependency-dev.myplant.io).
 #
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
 #
 # Created by: Nikolaus Krismer
 ###
-name: Sonarqube
+name: Dependency-Tracker (with dotnet directly)
 
 on:
-  pull_request:
-    branches: [develop]
-    paths-ignore:
-      - '.github/workflows/*auto-update*'
+  schedule:
+    # at 00:00 every sunday (on the default branch - develop)
+    - cron: '0 0 * * SUN'
   push:
-    branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
+    branches: [main, master]
   repository_dispatch:
-    types: [sonarqube]
+    types: [dependencyCheck]
   workflow_dispatch:
 
 jobs:
-  sonarqube:
-    name: 'Job: Sonarqube'
-    if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
-    runs-on: [self-hosted-standard]
-    concurrency:
-      group: sonarqube_${{ github.ref }}
-      cancel-in-progress: true
+  test:
+    name: 'Job: Test (with dotnet directly)'
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
@@ -40,18 +35,19 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
+        if: startsWith(github.event_name , 'pull_request') == false
         uses: actions/checkout@v4
-        if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
-      - name: Checkout git repository (for dispatched runs)
+      - name: Checkout git repository (on PR)
+        if: startsWith(github.event_name , 'pull_request')
         uses: actions/checkout@v4
-        if: github.event_name == 'repository_dispatch'
         with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
-          ref: '${{ github.event.client_payload.branch }}'
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
@@ -68,9 +64,18 @@ jobs:
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
-      - uses: kenchan0130/actions-system-info@v1.2.1
+      - name: Set env 'BRANCH_NAME'
+        if: github.event_name != 'repository_dispatch'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
+
+      - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
+        uses: kenchan0130/actions-system-info@v1.2.1
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
@@ -102,13 +107,35 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
 
-      - name: SonarScanner for .NET 5 with pull request decoration support
-        uses: highbyte/sonarscan-dotnet@v2.2.6
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Build code
+        run: |
+          dotnet build "${{ env.COMPONENT_NAME }}/${{ env.COMPONENT_NAME }}.csproj" \
+            --no-restore \
+            --verbosity normal \
+            --output buildOutput
+
+      - name: CycloneDX .NET Generate SBOM
+        uses: CycloneDX/gh-dotnet-generate-sbom@v1.0.1
         with:
-          dotnetDisableTests: true
-          sonarProjectKey: ${COMPONENT_NAME}
-          sonarProjectName: ${COMPONENT_NAME}
-          sonarHostname: ${{ secrets.SONAR_URL }}
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_LOGIN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path: '${{ env.COMPONENT_NAME }}.sln'
+          github-bearer-token: ${{ secrets.CI_PAT }}
+
+      - name: Upload SBOM artifact
+        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: error
+          name: SBOM
+          path: './bom.xml'
+
+      - name: Publish dependency check result to tracker
+        id: upload-dependency-track
+        uses: myplant-io/github-actions/upload-dependency-track@v1
+        with:
+          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          bomfilename: './bom.xml'
+          projectname: ${{ env.COMPONENT_NAME }}
+          projectversion: ${{ env.BRANCH_NAME }}

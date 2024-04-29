@@ -5,7 +5,7 @@
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
 #
-# Created by: Daniel Hons, Nikolaus Krismer
+# Created by: Nikolaus Krismer
 ###
 name: Sonarqube
 
@@ -24,10 +24,17 @@ jobs:
   sonarqube:
     name: 'Job: Sonarqube'
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
-    runs-on: [self-hosted-standard]
+    runs-on: windows-latest
     concurrency:
       group: sonarqube_${{ github.ref }}
       cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      matrix:
+        dotnet-version: ['4.5.2']
 
     steps:
       - name: Set git to use LF
@@ -64,43 +71,16 @@ jobs:
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
+      - name: Set env 'SOLUTION_NAME'
+        if: env.SOLUTION_NAME == 'auto'
+        run: echo SOLUTION_NAME="${COMPONENT_NAME}.sln" >> ${GITHUB_ENV}
+
       - name: Set env SONAR_KEY
         run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
 
       - name: Apply SONAR_PREFIX to SONAR_KEY
         if: env.SONAR_PREFIX != ''
         run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
-
-      - name: Set env 'BRANCH_NAME'
-        if: github.event_name != 'repository_dispatch'
-        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
-
-      - name: Set env 'BRANCH_NAME' (for dispatched runs)
-        if: github.event_name == 'repository_dispatch'
-        run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
-
-      - name: Set env 'SONAR_BASE_VERSION'
-        if: startsWith(github.event_name , 'pull_request') == false
-        run: echo SONAR_BASE_VERSION="${GITHUB_SHA}" >> ${GITHUB_ENV}
-
-      - name: Set env 'SONAR_BASE_VERSION'
-        if: startsWith(github.event_name , 'pull_request')
-        run: echo SONAR_BASE_VERSION="${{ github.event.number }}" >> ${GITHUB_ENV}
-
-      - name: git-get-release-action
-        if: env.BRANCH_NAME == 'master'
-        uses: cardinalby/git-get-release-action@v1
-        id: getLatestVersion
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          doNotFailIfNotFound: true
-          latest: true
-          prerelease: false
-
-      - name: Set env 'SONAR_BASE_VERSION'
-        if: env.BRANCH_NAME == 'master'
-        run: echo SONAR_BASE_VERSION="${{ steps.getLatestVersion.outputs.tag_name }}" >> ${GITHUB_ENV}
 
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
@@ -119,18 +99,6 @@ jobs:
         env:
           JSON: ${{ toJSON(github) }}
 
-      - name: Log sonar context
-        if: env.VERBOSE_LOGGING == 'true'
-        run: |
-          echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
-          echo "sonar.projectKey: ${{ env.SONAR_KEY }}"
-          echo "sonar.projectName: ${{ env.COMPONENT_NAME }}"
-          echo "sonar.projectVersion: ${{ env.SONAR_BASE_VERSION }}"
-          echo "sonar.pullrequest.base: ${{ github.base_ref }}"
-          echo "sonar.pullrequest.branch: ${{ github.head_ref }}"
-          echo "sonar.pullrequest.key: ${{ github.event.number }}"
-          echo "sonar.pullrequest.github.repository: ${{ github.repository }}"
-
       - name: Log system details
         if: env.VERBOSE_LOGGING == 'true'
         run: |
@@ -144,31 +112,49 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
-      - name: Setup sonarqube
-        uses: warchant/setup-sonar-scanner@v8
+      - name: Set up JDK 17 for sonar check
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
 
-      - name: Run sonarqube
-        if: startsWith(github.event_name , 'pull_request') == false
-        run: sonar-scanner
-          -Dsonar.host.url=${{ secrets.SONAR_URL }}
-          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
-          -Dsonar.branch.name=${{ env.BRANCH_NAME }}
-          -Dsonar.projectKey=${{ env.SONAR_KEY }}
-          -Dsonar.projectName=${{ env.COMPONENT_NAME }}
-          -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
-          -Dsonar.qualitygate.wait=true
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-      - name: Run sonarqube (on PR)
-        if: startsWith(github.event_name , 'pull_request')
-        run: sonar-scanner
-          -Dsonar.host.url=${{ secrets.SONAR_URL }}
-          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
-          -Dsonar.projectKey=${{ env.SONAR_KEY }}
-          -Dsonar.projectName=${{ env.COMPONENT_NAME }}
-          -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
-          -Dsonar.pullrequest.github.endpoint=https://api.github.com
-          -Dsonar.pullrequest.github.repository=${{ github.repository }}
-          -Dsonar.pullrequest.base=${{ github.base_ref }}
-          -Dsonar.pullrequest.branch=${{ github.head_ref }}
-          -Dsonar.pullrequest.key=${{ github.event.number }}
-          -Dsonar.qualitygate.wait=true
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore Packages
+        run: nuget restore ${{ env.SOLUTION_NAME }}
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~\sonar\cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache SonarQube scanner
+        id: cache-sonar-scanner
+        uses: actions/cache@v4
+        with:
+          path: $env:APPDATA\.sonar\scanner
+          key: ${{ runner.os }}-sonar-scanner
+          restore-keys: ${{ runner.os }}-sonar-scanner
+
+      - name: Install SonarQube scanner
+        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          New-Item -Path $env:APPDATA\.sonar\scanner -ItemType Directory
+          dotnet tool update dotnet-sonarscanner --tool-path $env:APPDATA\.sonar\scanner
+          echo "$env:APPDATA\.sonar\scanner" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Build and analyze
+        shell: powershell
+        run: |
+          dotnet-sonarscanner begin /n:"${{ env.COMPONENT_NAME }}" /k:"${{ env.SONAR_KEY }}" /d:sonar.login="${{ secrets.SONAR_LOGIN }}" /d:sonar.host.url="${{ secrets.SONAR_URL }}" /d:sonar.qualitygate.wait=true
+          msbuild ${{ env.SOLUTION_NAME }} -t:rebuild -property:Configuration=Release
+          dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_LOGIN }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
