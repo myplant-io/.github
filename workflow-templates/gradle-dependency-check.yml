@@ -96,7 +96,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.2.1
+        uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log dependency tracker context
         if: env.VERBOSE_LOGGING == 'true'
@@ -135,7 +135,7 @@ jobs:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
       - name: Validate gradle wrapper
-        uses: gradle/wrapper-validation-action@v2
+        uses: gradle/actions/wrapper-validation@v3
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
@@ -244,7 +244,7 @@ jobs:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
       - name: Validate gradle wrapper
-        uses: gradle/wrapper-validation-action@v2
+        uses: gradle/actions/wrapper-validation@v3
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
