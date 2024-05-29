@@ -85,7 +85,7 @@ jobs:
 
       - name: Test project-type (for gradle)
         id: determine-type-gradle
-        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'gradle/wrapper-validation-action' | wc -l) >> ${GITHUB_OUTPUT}
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'gradle/actions/wrapper-validation' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Set project type to gradle
         if: steps.determine-type-gradle.outputs.cnt_validations != '0'
