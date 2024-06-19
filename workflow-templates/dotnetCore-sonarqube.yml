@@ -104,7 +104,7 @@ jobs:
           dotnet-version: ${{ matrix.dotnet-version }}
 
       - name: SonarScanner for .NET 5 with pull request decoration support
-        uses: highbyte/sonarscan-dotnet@v2.2.6
+        uses: highbyte/sonarscan-dotnet@v2.3.2
         with:
           dotnetDisableTests: true
           sonarProjectKey: ${COMPONENT_NAME}
