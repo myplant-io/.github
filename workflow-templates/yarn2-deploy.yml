@@ -390,7 +390,7 @@ jobs:
 
       - name: Build and push docker image
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         env:
           DOCKER_BUILDKIT: 1
         with:
