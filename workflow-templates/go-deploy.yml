@@ -342,6 +342,8 @@ jobs:
       - name: Set up QEMU
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/setup-qemu-action@v3
+        with:
+          image: ${{ steps.aws-login-ecr.outputs.registry }}/binfmt:qemu-v7.0.0-28
 
       - name: Check for docker context
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
@@ -360,7 +362,7 @@ jobs:
 
       - name: Build and push docker image
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         env:
           DOCKER_BUILDKIT: 1
         with:
