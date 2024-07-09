@@ -9,9 +9,8 @@
 name: Validate and test
 
 on:
-  # see https://github.com/dependabot/dependabot-core/issues/3253 why this is pull_request_target and not pull_request
-  pull_request_target:
-    branches: [master, develop, release/**, bugfix/**, hotfix/**]
+  pull_request:
+    branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
     paths-ignore:
       - '.github/workflows/*auto-update*'
   workflow_dispatch:
