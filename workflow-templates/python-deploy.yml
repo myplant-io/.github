@@ -10,7 +10,7 @@ name: Build and deploy
 
 on:
   push:
-    branches: [develop, release/**, bugfix/**, hotfix/**]
+    branches: [develop]
   release:
     types: [prereleased, released]
   workflow_dispatch:
