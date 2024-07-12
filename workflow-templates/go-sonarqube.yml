@@ -168,7 +168,7 @@ jobs:
         run: |
           go mod tidy
           go build .
-          go test -coverprofile=coverage.out . > testresults.out
+          go test -coverprofile=coverage.out ./... > testresults.out
 
       - name: Setup sonarqube
         uses: warchant/setup-sonar-scanner@v8
