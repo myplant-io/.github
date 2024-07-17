@@ -182,6 +182,7 @@ jobs:
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+          -Dsonar.exclusions=**/*_test.go
           -Dsonar.go.coverage.reportPaths=coverage.out
           -Dsonar.go.tests.reportPaths=testresults.out
           -Dsonar.qualitygate.wait=true
