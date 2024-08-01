@@ -128,9 +128,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Test with gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}
+        run: ./gradlew ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}
 
       - name: Test reporting
         uses: dorny/test-reporter@v1
