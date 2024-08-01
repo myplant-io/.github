@@ -29,7 +29,8 @@ env:
 
 jobs:
   install:
-    runs-on: ubuntu-latest
+    name: 'Job: Workflow installer'
+    runs-on: [self-hosted-standard]
 
     steps:
       - name: Set git to use LF
