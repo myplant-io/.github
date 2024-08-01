@@ -262,7 +262,7 @@ jobs:
         if: matrix.project-name == 'ROOT_PROJECT'
         run: echo DC_TASK="${{ env.GRADLE_DEPENDENCY_CHECK_TASK }}" >> ${GITHUB_ENV}
 
-      - name: Prepare gradle task (multi repo)
+      - name: Prepare gradle task (multirepo)
         if: matrix.project-name != 'ROOT_PROJECT'
         run: |
           IFS=' ' read -ra gradle_tasks <<< "${{ env.GRADLE_DEPENDENCY_CHECK_TASK }}"
