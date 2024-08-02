@@ -21,13 +21,18 @@ on:
   workflow_dispatch:
 
 jobs:
-  sonarqube:
-    name: 'Job: Sonarqube'
+  setup:
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
+    name: 'Job: Setup sonarqube'
     runs-on: [self-hosted-standard]
-    concurrency:
-      group: sonarqube_${{ github.ref }}
-      cancel-in-progress: true
+    outputs:
+      branch-name: ${{ steps.results.outputs.branch-name }}
+      java-version: ${{ steps.results.outputs.java-version }}
+      project-details: ${{ steps.results.outputs.project-details }}
+      project-names: ${{ steps.results.outputs.project-names }}
+      sonar-base-version: ${{ steps.results.outputs.sonar-base-version }}
+      subproject-count: ${{ steps.gradle-project-stats.outputs.subproject-count }}
+      version: ${{ steps.results.outputs.version }}
 
     steps:
       - name: Set git to use LF
@@ -60,16 +65,32 @@ jobs:
         with:
           envFile: '.github/workflow-config.env'
 
+      - name: Check setting file existence
+        id: check_settings_file
+        if: env.COMPONENT_NAME == 'auto'
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'settings.gradle'
+
+      - name: Set env 'COMPONENT_NAME' (settings are present)
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'true'
+        run: echo COMPONENT_NAME="$(grep 'rootProject.name' settings.gradle | cut -d '=' -f 2 | tr -d '\r' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+
+      - name: Set env 'COMPONENT_NAME' (no settings found)
+        if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'false'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
       - name: Set env 'SHA'
         run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
-
-      - name: Set env 'VERSION' to SHA (for untagged deployments)
-        if: startsWith(github.ref, 'refs/tags/') == false
-        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
 
       - name: Set env 'TAG' (for tagged deployment)
         if: startsWith(github.ref, 'refs/tags/')
         run: echo TAG="${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'VERSION' to SHA (for untagged deployments)
+        if: startsWith(github.ref, 'refs/tags/') == false
+        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
 
       - name: Set 'VERSION' (for tagged deployment)
         if: startsWith(github.ref, 'refs/tags/')
@@ -170,6 +191,129 @@ jobs:
           distribution: 'adopt'
           java-version: ${{ env.JAVA_VERSION }}
 
+      - name: Determine number of gradle (sub)projects
+        id: gradle-project-stats
+        run: echo subproject-count="$(./gradlew -q projects | grep -- '--- Project' | cut -d ':' -f 2 | sed "s/'$//" | wc -l)" >> ${GITHUB_OUTPUT}
+
+      - name: Finding gradle subproject(s)
+        id: gradle-projects
+        if: steps.gradle-project-stats.outputs.subproject-count != '0'
+        run: echo subprojects="$(./gradlew -q projects | grep -- '--- Project' | cut -d ':' -f 2 | sed "s/'$//" | tr '\n' ' ' | xargs)" >> ${GITHUB_OUTPUT}
+
+      - name: Prepare JSON meta information (single project)
+        if: steps.gradle-project-stats.outputs.subproject-count == '0'
+        run: |
+          echo PROJECT_DETAILS_JSON="[$(./gradlew -q getProjectMetaJson | tail -n 1)]" >> ${GITHUB_ENV}
+          echo PROJECT_NAMES="'[\"ROOT_PROJECT\"]'" >> ${GITHUB_ENV}
+
+      - name: Prepare JSON meta information (multirepo)
+        if: steps.gradle-project-stats.outputs.subproject-count != '0'
+        run: |
+          IFS=' ' read -ra subprojects <<< "${{ steps.gradle-projects.outputs.subprojects }}"
+          for p in ${subprojects[@]}; do
+            value=$(./gradlew -q :${p}:getProjectMetaJson | tail -n 1)
+            json+=", ${value}"
+          done
+          echo PROJECT_DETAILS_JSON="'[${json:2}]'" >> ${GITHUB_ENV}
+
+      - name: Prepare project names (multirepo)
+        if: steps.gradle-project-stats.outputs.subproject-count != '0'
+        run: |
+          IFS=' ' read -ra subprojects <<< "${{ steps.gradle-projects.outputs.subprojects }}"
+          for p in ${subprojects[@]}; do
+            names+=", \"${p}\""
+          done
+          echo PROJECT_NAMES="'[${names:2}]'" >> ${GITHUB_ENV}
+
+      - name: Publish job information
+        id: results
+        run: |
+          echo branch-name=${{ env.BRANCH_NAME }} >> ${GITHUB_OUTPUT}
+          echo java-version=${{ env.JAVA_VERSION }} >> ${GITHUB_OUTPUT}
+          echo project-details=${{ env.PROJECT_DETAILS_JSON }} >> ${GITHUB_OUTPUT}
+          echo project-names=${{ env.PROJECT_NAMES }} >> ${GITHUB_OUTPUT}
+          echo sonar-base-version=${{ env.SONAR_BASE_VERSION }} >> ${GITHUB_OUTPUT}
+          echo version=${{ env.VERSION }} >> ${GITHUB_OUTPUT}
+
+  sonarqube:
+    name: 'Job: Sonarqube'
+    if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
+    needs: ['setup']
+    runs-on: [ubuntu-latest]
+
+    strategy:
+      max-parallel: 1
+      matrix:
+        project-name: ${{fromJSON(needs.setup.outputs.project-names)}}
+
+    steps:
+      - name: Get project details
+        id: project-details
+        if: matrix.project-name != 'ROOT_PROJECT'
+        run: echo json=$(jq -r '.[] | select(.name == "${{ matrix.project-name }}")' <<< "$JSON") >> ${GITHUB_OUTPUT}
+        env:
+          JSON: ${{ needs.setup.outputs.project-details }}
+
+      - name: Get project path (multirepo)
+        if: matrix.project-name != 'ROOT_PROJECT'
+        run: echo PROJECT_DIR=$(jq -r '.path' <<< "$DETAILS"| sed 's/.*\///') >> ${GITHUB_ENV}
+        env:
+          DETAILS: ${{ steps.project-details.outputs.json }}
+
+      - name: Get project path (single project)
+        if: matrix.project-name == 'ROOT_PROJECT'
+        run: echo PROJECT_DIR="." >> ${GITHUB_ENV}
+
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        if: github.event_name != 'repository_dispatch'
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v4
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Prepare gradle properties
+        run: printf "\n$GRADLE_PROPS" >> gradle.properties
+        env:
+          GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
+
+      - name: Validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Prepare gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Prepare java ${{ needs.setup.outputs.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: ${{ needs.setup.outputs.java-version }}
+
       - name: Configure AWS credentials (to enable test to download containers)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -181,44 +325,99 @@ jobs:
         id: aws-login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Test with gradle
+      - name: Create class files with gradle (single project)
+        if: matrix.project-name == 'ROOT_PROJECT'
         uses: gradle/actions/setup-gradle@v3
         with:
-          arguments: assemble -Pversion=${{ env.VERSION }}
+          arguments: classes testClasses -Pversion=${{ needs.setup.outputs.version }}
 
-      - name: Get sonar binaries
-        run: echo PROJECT_BINARIES=$(find . -path '*/build/classes/java/main' | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+      - name: Create class files with gradle (multirepo)
+        if: matrix.project-name != 'ROOT_PROJECT'
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          arguments: :${{ matrix.project-name }}:classes :${{ matrix.project-name }}:testClasses -Pversion=${{ needs.setup.outputs.version }}
 
-      - name: Get sonar sources
-        run: echo PROJECT_SOURCES=$(find . -path '*/src/main' | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+      - name: Determine binary/source folders
+        run: |
+          echo PROJECT_BINARIES=$(find ${{ env.PROJECT_DIR }} -path '*/build/classes/java/main' -o -path '*/build/classes/kotlin/main' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+          echo PROJECT_SOURCES=$(find ${{ env.PROJECT_DIR }} -path '*/src/main/java' -o -path '*/src/main/kotlin' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+          echo PROJECT_TEST_BINARIES=$(find ${{ env.PROJECT_DIR }} -path '*/build/classes/java/test' -o -path '*/build/classes/kotlin/test' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+          echo PROJECT_TEST_SOURCES=$(find ${{ env.PROJECT_DIR }} -path '*/src/test/java' -o -path '*/src/test/kotlin' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
 
-      - name: Sonarqube with gradle
+      - name: Set env 'GRADLE_SONARQUBE_TASK' (fallback to default)
+        if: env.GRADLE_SONARQUBE_TASK == ''
+        run: echo GRADLE_SONARQUBE_TASK='test sonar' >> ${GITHUB_ENV}
+
+      - name: Prepare gradle task (single project)
+        if: matrix.project-name == 'ROOT_PROJECT'
+        run: echo SONAR_TASK="${{ env.GRADLE_SONARQUBE_TASK }}" >> ${GITHUB_ENV}
+
+      - name: Prepare gradle task (multirepo)
+        if: matrix.project-name != 'ROOT_PROJECT'
+        run: |
+          IFS=' ' read -ra gradle_tasks <<< "${{ env.GRADLE_SONARQUBE_TASK }}"
+          for task in ${gradle_tasks[@]}; do
+            all_tasks+=" :${{ matrix.project-name }}:${task}"
+          done
+          echo SONAR_TASK=${all_tasks:1} >> ${GITHUB_ENV}
+
+      - name: Determine sonar final task
+        run: echo SONAR_FINAL_TASK=$(echo '${{ env.SONAR_TASK }}' | sed "s/.* //") >> ${GITHUB_ENV}
+
+      - name: Determine sonar preparation tasks
+        run: echo SONAR_PRE_TASKS=$(echo '${{ env.SONAR_TASK }}' | sed "s/\.* ${{ env.SONAR_FINAL_TASK}}//") >> ${GITHUB_ENV}
+
+      - name: Run pre-sonar tasks with gradle
+        if: env.SONAR_PRE_TASKS != ''
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          arguments: ${{ env.SONAR_PRE_TASKS }} -Pversion=${{ needs.setup.outputs.version }}
+
+      - name: Determine test result folder
+        if: env.PROJECT_TEST_BINARIES != ''
+        run: echo PROJECT_TEST_SOURCES=$(find ${{ env.PROJECT_DIR }} -maxdepth 3 -path '*/build/test-results/*' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+
+        # Sonar scanner needs to run with at least JDK17
+      - name: Forcing JDK 17 (to match sonar scanner requirements)
+        if: needs.setup.outputs.java-version == '8' || needs.setup.outputs.java-version == '11'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: 17
+
+      - name: Run sonar-scanner with gradle
         if: startsWith(github.event_name, 'pull_request') == false
         uses: gradle/actions/setup-gradle@v3
         with:
           arguments: |
-            ${{ env.GRADLE_SONARQUBE_TASK }} -Pversion=${{ env.VERSION }}
+            ${{ env.SONAR_FINAL_TASK }} -Pversion=${{ needs.setup.outputs.version }}
               -Dsonar.host.url=${{ secrets.SONAR_URL }}
               -Dsonar.token=${{ secrets.SONAR_LOGIN }}
-              -Dsonar.branch.name=${{ env.BRANCH_NAME }}
+              -Dsonar.branch.name=${{ needs.setup.outputs.branch-name }}
               -Dsonar.java.binaries=${{ env.PROJECT_BINARIES }}
-              -Dsonar.java.source=${{ env.JAVA_VERSION }}
+              -Dsonar.java.source=${{ needs.setup.outputs.java-version }}
+              -Dsonar.java.test.binaries=${{ env.PROJECT_TEST_BINARIES }}
+              -Dsonar.projectVersion=${{ needs.setup.outputs.sonar-base-version }}
               -Dsonar.sources=${{ env.PROJECT_SOURCES }}
-              -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+              -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
+              -Dsonar.junit.reportPaths=${{ env.PROJECT_TEST_RESULTS }}
               -Dsonar.qualitygate.wait=true
 
-      - name: Sonarqube with gradle (on PR)
+      - name: Run sonar-scanner with gradle (on PR)
         if: startsWith(github.event_name, 'pull_request')
         uses: gradle/actions/setup-gradle@v3
         with:
           arguments: |
-            ${{ env.GRADLE_SONARQUBE_TASK }} -Pversion=${{ env.VERSION }}
+            ${{ env.SONAR_FINAL_TASK }} -Pversion=${{ needs.setup.outputs.version }}
               -Dsonar.host.url=${{ secrets.SONAR_URL }}
               -Dsonar.token=${{ secrets.SONAR_LOGIN }}
               -Dsonar.java.binaries=${{ env.PROJECT_BINARIES }}
-              -Dsonar.java.source=${{ env.JAVA_VERSION }}
-              -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+              -Dsonar.java.source=${{ needs.setup.outputs.java-version }}
+              -Dsonar.java.test.binaries=${{ env.PROJECT_TEST_BINARIES }}
+              -Dsonar.projectVersion=${{ needs.setup.outputs.sonar-base-version }}
               -Dsonar.sources=${{ env.PROJECT_SOURCES }}
+              -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
+              -Dsonar.junit.reportPaths=${{ env.PROJECT_TEST_RESULTS }}
               -Dsonar.pullrequest.github.endpoint=https://api.github.com
               -Dsonar.pullrequest.github.repository=${{ github.repository }}
               -Dsonar.pullrequest.base=${{ github.base_ref }}
