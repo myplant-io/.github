@@ -375,7 +375,7 @@ jobs:
 
       - name: Determine test result folder
         if: env.PROJECT_TEST_BINARIES != ''
-        run: echo PROJECT_TEST_SOURCES=$(find ${{ env.PROJECT_DIR }} -maxdepth 3 -path '*/build/test-results/*' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+        run: echo PROJECT_TEST_RESULTS=$(find ${{ env.PROJECT_DIR }} -maxdepth 3 -path '*/build/test-results/*' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
 
         # Sonar scanner needs to run with at least JDK17
       - name: Forcing JDK 17 (to match sonar scanner requirements)
