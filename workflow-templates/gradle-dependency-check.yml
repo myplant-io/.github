@@ -300,12 +300,10 @@ jobs:
           echo DC_TASK=${all_tasks:1} >> ${GITHUB_ENV}
 
       - name: Dependency check with gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: |
-            ${{ env.DC_TASK }} -Pversion=${{ needs.setup.outputs.version }}
-              -Pcyclonedx.includeBomSerialNumber=false
-              -Dnvd.apiKey=${{ secrets.NVD_API_KEY }}
+        run: |
+          ./gradlew ${{ env.DC_TASK }} -Pversion=${{ needs.setup.outputs.version }}
+          -Pcyclonedx.includeBomSerialNumber=false
+          -Dnvd.apiKey=${{ secrets.NVD_API_KEY }}
 
       - name: Post process dependency check bom
         run: sed -i "s/type=jar//g" ${{ env.BUILD_DIR }}/reports/bom.xml

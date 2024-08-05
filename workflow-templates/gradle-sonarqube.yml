@@ -327,15 +327,11 @@ jobs:
 
       - name: Create class files with gradle (single project)
         if: matrix.project-name == 'ROOT_PROJECT'
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: classes testClasses -Pversion=${{ needs.setup.outputs.version }}
+        run: ./gradlew classes testClasses -Pversion=${{ needs.setup.outputs.version }}
 
       - name: Create class files with gradle (multirepo)
         if: matrix.project-name != 'ROOT_PROJECT'
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: :${{ matrix.project-name }}:classes :${{ matrix.project-name }}:testClasses -Pversion=${{ needs.setup.outputs.version }}
+        run: ./gradlew :${{ matrix.project-name }}:classes :${{ matrix.project-name }}:testClasses -Pversion=${{ needs.setup.outputs.version }}
 
       - name: Determine binary/source folders
         run: |
@@ -369,9 +365,7 @@ jobs:
 
       - name: Run pre-sonar tasks with gradle
         if: env.SONAR_PRE_TASKS != ''
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: ${{ env.SONAR_PRE_TASKS }} -Pversion=${{ needs.setup.outputs.version }}
+        run: ./gradlew ${{ env.SONAR_PRE_TASKS }} -Pversion=${{ needs.setup.outputs.version }}
 
       - name: Determine test result folder
         if: env.PROJECT_TEST_BINARIES != ''
@@ -388,39 +382,37 @@ jobs:
       - name: Run sonar-scanner with gradle
         if: startsWith(github.event_name, 'pull_request') == false
         uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: |
-            ${{ env.SONAR_FINAL_TASK }} -Pversion=${{ needs.setup.outputs.version }}
-              -Dsonar.host.url=${{ secrets.SONAR_URL }}
-              -Dsonar.token=${{ secrets.SONAR_LOGIN }}
-              -Dsonar.branch.name=${{ needs.setup.outputs.branch-name }}
-              -Dsonar.java.binaries=${{ env.PROJECT_BINARIES }}
-              -Dsonar.java.source=${{ needs.setup.outputs.java-version }}
-              -Dsonar.java.test.binaries=${{ env.PROJECT_TEST_BINARIES }}
-              -Dsonar.projectVersion=${{ needs.setup.outputs.sonar-base-version }}
-              -Dsonar.sources=${{ env.PROJECT_SOURCES }}
-              -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
-              -Dsonar.junit.reportPaths=${{ env.PROJECT_TEST_RESULTS }}
-              -Dsonar.qualitygate.wait=true
+        run: |
+          ./gradlew ${{ env.SONAR_FINAL_TASK }} -Pversion=${{ needs.setup.outputs.version }}
+          -Dsonar.host.url=${{ secrets.SONAR_URL }}
+          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.branch.name=${{ needs.setup.outputs.branch-name }}
+          -Dsonar.java.binaries=${{ env.PROJECT_BINARIES }}
+          -Dsonar.java.source=${{ needs.setup.outputs.java-version }}
+          -Dsonar.java.test.binaries=${{ env.PROJECT_TEST_BINARIES }}
+          -Dsonar.projectVersion=${{ needs.setup.outputs.sonar-base-version }}
+          -Dsonar.sources=${{ env.PROJECT_SOURCES }}
+          -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
+          -Dsonar.junit.reportPaths=${{ env.PROJECT_TEST_RESULTS }}
+          -Dsonar.qualitygate.wait=true
 
       - name: Run sonar-scanner with gradle (on PR)
         if: startsWith(github.event_name, 'pull_request')
         uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: |
-            ${{ env.SONAR_FINAL_TASK }} -Pversion=${{ needs.setup.outputs.version }}
-              -Dsonar.host.url=${{ secrets.SONAR_URL }}
-              -Dsonar.token=${{ secrets.SONAR_LOGIN }}
-              -Dsonar.java.binaries=${{ env.PROJECT_BINARIES }}
-              -Dsonar.java.source=${{ needs.setup.outputs.java-version }}
-              -Dsonar.java.test.binaries=${{ env.PROJECT_TEST_BINARIES }}
-              -Dsonar.projectVersion=${{ needs.setup.outputs.sonar-base-version }}
-              -Dsonar.sources=${{ env.PROJECT_SOURCES }}
-              -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
-              -Dsonar.junit.reportPaths=${{ env.PROJECT_TEST_RESULTS }}
-              -Dsonar.pullrequest.github.endpoint=https://api.github.com
-              -Dsonar.pullrequest.github.repository=${{ github.repository }}
-              -Dsonar.pullrequest.base=${{ github.base_ref }}
-              -Dsonar.pullrequest.branch=${{ github.head_ref }}
-              -Dsonar.pullrequest.key=${{ github.event.number }}
-              -Dsonar.qualitygate.wait=true
+        run: |
+          ./gradlew ${{ env.SONAR_FINAL_TASK }} -Pversion=${{ needs.setup.outputs.version }}
+          -Dsonar.host.url=${{ secrets.SONAR_URL }}
+          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.java.binaries=${{ env.PROJECT_BINARIES }}
+          -Dsonar.java.source=${{ needs.setup.outputs.java-version }}
+          -Dsonar.java.test.binaries=${{ env.PROJECT_TEST_BINARIES }}
+          -Dsonar.projectVersion=${{ needs.setup.outputs.sonar-base-version }}
+          -Dsonar.sources=${{ env.PROJECT_SOURCES }}
+          -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
+          -Dsonar.junit.reportPaths=${{ env.PROJECT_TEST_RESULTS }}
+          -Dsonar.pullrequest.github.endpoint=https://api.github.com
+          -Dsonar.pullrequest.github.repository=${{ github.repository }}
+          -Dsonar.pullrequest.base=${{ github.base_ref }}
+          -Dsonar.pullrequest.branch=${{ github.head_ref }}
+          -Dsonar.pullrequest.key=${{ github.event.number }}
+          -Dsonar.qualitygate.wait=true
