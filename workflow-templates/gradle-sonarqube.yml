@@ -381,7 +381,6 @@ jobs:
 
       - name: Run sonar-scanner with gradle
         if: startsWith(github.event_name, 'pull_request') == false
-        uses: gradle/actions/setup-gradle@v3
         run: |
           ./gradlew ${{ env.SONAR_FINAL_TASK }} -Pversion=${{ needs.setup.outputs.version }}
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
@@ -398,7 +397,6 @@ jobs:
 
       - name: Run sonar-scanner with gradle (on PR)
         if: startsWith(github.event_name, 'pull_request')
-        uses: gradle/actions/setup-gradle@v3
         run: |
           ./gradlew ${{ env.SONAR_FINAL_TASK }} -Pversion=${{ needs.setup.outputs.version }}
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
