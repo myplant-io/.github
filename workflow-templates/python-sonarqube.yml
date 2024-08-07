@@ -261,6 +261,11 @@ jobs:
           poetry run pip install pytest
           poetry run pip install coverage
 
+      - name: Determine source folders
+        run: |
+          echo PROJECT_SOURCES=$(find . -path './src' -o -path './task' | sed "s/^\.\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+          echo PROJECT_TEST_SOURCES="tests/" >> ${GITHUB_ENV}
+
       - name: Check for test availability (with pip)
         id: check_test_pip
         if: steps.check_poetry.outputs.files_exists == 'false'
@@ -279,12 +284,20 @@ jobs:
           coverage run -m pytest
           coverage xml
 
+      - name: Skip (with pip)
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount == 0
+        run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
+
       - name: Test with pytest (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_test_poetry.outputs.testCount != 0
         run: |
           source .venv/bin/activate
           coverage run -m pytest
           coverage xml
+
+      - name: Skip (with poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_test_poetry.outputs.testCount == 0
+        run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
 
       - name: Setup sonarqube
         uses: warchant/setup-sonar-scanner@v8
@@ -298,8 +311,8 @@ jobs:
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
-          -Dsonar.sources=src/
-          -Dsonar.tests=tests/
+          -Dsonar.sources=${{ env.PROJECT_SOURCES }}
+          -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.coverage.exclusions=tests/**
           -Dsonar.python.coverage.reportPaths=./coverage.xml
           -Dsonar.qualitygate.wait=true
@@ -317,8 +330,8 @@ jobs:
           -Dsonar.pullrequest.base=${{ github.base_ref }}
           -Dsonar.pullrequest.branch=${{ github.head_ref }}
           -Dsonar.pullrequest.key=${{ github.event.number }}
-          -Dsonar.sources=src/
-          -Dsonar.tests=tests/
+          -Dsonar.sources=${{ env.PROJECT_SOURCES }}
+          -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.coverage.exclusions=tests/**
           -Dsonar.python.coverage.reportPaths=./coverage.xml
           -Dsonar.qualitygate.wait=true
