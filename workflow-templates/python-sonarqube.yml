@@ -284,7 +284,7 @@ jobs:
           coverage run -m pytest
           coverage xml
 
-      - name: Skip (with poetry)
+      - name: Skip (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount == 0
         run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
 
