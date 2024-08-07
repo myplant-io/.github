@@ -311,8 +311,8 @@ jobs:
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
-          -Dsonar.sources=${{ env.PROJECT_SOURCES}}
-          -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES}}
+          -Dsonar.sources=${{ env.PROJECT_SOURCES }}
+          -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.coverage.exclusions=tests/**
           -Dsonar.python.coverage.reportPaths=./coverage.xml
           -Dsonar.qualitygate.wait=true
