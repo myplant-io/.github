@@ -114,7 +114,6 @@ jobs:
           JSON: ${{ toJSON(github) }}
 
       - name: git-get-release-action
-        if: env.BRANCH_NAME == 'master'
         uses: cardinalby/git-get-release-action@v1
         id: getLatestVersion
         env:
