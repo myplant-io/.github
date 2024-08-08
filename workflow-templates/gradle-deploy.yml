@@ -384,8 +384,8 @@ jobs:
 
       - name: Build and push docker image
         if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && env.GRADLE_DEPLOY_TASK != 'none'
-        run: |
-          ./gradlew ${{ env.GRADLE_DEPLOY_TASK }} -Pversion=${{ env.VERSION }}
+        run: ./gradlew ${{ env.GRADLE_DEPLOY_TASK }}
+          -Pversion=${{ env.VERSION }}
           -DrepositoryName=${{ env.DOCKER_REPOSITORY }}
 
       - name: Deploy Service
