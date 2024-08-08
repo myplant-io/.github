@@ -150,7 +150,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Get java version from gradle
         run: echo "JAVA_VERSION=$(./gradlew -q javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
@@ -274,7 +274,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Prepare java ${{ needs.setup.outputs.java-version }}
         uses: actions/setup-java@v4
