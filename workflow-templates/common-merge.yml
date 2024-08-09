@@ -138,7 +138,7 @@ jobs:
             --title "chore(release): merge ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
             --body "Merging changes from ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
             --label "automatically created" \
-            --reviewer ${{ steps.getLatestVersion.outputs.author.login }}
+            --reviewer ${{ fromJSON(steps.getLatestVersion.outputs.author).login }}
         env:
           GH_TOKEN: ${{ github.token }}
 
