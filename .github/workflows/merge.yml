@@ -114,7 +114,6 @@ jobs:
           JSON: ${{ toJSON(github) }}
 
       - name: git-get-release-action
-        if: env.BRANCH_NAME == 'master'
         uses: cardinalby/git-get-release-action@v1
         id: getLatestVersion
         env:
@@ -138,8 +137,8 @@ jobs:
             --head "${{ env.SOURCE_BRANCH }}" \
             --title "chore(release): merge ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
             --body "Merging changes from ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
-            --reviewer ${{ steps.getLatestVersion.outputs.author.login }} \
-            --label "automatically created"
+            --label "automatically created" \
+            --reviewer ${{ fromJSON(steps.getLatestVersion.outputs.author).login }}
         env:
           GH_TOKEN: ${{ github.token }}
 
