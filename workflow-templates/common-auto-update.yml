@@ -26,11 +26,11 @@ jobs:
           git config --global core.eol lf
 
       - name: Allow dependabot to check for version
-        uses: myplant-io/.github@v1.2.0
+        uses: myplant-io/.github@v1.3.1
 
       - name: Dependabot metadata
         id: dependabot-metadata
-        uses: dependabot/fetch-metadata@v2.1.0
+        uses: dependabot/fetch-metadata@v2.2.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -83,16 +83,20 @@ jobs:
       - name: Set project type to gradle
         run: echo PROJECT_TYPE="unknown" >> ${GITHUB_ENV}
 
-      - name: Test project-type (for gradle) (old gradle wrapper)
-        id: determine-type-gradle-old
+      - name: Test project-type (for gradle) (gradle wrapper based - old approach)
+        id: determine-type-gradle-1
         run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'gradle/wrapper-validation-action' | wc -l) >> ${GITHUB_OUTPUT}
 
-      - name: Test project-type (for gradle) (new gradle wrapper)
-        id: determine-type-gradle
+      - name: Test project-type (for gradle) (gradle wrapper based - newer approach)
+        id: determine-type-gradle-2
         run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'gradle/actions/wrapper-validation' | wc -l) >> ${GITHUB_OUTPUT}
 
+      - name: Test project-type (for gradle) (gradle setup based)
+        id: determine-type-gradle-3
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'gradle/actions/setup-gradle' | wc -l) >> ${GITHUB_OUTPUT}
+
       - name: Set project type to gradle
-        if: steps.determine-type-gradle.outputs.cnt_validations != '0' || steps.determine-type-gradle-old.outputs.cnt_validations != '0'
+        if: steps.determine-type-gradle-1.outputs.cnt_validations != '0' || steps.determine-type-gradle-2.outputs.cnt_validations != '0' || steps.determine-type-gradle-3.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=gradle >> ${GITHUB_ENV}
 
       - name: Test project-type (for yarn classic)

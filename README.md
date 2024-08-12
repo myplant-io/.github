@@ -53,6 +53,7 @@ GRADLE_TEST_TASK=test
 PUSH_DEPLOY_TARGET=["staging-io/${COMPONENT_NAME}.yaml"]
 PRE_RELEASE_DEPLOY_TARGET=none
 RELEASE_DEPLOY_TARGET=["production-io/${COMPONENT_NAME}.yaml"]
+SONAR_PREFIX=io.myplant
 VERBOSE_ARTIFACT_UPLOAD=false
 VERBOSE_LOGGING=false
 ```
@@ -71,6 +72,7 @@ PUBLISH_TARGET=["myplant_nexus", "myplant_nexus_external"]
 PUSH_DEPLOY_TARGET=["staging-io/${COMPONENT_NAME}.yaml"]
 PRE_RELEASE_DEPLOY_TARGET=none
 RELEASE_DEPLOY_TARGET=["production-io/${COMPONENT_NAME}.yaml"]
+SONAR_PREFIX=io.myplant
 VERBOSE_LOGGING=false
 ```
 

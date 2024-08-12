@@ -6,7 +6,7 @@ on:
 jobs:
   buildAndDeploy:
     name: 'Job: Build and deploy'
-    runs-on: windows-latest
+    runs-on: [windows-latest]
     defaults:
       run:
         shell: bash

@@ -15,7 +15,7 @@ on:
 jobs:
   merge:
     name: 'Job: Merging branches'
-    runs-on: ubuntu-latest
+    runs-on: [ubuntu-latest]
 
     steps:
       - name: Set git to use LF
@@ -113,6 +113,16 @@ jobs:
         env:
           JSON: ${{ toJSON(github) }}
 
+      - name: git-get-release-action
+        uses: cardinalby/git-get-release-action@v1
+        id: getLatestVersion
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          doNotFailIfNotFound: true
+          latest: true
+          prerelease: false
+
       - name: Prepare label for PR creation
         if: env.AUTO_MERGE != 'true'
         run: gh label create "automatically created" --force --color "ededed" --description "Automatically created (by GitHub action)"
@@ -127,7 +137,8 @@ jobs:
             --head "${{ env.SOURCE_BRANCH }}" \
             --title "chore(release): merge ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
             --body "Merging changes from ${{ env.SOURCE_BRANCH }} into ${{ env.TARGET_BRANCH }}" \
-            --label "automatically created"
+            --label "automatically created" \
+            --reviewer ${{ fromJSON(steps.getLatestVersion.outputs.author).login }}
         env:
           GH_TOKEN: ${{ github.token }}
 
