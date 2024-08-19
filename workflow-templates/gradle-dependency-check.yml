@@ -294,8 +294,7 @@ jobs:
           echo DC_TASK=${all_tasks:1} >> ${GITHUB_ENV}
 
       - name: Dependency check with gradle
-        run: |
-          ./gradlew ${{ env.DC_TASK }} -Pversion=${{ needs.setup.outputs.version }}
+        run: ./gradlew ${{ env.DC_TASK }} -Pversion=${{ needs.setup.outputs.version }}
           -Pcyclonedx.includeBomSerialNumber=false
           -Dnvd.apiKey=${{ secrets.NVD_API_KEY }}
 
