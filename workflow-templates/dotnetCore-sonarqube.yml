@@ -104,7 +104,7 @@ jobs:
           dotnet-version: ${{ matrix.dotnet-version }}
 
       - name: SonarScanner for .NET 5.x with pull request decoration support
-        if: startsWith(${{ matrix.dotnet-version }}, '5')
+        if: startsWith(matrix.dotnet-version, '5')
         uses: highbyte/sonarscan-dotnet@v2.0
         with:
           dotnetDisableTests: true
@@ -116,7 +116,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: SonarScanner for .NET 6.x with pull request decoration support
-        if: startsWith(${{ matrix.dotnet-version }}, '6')
+        if: startsWith(matrix.dotnet-version, '6')
         uses: highbyte/sonarscan-dotnet@v2.1.5
         with:
           dotnetDisableTests: true
@@ -128,7 +128,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: SonarScanner for .NET 7.x with pull request decoration support
-        if: startsWith(${{ matrix.dotnet-version }}, '7')
+        if: startsWith(matrix.dotnet-version, '7')
         uses: highbyte/sonarscan-dotnet@v2.2.6
         with:
           dotnetDisableTests: true
@@ -140,7 +140,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: SonarScanner for .NET 8.x with pull request decoration support
-        if: startsWith(${{ matrix.dotnet-version }}, '8')
+        if: startsWith(matrix.dotnet-version, '8')
         uses: highbyte/sonarscan-dotnet@v2.3.2
         with:
           dotnetDisableTests: true
