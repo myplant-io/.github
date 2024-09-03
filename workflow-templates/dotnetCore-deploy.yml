@@ -232,7 +232,7 @@ jobs:
       - name: Prepare dotnet environment
         uses: actions/setup-dotnet@v4
         env:
-          DOTNET_INSTALL_DIR: "./.dotnet"
+          DOTNET_INSTALL_DIR: './.dotnet'
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
 
