@@ -94,7 +94,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.2.1
+        uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
@@ -121,7 +121,7 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
-      - name: Check poetry existence
+      - name: Check poetry file existence
         id: check_poetry
         uses: andstor/file-existence-action@v3
         with:
@@ -131,6 +131,18 @@ jobs:
       - name: Prepare poetry
         if: steps.check_poetry.outputs.files_exists == 'true'
         uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Load cached venv
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Prepare python (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
@@ -160,11 +172,6 @@ jobs:
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
-          poetry config virtualenvs.create false
-
-      - name: Install pre-commit (with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false' && steps.pre-commit-config.outputs.files_exists == 'true'
-        run: pip install pre-commit
 
       - name: Install dependencies (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.pre-commit-config.outputs.files_exists == 'true'
@@ -174,10 +181,14 @@ jobs:
                --extra-index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpyexternal/simple" \
                --extra-index-url "https://pypi.org/simple"
 
+      - name: Install pre-commit (with pip)
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.pre-commit-config.outputs.files_exists == 'true'
+        run: pip install pre-commit
+
       - name: Install dependencies (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true' && steps.pre-commit-config.outputs.files_exists == 'true'
         run: |
-          poetry install --no-root --sync
+          poetry install --no-interaction --no-root --sync
           poetry run pip install pre-commit
 
       - name: Run pre-commit (on PR with pip)
@@ -231,7 +242,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.2.1
+        uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
@@ -258,7 +269,7 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
-      - name: Check poetry existence
+      - name: Check poetry file existence
         id: check_poetry
         uses: andstor/file-existence-action@v3
         with:
@@ -268,6 +279,18 @@ jobs:
       - name: Prepare poetry
         if: steps.check_poetry.outputs.files_exists == 'true'
         uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Load cached venv
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Prepare python (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
@@ -290,7 +313,6 @@ jobs:
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
           poetry config http-basic.myplant_nexus myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
           poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
-          poetry config virtualenvs.create false
 
       - name: Install dependencies (including pytest; with pip)
         if: steps.check_poetry.outputs.files_exists == 'false'
@@ -304,7 +326,7 @@ jobs:
       - name: Install dependencies (including pytest; with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
-          poetry install --no-root --sync
+          poetry install --no-interaction --no-root --sync
           poetry run pip install pytest
 
       - name: Check for test availability (with pip)

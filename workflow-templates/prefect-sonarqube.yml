@@ -21,8 +21,59 @@ on:
   workflow_dispatch:
 
 jobs:
+  setup:
+    name: 'Job: Python setup'
+    runs-on: [self-hosted-standard]
+    outputs:
+      pythonVersionFile: ${{steps.set_outputs.outputs.pythonVersionFile}}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .
+
+      - name: Check python version determination (pyproject.toml)
+        id: check_file_pyproject
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'pyproject.toml'
+
+      - name: Use pyproject.toml as python version file
+        if: steps.check_file_pyproject.outputs.files_exists == 'true'
+        run: echo PYTHON_VERSION_FILE="pyproject.toml" >> ${GITHUB_ENV}
+
+      - name: Check python version determination (.python-version)
+        if: steps.check_file_pyproject.outputs.files_exists == 'false'
+        id: check_file_python_version
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: '.python-version'
+
+      - name: Use .python-version as python version file
+        if: steps.check_file_python_version.outputs.files_exists == 'true'
+        run: echo PYTHON_VERSION_FILE=".python-version" >> ${GITHUB_ENV}
+
+      - name: Check python version determination
+        if: steps.check_file_pyproject.outputs.files_exists == 'false' &&  steps.check_file_python_version.outputs.files_exists == 'false'
+        run: |
+          echo "::error Either pyproject.toml or .python-version must exists (and contain a python version number)"
+          exit 1
+
+      - id: set_outputs
+        name: Set python version file
+        run: echo pythonVersionFile="${{ env.PYTHON_VERSION_FILE}}" >> ${GITHUB_OUTPUT}
+
   sonarqube:
     name: 'Job: Sonarqube'
+    needs: ['setup']
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     runs-on: [self-hosted-standard]
     concurrency:
@@ -109,7 +160,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.2.1
+        uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
@@ -148,6 +199,106 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
+      - name: Check poetry file existence
+        id: check_poetry
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'poetry.lock'
+
+      - name: Prepare poetry
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Load cached venv
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Prepare python (with pip)
+        if: steps.check_poetry.outputs.files_exists == 'false'
+        uses: actions/setup-python@v5
+        with:
+          cache: 'pip'
+          python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
+
+      - name: Prepare python (with poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        uses: actions/setup-python@v5
+        with:
+          cache: 'poetry'
+          python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
+
+      - name: Configure poetry
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: |
+          poetry config repositories.myplant_nexus https://nexus-dev.myplant.io/repository/myplantpy/simple
+          poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
+          poetry config http-basic.myplant_nexus myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
+          poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
+
+      - name: Install dependencies (including pytest; with pip)
+        if: steps.check_poetry.outputs.files_exists == 'false'
+        run: |
+          pip install -r requirements.txt \
+               --index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpy/simple" \
+               --extra-index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpyexternal/simple" \
+               --extra-index-url "https://pypi.org/simple"
+          pip install pytest
+          pip install coverage
+
+      - name: Install dependencies (including pytest; with poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: |
+          poetry install --no-root --sync
+          poetry run pip install pytest
+          poetry run pip install coverage
+
+      - name: Determine source folders
+        run: |
+          echo PROJECT_SOURCES=$(find . -path './src' -o -path './task' | sed "s/^\.\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+          echo PROJECT_TEST_SOURCES="tests/" >> ${GITHUB_ENV}
+
+      - name: Check for test availability (with pip)
+        id: check_test_pip
+        if: steps.check_poetry.outputs.files_exists == 'false'
+        run: echo testCount=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Check for test availability (with poetry)
+        id: check_test_poetry
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: |
+          source .venv/bin/activate
+          echo testCount=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Test with pytest (with pip)
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount != 0
+        run: |
+          coverage run -m pytest
+          coverage xml
+
+      - name: Skip (with pip)
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount == 0
+        run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
+
+      - name: Test with pytest (with poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_test_poetry.outputs.testCount != 0
+        run: |
+          source .venv/bin/activate
+          coverage run -m pytest
+          coverage xml
+
+      - name: Skip (with poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_test_poetry.outputs.testCount == 0
+        run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
+
       - name: Setup sonarqube
         uses: warchant/setup-sonar-scanner@v8
 
@@ -160,6 +311,10 @@ jobs:
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+          -Dsonar.sources=${{ env.PROJECT_SOURCES }}
+          -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
+          -Dsonar.coverage.exclusions=tests/**
+          -Dsonar.python.coverage.reportPaths=./coverage.xml
           -Dsonar.qualitygate.wait=true
 
       - name: Run sonarqube (on PR)
@@ -175,4 +330,8 @@ jobs:
           -Dsonar.pullrequest.base=${{ github.base_ref }}
           -Dsonar.pullrequest.branch=${{ github.head_ref }}
           -Dsonar.pullrequest.key=${{ github.event.number }}
+          -Dsonar.sources=${{ env.PROJECT_SOURCES }}
+          -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
+          -Dsonar.coverage.exclusions=tests/**
+          -Dsonar.python.coverage.reportPaths=./coverage.xml
           -Dsonar.qualitygate.wait=true

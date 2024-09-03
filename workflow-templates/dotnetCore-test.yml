@@ -9,8 +9,7 @@
 name: Test (with dotnet directly)
 
 on:
-  # see https://github.com/dependabot/dependabot-core/issues/3253 why this is pull_request_target and not pull_request
-  pull_request_target:
+  pull_request:
     branches: [develop, release/**, bugfix/**, hotfix/**]
     paths-ignore:
       - '.github/workflows/*auto-update*'
@@ -64,7 +63,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.2.1
+        uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'

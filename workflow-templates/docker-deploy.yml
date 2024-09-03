@@ -10,14 +10,9 @@ name: Build and deploy
 
 on:
   push:
-    branches: [develop, release/**, bugfix/**, hotfix/**]
-  #    tags:
-  #      - 'v?[0-9]+.[0-9]+.[0-9]+' # release
-  #      - 'v?[0-9]+.[0-9]+.[0-9]+\-[0-9]+' # pre-release
+    branches: [develop]
   release:
-    types:
-      - released
-      - prereleased
+    types: [prereleased, released]
   workflow_dispatch:
 
 jobs:
@@ -58,6 +53,10 @@ jobs:
       - name: Set env 'DOCKER_REPOSITORY'
         if: env.DOCKER_REPOSITORY == 'auto'
         run: echo DOCKER_REPOSITORY=$(echo ${GITHUB_REPOSITORY} | sed 's:.*/::') >> ${GITHUB_ENV}
+
+      - name: Set env 'DOCKER_REPOSITORY' (fallback to default)
+        if: env.DOCKER_REPOSITORY == ''
+        run: echo DOCKER_REPOSITORY='myplant-io' >> ${GITHUB_ENV}
 
       - name: Set env 'DOCKER_TAG_PREFIX'
         if: env.DOCKER_TAG_PREFIX == 'auto'
@@ -148,7 +147,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.2.1
+        uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
@@ -196,7 +195,7 @@ jobs:
 
       - name: Build changelog on manual release
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
-        uses: mikepenz/release-changelog-builder-action@v4
+        uses: mikepenz/release-changelog-builder-action@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           configurationJson: |
@@ -332,6 +331,8 @@ jobs:
       - name: Set up QEMU
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         uses: docker/setup-qemu-action@v3
+        with:
+          image: ${{ steps.aws-login-ecr.outputs.registry }}/binfmt:qemu-v7.0.0-28
 
       - name: Check for docker context
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
@@ -350,7 +351,7 @@ jobs:
 
       - name: Build and push docker image
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         env:
           DOCKER_BUILDKIT: 1
         with:

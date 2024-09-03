@@ -26,7 +26,6 @@ jobs:
     runs-on: [self-hosted-standard]
     outputs:
       branch-name: ${{ steps.results.outputs.branch-name }}
-      component-name: ${{ steps.results.outputs.component-name }}
       java-version: ${{ steps.results.outputs.java-version }}
       project-details: ${{ steps.results.outputs.project-details }}
       project-names: ${{ steps.results.outputs.project-names }}
@@ -80,6 +79,21 @@ jobs:
         if: env.COMPONENT_NAME == 'auto' && steps.check_settings_file.outputs.files_exists == 'false'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
+      - name: Set env 'SHA'
+        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
+
+      - name: Set env 'TAG' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo TAG="${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'VERSION' to SHA (for untagged deployments)
+        if: startsWith(github.ref, 'refs/tags/') == false
+        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
+
+      - name: Set 'VERSION' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
+
       - name: Set env 'BRANCH_NAME'
         if: github.event_name != 'repository_dispatch'
         run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
@@ -88,16 +102,10 @@ jobs:
         if: github.event_name == 'repository_dispatch'
         run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
 
-      - name: Set env 'SHA'
-        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
-
-      - name: Set 'VERSION' to SHA
-        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
-
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.2.1
+        uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log dependency tracker context
         if: env.VERBOSE_LOGGING == 'true'
@@ -135,14 +143,11 @@ jobs:
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
-      - name: Validate gradle wrapper
-        uses: gradle/wrapper-validation-action@v2
-
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Get java version from gradle
         run: echo "JAVA_VERSION=$(./gradlew -q javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
@@ -165,26 +170,32 @@ jobs:
       - name: Prepare JSON meta information (single project)
         if: steps.gradle-project-stats.outputs.subproject-count == '0'
         run: |
-          echo PROJECT_DETAILS_JSON="[$(./gradlew -q getProjectMetaJson)]" >> ${GITHUB_ENV}
+          echo PROJECT_DETAILS_JSON="[$(./gradlew -q getProjectMetaJson | tail -n 1)]" >> ${GITHUB_ENV}
           echo PROJECT_NAMES="'[\"ROOT_PROJECT\"]'" >> ${GITHUB_ENV}
+
+      - name: Prepare project names (multirepo)
+        if: steps.gradle-project-stats.outputs.subproject-count != '0'
+        run: |
+          IFS=' ' read -ra subprojects <<< "${{ steps.gradle-projects.outputs.subprojects }}"
+          for p in ${subprojects[@]}; do
+            names+=", \"${p}\""
+          done
+          echo PROJECT_NAMES="'[${names:2}]'" >> ${GITHUB_ENV}
 
       - name: Prepare JSON meta information (multirepo)
         if: steps.gradle-project-stats.outputs.subproject-count != '0'
         run: |
           IFS=' ' read -ra subprojects <<< "${{ steps.gradle-projects.outputs.subprojects }}"
           for p in ${subprojects[@]}; do
-            value=$(./gradlew -q :${p}:getProjectMetaJson)
+            value=$(./gradlew -q :${p}:getProjectMetaJson | tail -n 1)
             json+=", ${value}"
-            names+=", \"${p}\""
           done
           echo PROJECT_DETAILS_JSON="'[${json:2}]'" >> ${GITHUB_ENV}
-          echo PROJECT_NAMES="'[${names:2}]'" >> ${GITHUB_ENV}
 
       - name: Publish job information
         id: results
         run: |
           echo branch-name=${{ env.BRANCH_NAME }} >> ${GITHUB_OUTPUT}
-          echo component-name=${{ env.COMPONENT_NAME }} >> ${GITHUB_OUTPUT}
           echo java-version=${{ env.JAVA_VERSION }} >> ${GITHUB_OUTPUT}
           echo project-details=${{ env.PROJECT_DETAILS_JSON }} >> ${GITHUB_OUTPUT}
           echo project-names=${{ env.PROJECT_NAMES }} >> ${GITHUB_OUTPUT}
@@ -225,9 +236,17 @@ jobs:
 
       - name: Checkout git repository
         uses: actions/checkout@v4
+        if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v4
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
@@ -245,14 +264,11 @@ jobs:
         env:
           GRADLE_PROPS: ${{ secrets.GRADLE_PROPERTIES }}
 
-      - name: Validate gradle wrapper
-        uses: gradle/wrapper-validation-action@v2
-
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Prepare java ${{ needs.setup.outputs.java-version }}
         uses: actions/setup-java@v4
@@ -260,11 +276,15 @@ jobs:
           distribution: 'adopt'
           java-version: ${{ needs.setup.outputs.java-version }}
 
+      - name: Set env 'GRADLE_DEPENDENCY_CHECK_TASK' (fallback to default)
+        if: env.GRADLE_DEPENDENCY_CHECK_TASK == ''
+        run: echo GRADLE_DEPENDENCY_CHECK_TASK='assemble cyclonedx' >> ${GITHUB_ENV}
+
       - name: Prepare gradle task (single project)
         if: matrix.project-name == 'ROOT_PROJECT'
         run: echo DC_TASK="${{ env.GRADLE_DEPENDENCY_CHECK_TASK }}" >> ${GITHUB_ENV}
 
-      - name: Prepare gradle task (multi repo)
+      - name: Prepare gradle task (multirepo)
         if: matrix.project-name != 'ROOT_PROJECT'
         run: |
           IFS=' ' read -ra gradle_tasks <<< "${{ env.GRADLE_DEPENDENCY_CHECK_TASK }}"
@@ -274,12 +294,10 @@ jobs:
           echo DC_TASK=${all_tasks:1} >> ${GITHUB_ENV}
 
       - name: Dependency check with gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: |
-            ${{ env.DC_TASK }} -Pversion=${{ needs.setup.outputs.version }}
-              -Pcyclonedx.includeBomSerialNumber=false
-              -Dnvd.apiKey=${{ secrets.NVD_API_KEY }}
+        run: ./gradlew ${{ env.DC_TASK }}
+          -Pversion=${{ needs.setup.outputs.version }}
+          -Pcyclonedx.includeBomSerialNumber=false
+          -Dnvd.apiKey=${{ secrets.NVD_API_KEY }}
 
       - name: Post process dependency check bom
         run: sed -i "s/type=jar//g" ${{ env.BUILD_DIR }}/reports/bom.xml
@@ -298,5 +316,5 @@ jobs:
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           bomfilename: '${{ env.BUILD_DIR }}/reports/bom.xml'
-          projectname: ${{ needs.setup.outputs.component-name }}
+          projectname: ${{ matrix.project-name }}
           projectversion: ${{ needs.setup.outputs.branch-name }}
