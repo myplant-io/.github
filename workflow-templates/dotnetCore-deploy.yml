@@ -231,6 +231,8 @@ jobs:
 
       - name: Prepare dotnet environment
         uses: actions/setup-dotnet@v4
+        env:
+          DOTNET_INSTALL_DIR: './.dotnet'
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
 
@@ -262,7 +264,7 @@ jobs:
           dest: '${{ env.COMPONENT_NAME }}_${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip'
 
       - name: Upload release artifact (as assets)
-        if: env.IS_RELEASE == 'true'
+        if: env.IS_RELEASE == 'true' || env.IS_PRE_RELEASE == 'true'
         uses: AButler/upload-release-assets@v3.0
         with:
           files: '${{ env.COMPONENT_NAME }}_${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip'
