@@ -155,7 +155,7 @@ jobs:
           path: yarn-audit.html
 
       - name: Install @cyclonedx/cdxgen
-        run: yarn add --dev --ignore-workspace-root-check @cyclonedx/cdxgen@v8.6.2
+        run: yarn add --dev --ignore-workspace-root-check @cyclonedx/cdxgen@v8.6.3
 
       - name: Create SBOM using cyclonedx
         run: yarn run --no-install cdxgen --output bom.xml --required-only
