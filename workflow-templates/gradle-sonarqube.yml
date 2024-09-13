@@ -283,12 +283,10 @@ jobs:
           envFile: '.github/workflow-config.env'
 
       - name: Get sonar project name (multirepo)
-        id: project-details
-        if: matrix.project-name == 'ROOT_PROJECT'
+        if: matrix.project-name != 'ROOT_PROJECT'
         run: echo SONAR_PROJECT_NAME=${{ matrix.project-name }} >> ${GITHUB_ENV}
 
       - name: Get sonar project name (single project)
-        id: project-details
         if: matrix.project-name == 'ROOT_PROJECT'
         run: echo SONAR_PROJECT_NAME=${{ needs.setup.outputs.component-name }} >> ${GITHUB_ENV}
 
