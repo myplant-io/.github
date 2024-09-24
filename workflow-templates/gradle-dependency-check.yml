@@ -25,6 +25,7 @@ jobs:
     name: 'Job: Setup dependency check'
     runs-on: [self-hosted-standard]
     outputs:
+      component-name: ${{ steps.results.outputs.component-name }}
       branch-name: ${{ steps.results.outputs.branch-name }}
       java-version: ${{ steps.results.outputs.java-version }}
       project-details: ${{ steps.results.outputs.project-details }}
@@ -196,6 +197,7 @@ jobs:
         id: results
         run: |
           echo branch-name=${{ env.BRANCH_NAME }} >> ${GITHUB_OUTPUT}
+          echo component-name=${{ env.COMPONENT_NAME }} >> ${GITHUB_OUTPUT}
           echo java-version=${{ env.JAVA_VERSION }} >> ${GITHUB_OUTPUT}
           echo project-details=${{ env.PROJECT_DETAILS_JSON }} >> ${GITHUB_OUTPUT}
           echo project-names=${{ env.PROJECT_NAMES }} >> ${GITHUB_OUTPUT}
@@ -218,6 +220,14 @@ jobs:
         run: echo json=$(jq -r '.[] | select(.name == "${{ matrix.project-name }}")' <<< "$JSON") >> ${GITHUB_OUTPUT}
         env:
           JSON: ${{ needs.setup.outputs.project-details }}
+
+      - name: Get project name (single project)
+        if: matrix.project-name == 'ROOT_PROJECT'
+        run: echo PROJECT_NAME=${{ needs.setup.outputs.component-name }} >> ${GITHUB_ENV}
+
+      - name: Get project project name (multirepo)
+        if: matrix.project-name != 'ROOT_PROJECT'
+        run: echo PROJECT_NAME=${{ matrix.project-name }} >> ${GITHUB_ENV}
 
       - name: Get project build dir (multirepo)
         if: matrix.project-name != 'ROOT_PROJECT'
@@ -316,5 +326,5 @@ jobs:
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           bomfilename: '${{ env.BUILD_DIR }}/reports/bom.xml'
-          projectname: ${{ matrix.project-name }}
+          projectname: ${{ env.PROJECT_NAME }}
           projectversion: ${{ needs.setup.outputs.branch-name }}
