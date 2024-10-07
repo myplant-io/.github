@@ -26,7 +26,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Allow dependabot to check for version
-        uses: myplant-io/.github@v1.3.3
+        uses: myplant-io/.github@v1.3.4
 
       - name: Dependabot metadata
         id: dependabot-metadata

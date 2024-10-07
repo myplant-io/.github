@@ -27,11 +27,10 @@ jobs:
     runs-on: [self-hosted-standard]
     outputs:
       branch-name: ${{ steps.results.outputs.branch-name }}
+      component-name: ${{ steps.results.outputs.component-name }}
       java-version: ${{ steps.results.outputs.java-version }}
       project-details: ${{ steps.results.outputs.project-details }}
       project-names: ${{ steps.results.outputs.project-names }}
-      sonar-project-key: ${{ steps.results.outputs.sonar-project-key }}
-      sonar-project-name: ${{ steps.results.outputs.sonar-project-name }}
       sonar-base-version: ${{ steps.results.outputs.sonar-base-version }}
       subproject-count: ${{ steps.gradle-project-stats.outputs.subproject-count }}
       version: ${{ steps.results.outputs.version }}
@@ -98,17 +97,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
 
-      - name: Set env SONAR_KEY
-        run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
-
-      - name: Default SONAR_PREFIX to io.myplant
-        if: env.SONAR_PREFIX == ''
-        run: echo SONAR_PREFIX="io.myplant" >> ${GITHUB_ENV}
-
-      - name: Apply SONAR_PREFIX to SONAR_KEY
-        if: env.SONAR_PREFIX != ''
-        run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
-
       - name: Set env 'BRANCH_NAME'
         if: github.event_name != 'repository_dispatch'
         run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
@@ -156,18 +144,6 @@ jobs:
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(github) }}
-
-      - name: Log sonar context
-        if: env.VERBOSE_LOGGING == 'true'
-        run: |
-          echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
-          echo "sonar.projectKey: ${{ env.SONAR_KEY }}"
-          echo "sonar.projectName: ${{ env.COMPONENT_NAME }}"
-          echo "sonar.projectVersion: ${{ env.SONAR_BASE_VERSION }}"
-          echo "sonar.pullrequest.base: ${{ github.base_ref }}"
-          echo "sonar.pullrequest.branch: ${{ github.head_ref }}"
-          echo "sonar.pullrequest.key: ${{ github.event.number }}"
-          echo "sonar.pullrequest.github.repository: ${{ github.repository }}"
 
       - name: Log system details
         if: env.VERBOSE_LOGGING == 'true'
@@ -240,11 +216,10 @@ jobs:
         id: results
         run: |
           echo branch-name=${{ env.BRANCH_NAME }} >> ${GITHUB_OUTPUT}
+          echo component-name=${{ env.COMPONENT_NAME }} >> ${GITHUB_OUTPUT}
           echo java-version=${{ env.JAVA_VERSION }} >> ${GITHUB_OUTPUT}
           echo project-details=${{ env.PROJECT_DETAILS_JSON }} >> ${GITHUB_OUTPUT}
           echo project-names=${{ env.PROJECT_NAMES }} >> ${GITHUB_OUTPUT}
-          echo sonar-project-name=${{ env.COMPONENT_NAME }} >> ${GITHUB_OUTPUT}
-          echo sonar-project-key=${{ env.SONAR_KEY }} >> ${GITHUB_OUTPUT}
           echo sonar-base-version=${{ env.SONAR_BASE_VERSION }} >> ${GITHUB_OUTPUT}
           echo version=${{ env.VERSION }} >> ${GITHUB_OUTPUT}
 
@@ -306,6 +281,25 @@ jobs:
         uses: cardinalby/export-env-action@v2
         with:
           envFile: '.github/workflow-config.env'
+
+      - name: Get sonar project name (multirepo)
+        if: matrix.project-name != 'ROOT_PROJECT'
+        run: echo SONAR_PROJECT_NAME=${{ matrix.project-name }} >> ${GITHUB_ENV}
+
+      - name: Get sonar project name (single project)
+        if: matrix.project-name == 'ROOT_PROJECT'
+        run: echo SONAR_PROJECT_NAME=${{ needs.setup.outputs.component-name }} >> ${GITHUB_ENV}
+
+      - name: Set env SONAR_KEY
+        run: echo SONAR_KEY="${{ env.SONAR_PROJECT_NAME }}" >> ${GITHUB_ENV}
+
+      - name: Default SONAR_PREFIX to io.myplant
+        if: env.SONAR_PREFIX == ''
+        run: echo SONAR_PREFIX="io.myplant" >> ${GITHUB_ENV}
+
+      - name: Apply SONAR_PREFIX to SONAR_KEY
+        if: env.SONAR_PREFIX != ''
+        run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
 
       - name: Prepare gradle properties
         run: printf "\n$GRADLE_PROPS" >> gradle.properties
@@ -400,8 +394,8 @@ jobs:
           -Dsonar.java.binaries=${{ env.PROJECT_BINARIES }}
           -Dsonar.java.source=${{ needs.setup.outputs.java-version }}
           -Dsonar.java.test.binaries=${{ env.PROJECT_TEST_BINARIES }}
-          -Dsonar.projectKey=${{ needs.setup.outputs.sonar-project-key }}
-          -Dsonar.projectName=${{ needs.setup.outputs.sonar-project-name }}
+          -Dsonar.projectKey=${{ env.SONAR_KEY }}
+          -Dsonar.projectName=${{ env.SONAR_PROJECT_NAME }}
           -Dsonar.projectVersion=${{ needs.setup.outputs.sonar-base-version }}
           -Dsonar.sources=${{ env.PROJECT_SOURCES }}
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
@@ -418,8 +412,8 @@ jobs:
           -Dsonar.java.binaries=${{ env.PROJECT_BINARIES }}
           -Dsonar.java.source=${{ needs.setup.outputs.java-version }}
           -Dsonar.java.test.binaries=${{ env.PROJECT_TEST_BINARIES }}
-          -Dsonar.projectKey=${{ needs.setup.outputs.sonar-project-key }}
-          -Dsonar.projectName=${{ needs.setup.outputs.sonar-project-name }}
+          -Dsonar.projectKey=${{ env.SONAR_KEY }}
+          -Dsonar.projectName=${{ env.SONAR_PROJECT_NAME }}
           -Dsonar.projectVersion=${{ needs.setup.outputs.sonar-base-version }}
           -Dsonar.sources=${{ env.PROJECT_SOURCES }}
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
