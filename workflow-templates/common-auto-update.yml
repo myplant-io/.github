@@ -119,7 +119,7 @@ jobs:
         id: determine-type-python
         run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'PYTHON_VERSION_FILE' | wc -l) >> ${GITHUB_OUTPUT}
 
-      - name: Set project type to yarn classic
+      - name: Set project type to python
         if: steps.determine-type-pyhton.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=python >> ${GITHUB_ENV}
 
