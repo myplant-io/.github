@@ -263,7 +263,7 @@ jobs:
 
       - name: Determine source folders
         run: |
-          echo PROJECT_SOURCES=$(find . -path './src' -o -path './task' | sed "s/^\.\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+          echo PROJECT_SOURCES=$(find . -path './src' -o -path './task' -o -path './app' | sed "s/^\.\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
           echo PROJECT_TEST_SOURCES="tests/" >> ${GITHUB_ENV}
 
       - name: Check for test availability (with pip)
