@@ -230,6 +230,7 @@ jobs:
     runs-on: [ubuntu-latest]
 
     strategy:
+      fail-fast: false
       max-parallel: 1
       matrix:
         project-name: ${{fromJSON(needs.setup.outputs.project-names)}}
