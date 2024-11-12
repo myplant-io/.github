@@ -115,6 +115,14 @@ jobs:
         if: steps.determine-type-yarn2.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=yarn2 >> ${GITHUB_ENV}
 
+      - name: Test project-type (for python)
+        id: determine-type-python
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'PYTHON_VERSION_FILE' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Set project type to python
+        if: steps.determine-type-python.outputs.cnt_validations != '0'
+        run: echo PROJECT_TYPE=python >> ${GITHUB_ENV}
+
       - name: Log env context
         run: echo $JSON | jq
         env:
