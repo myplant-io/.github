@@ -360,7 +360,7 @@ jobs:
 
       - name: Build application
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn build
+        run: yarn build && yarn build:shrink
 
       - name: Login to Amazon ECR
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
