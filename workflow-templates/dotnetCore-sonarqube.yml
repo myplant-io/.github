@@ -68,6 +68,17 @@ jobs:
         if: env.COMPONENT_NAME == 'auto'
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
 
+      - name: Set env SONAR_KEY
+        run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
+        
+      - name: Default SONAR_PREFIX to io.myplant
+        if: env.SONAR_PREFIX == ''
+        run: echo SONAR_PREFIX="io.myplant" >> ${GITHUB_ENV}
+
+      - name: Apply SONAR_PREFIX to SONAR_KEY
+        if: env.SONAR_PREFIX != ''
+        run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
+        
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
@@ -110,7 +121,7 @@ jobs:
         uses: highbyte/sonarscan-dotnet@2.0
         with:
           dotnetDisableTests: true
-          sonarProjectKey: ${COMPONENT_NAME}
+          sonarProjectKey: ${SONAR_KEY}
           sonarProjectName: ${COMPONENT_NAME}
           sonarHostname: ${{ secrets.SONAR_URL }}
         env:
@@ -122,7 +133,7 @@ jobs:
         uses: highbyte/sonarscan-dotnet@v2.1.5
         with:
           dotnetDisableTests: true
-          sonarProjectKey: ${COMPONENT_NAME}
+          sonarProjectKey: ${SONAR_KEY}
           sonarProjectName: ${COMPONENT_NAME}
           sonarHostname: ${{ secrets.SONAR_URL }}
         env:
@@ -134,7 +145,7 @@ jobs:
         uses: highbyte/sonarscan-dotnet@v2.2.6
         with:
           dotnetDisableTests: true
-          sonarProjectKey: ${COMPONENT_NAME}
+          sonarProjectKey: ${SONAR_KEY}
           sonarProjectName: ${COMPONENT_NAME}
           sonarHostname: ${{ secrets.SONAR_URL }}
         env:
@@ -146,7 +157,7 @@ jobs:
         uses: highbyte/sonarscan-dotnet@v2.3.2
         with:
           dotnetDisableTests: true
-          sonarProjectKey: ${COMPONENT_NAME}
+          sonarProjectKey: ${SONAR_KEY}
           sonarProjectName: ${COMPONENT_NAME}
           sonarHostname: ${{ secrets.SONAR_URL }}
         env:
