@@ -81,6 +81,7 @@ The files can slightly vary between build tools (the above one is for gradle),
 so please make sure that it contains everything that is needed.
 
 The following might also help during issue resolution:
+
 - Most docker deployment actions (docker-deploy.yaml, yarn/yarn2-deploy) actions
   require a DOCKER_REPOSITORY variable.
 - Yarn/Yarn2 projects will search for a node version in a .nvmrc file that is

@@ -70,7 +70,7 @@ jobs:
 
       - name: Set env SONAR_KEY
         run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
-        
+
       - name: Default SONAR_PREFIX to io.myplant
         if: env.SONAR_PREFIX == ''
         run: echo SONAR_PREFIX="io.myplant" >> ${GITHUB_ENV}
@@ -78,7 +78,7 @@ jobs:
       - name: Apply SONAR_PREFIX to SONAR_KEY
         if: env.SONAR_PREFIX != ''
         run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
-        
+
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
