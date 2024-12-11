@@ -15,7 +15,6 @@ on:
           - 'dotnetCore'
           - 'dotnetFramework'
           - 'python'
-          - 'prefect'
           - 'go'
         default: 'auto-detection'
         description: Choose a project type
@@ -100,13 +99,8 @@ jobs:
             echo "DotnetCore project detected"
             echo INPUT_TYPE=dotnetCore >> ${GITHUB_ENV}
           elif [[ -f "requirements.txt" || -f "pyproject.toml" ]]; then
-            if [[ $TARGET_REPO == "prefect"* ]]; then
-              echo "Prefect project detected"
-              echo INPUT_TYPE=prefect >> ${GITHUB_ENV}
-            else
-              echo "Python project detected"
-              echo INPUT_TYPE=python >> ${GITHUB_ENV}
-            fi
+            echo "Python project detected"
+            echo INPUT_TYPE=python >> ${GITHUB_ENV}
           elif [[ -f "go.mod" ]]; then
             echo "go project detected"
             echo INPUT_TYPE=go >> ${GITHUB_ENV}
