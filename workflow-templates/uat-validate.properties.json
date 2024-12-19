@@ -1,8 +1,7 @@
 {
-    "name": "UAT code validation on PR",
-    "description": "Code validations for cypress UAT repos",
-    "iconName": "icon-cypress",
-    "categories": ["UAT"],
-    "filePatterns": ["cypress.config.js"]
-  }
-  
+  "name": "UAT code validation on PR",
+  "description": "Code validations for cypress UAT repos",
+  "iconName": "icon-cypress",
+  "categories": ["UAT"],
+  "filePatterns": ["cypress.config.js"]
+}
