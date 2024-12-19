@@ -123,6 +123,14 @@ jobs:
         if: steps.determine-type-python.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=python >> ${GITHUB_ENV}
 
+      - name: Test project-type (for UAT)
+        id: determine-type-uat
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/test* | xargs grep -w 'cypress-io/github-action' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Set project type to UAT
+        if: steps.determine-type-uat.outputs.cnt_validations != '0'
+        run: echo PROJECT_TYPE=uat >> ${GITHUB_ENV}
+
       - name: Log env context
         run: echo $JSON | jq
         env:
@@ -140,7 +148,7 @@ jobs:
         run: ls ${{ env.TARGET_DIR }}
 
       - name: Move relevant GitHub actions in place
-        if: env.PROJECT_TYPE != 'unknown'
+        if: env.PROJECT_TYPE != 'unknown' && env.PROJECT_TYPE != 'uat'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
@@ -149,7 +157,14 @@ jobs:
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }} 2>/dev/null || :
 
-      - name: Move relevant GitHub actions in place
+      - name: Move relevant GitHub actions in place (UAT)
+        if: env.PROJECT_TYPE == 'uat'
+        run: |
+          mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-validate.yml ${{ env.TARGET_DIR }}/validate.${{ env.FILE_TYPE }} 2>/dev/null || :
+
+      - name: Move relevant GitHub actions in place (unknown)
         if: env.PROJECT_TYPE == 'unknown'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
