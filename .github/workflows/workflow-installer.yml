@@ -85,6 +85,9 @@ jobs:
               echo "Gradle project detected"
               echo INPUT_TYPE=gradle >> ${GITHUB_ENV}
             fi
+          elif [[ -f "cypress.config.js" ]]; then
+            echo "UAT project detected"
+            echo INPUT_TYPE=uat >> ${GITHUB_ENV}
           elif [[ -f "yarn.lock" ]]; then
             if [[ -f ".yarnrc" || -f ".npmrc" ]]; then
               echo "Yarn project detected"
@@ -105,9 +108,6 @@ jobs:
           elif [[ -f "go.mod" ]]; then
             echo "go project detected"
             echo INPUT_TYPE=go >> ${GITHUB_ENV}
-          elif [[ -f "cypress.config.js" ]]; then
-            echo "UAT project detected"
-            echo INPUT_TYPE=uat >> ${GITHUB_ENV}
           else
             echo "could not detect project type"
             exit 1
