@@ -19,7 +19,7 @@ on:
         required: true
       environment:
         type: choice
-        default: alpha
+        default: beta
         description: 'Environment to test against'
         options:
           - alpha
@@ -87,7 +87,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         run: |
           echo BROWSER="['chrome']" >> ${GITHUB_ENV}
-          echo ENVIRONMENTS="['alpha']" >> ${GITHUB_ENV}
+          echo ENVIRONMENTS="['beta']" >> ${GITHUB_ENV}
 
       - id: list_envs
         name: List environments
@@ -243,7 +243,7 @@ jobs:
         env:
           JSON: ${{ toJSON(env) }}
 
-      - name: Log github context
+      - name: Log GitHub context
         if: env.VERBOSE_LOGGING == 'true'
         run: echo $JSON | jq
         env:
@@ -397,6 +397,7 @@ jobs:
 
           echo job_id="$JOB_ID" >> $GITHUB_OUTPUT
           echo job_status="$JOB_STATUS" >> $GITHUB_OUTPUT
+
   notify:
     if: always()
     name: 'Job: Teams Notifications'
@@ -412,15 +413,9 @@ jobs:
                     -L "https://api.github.com/repos/${{ github.repository }}/actions/jobs/${{ needs.uat.outputs.job_id }}/logs")
 
           test_summary=$(echo "$response" | grep -E '([0-9]+ of [0-9]+ failed)' || echo "No test failures")
-          echo "Regex result: $test_summary"
-
           if [[ "$test_summary" != "No test failures" ]]; then
             ansi_string=$(echo "$test_summary" | awk '{print "total:" $11 " failed:" $13}')
-            echo "Ansi result: $ansi_string"
-
             result=$(echo "$ansi_string" | sed 's/\x1b\[[0-9;]*m//g')
-            echo "Result: $result"
-
           else
             result="No test failures"
           fi
@@ -437,9 +432,9 @@ jobs:
               "activityTitle": "${{ github.repository }} execution completed",
               "activitySubtitle": "Result of the job is: ${{ needs.uat.outputs.job_status }}.",
               "facts": [
-                  { "name": "Branch", "value": "${{ github.ref_name }}" },
-                  { "name": "Results", "value": "${{ env.TEST_RESULTS }}" },
-                  { "name": "Last Successful Run", "value": "${{ needs.uat.outputs.last_success_run_timestamp }}" }
+                { "name": "Branch", "value": "${{ github.ref_name }}" },
+                { "name": "Results", "value": "${{ env.TEST_RESULTS }}" },
+                { "name": "Last Successful Run", "value": "${{ needs.uat.outputs.last_success_run_timestamp }}" }
               ]
             }],
             "potentialAction": [{
@@ -451,11 +446,11 @@ jobs:
               }]
             },
             {
-                "@type": "OpenUri",
-                "name": "View Test Plan",
-                "targets": [{
-                  "os": "default",
-                  "uri": "https://innio.atlassian.net/browse/${{needs.uat.outputs.test_plan_id}}"
+              "@type": "OpenUri",
+              "name": "View Test Plan",
+              "targets": [{
+                "os": "default",
+                "uri": "https://innio.atlassian.net/browse/${{needs.uat.outputs.test_plan_id}}"
               }]
             }]
           }' $MSTEAMS_WEBHOOK
