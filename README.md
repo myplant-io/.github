@@ -41,7 +41,7 @@ Here is an example workflow configuration file (useable for java microservices b
 ```
 COMPONENT_NAME=auto
 DEPLOYMENT_REPO=myplant-io/deployment
-DOCKER_REPOSITORY=myplant-io
+DOCKER_REPOSITORY=auto
 DOCKER_TAG_PREFIX=auto
 GRADLE_BUILD_TASK=build test
 GRADLE_DEPENDENCY_CHECK_TASK=assemble cyclonedx
@@ -51,7 +51,7 @@ GRADLE_PUBLISH_TASK=none
 GRADLE_SONARQUBE_TASK=test sonar
 GRADLE_TEST_TASK=test
 PUSH_DEPLOY_TARGET=["staging-alpha-io/${COMPONENT_NAME}.yaml"]
-PRE_RELEASE_DEPLOY_TARGET=none
+PRE_RELEASE_DEPLOY_TARGET=["staging-beta-io/${COMPONENT_NAME}.yaml"]
 RELEASE_DEPLOY_TARGET=["production-io/${COMPONENT_NAME}.yaml"]
 SONAR_PREFIX=io.myplant
 VERBOSE_ARTIFACT_UPLOAD=false
@@ -64,6 +64,7 @@ Another example workflow configuration file (useable for python microservices) c
 COMPONENT_NAME=auto
 DEPLOYMENT_REPO=myplant-io/deployment
 DOCKER_REPOSITORY=myplant-io
+#DOCKER_REPOSITORY=auto
 #DOCKER_REPOSITORY=none
 DOCKER_TAG_PREFIX=auto
 PUBLISH_SHA=false
