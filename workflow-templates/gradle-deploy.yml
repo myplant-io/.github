@@ -418,8 +418,7 @@ jobs:
             "image_tag": "${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}",
             "source_repo": "${{ github.repository }}",
             "target_environment": "${{ env.DEPLOY_ENVIRONMENT }}",
-            "git_sha": "${{ env.SHA }}"
-          }'
+            "git_sha": "${{ env.SHA }}"}'
 
       - name: Publish artifacts to nexus repo
         if: env.GRADLE_PUBLISH_TASK != 'none' && (env.GRADLE_PUBLISH_SHA == 'true' || startsWith(github.ref, 'refs/tags/'))
