@@ -89,7 +89,6 @@ jobs:
           PR_DESCRIPTION: ${{ github.event.pull_request.body }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PROJECT_DIRECTORY: '.'
-          SYSTEM_PROMPT: You are a AI Code Review assistant.
         run: |
           source .venv/bin/activate
           delimiter="$(openssl rand -hex 8)"
