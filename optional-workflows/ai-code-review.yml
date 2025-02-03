@@ -10,8 +10,8 @@ on:
 
 jobs:
   pr-review:
-    name: "Job: AI Review"
-    runs-on: [ self-hosted-standard ]
+    name: 'Job: AI Review'
+    runs-on: [self-hosted-standard]
 
     steps:
       - name: Set git to use LF
@@ -29,7 +29,7 @@ jobs:
         with:
           json_diff_file_output: diff.json
           raw_diff_file_output: diff.txt
-          file_output_only: "true"
+          file_output_only: 'true'
 
       - name: Read diff
         id: read-diff-file
@@ -42,7 +42,7 @@ jobs:
       - name: Checkout Python Script Repository
         uses: actions/checkout@v4
         with:
-          repository: myplant-io/ai-code-review-test      # PATH TO THE REPOSITORY CONTAINING THE PYTHON SCRIPT
+          repository: myplant-io/ai-code-review-test # PATH TO THE REPOSITORY CONTAINING THE PYTHON SCRIPT
           path: ai-code-review
           token: ${{ secrets.CI_PAT }}
           persist-credentials: false
@@ -65,8 +65,8 @@ jobs:
       - name: Prepare python
         uses: actions/setup-python@v5
         with:
-          cache: "poetry"
-          python-version-file: "ai-code-review/pyproject.toml"
+          cache: 'poetry'
+          python-version-file: 'ai-code-review/pyproject.toml'
 
       - name: Configure poetry
         run: |
@@ -83,13 +83,13 @@ jobs:
         id: generate_message
         working-directory: ai-code-review
         env:
-          AI_MODEL_NAME: "arn:aws:bedrock:us-east-1:460468186850:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+          AI_MODEL_NAME: 'arn:aws:bedrock:us-east-1:460468186850:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0'
           API_KEY: ${{ secrets.openai_api_key }}
           GIT_DIFF_OUTPUT: ${{ steps.read-diff-file.outputs.file-content }}
           MAX_TOKENS_TO_SAMPLE: 4096
           PR_DESCRIPTION: ${{ github.event.pull_request.body }}
           PR_TITLE: ${{ github.event.pull_request.title }}
-          PROJECT_DIRECTORY: "."
+          PROJECT_DIRECTORY: '.'
           SYSTEM_PROMPT: You are a AI Code Review assistant.
           TEMPERATURE: 0.1
           TOP_P: 0.3
