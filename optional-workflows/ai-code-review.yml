@@ -1,0 +1,106 @@
+###
+# Creates a comment on a pull request that summarizes the changes in the PR.
+#
+# Created by: Simon Schafferer, Gernot Hummer
+###
+name: PR Review Comment
+
+on:
+  pull_request:
+
+jobs:
+  pr-review:
+    name: "Job: AI Review"
+    runs-on: [ self-hosted-standard ]
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: GrantBirki/git-diff-action@v2
+        id: git-diff-action
+        with:
+          json_diff_file_output: diff.json
+          raw_diff_file_output: diff.txt
+          file_output_only: "true"
+
+      - name: Read diff
+        id: read-diff-file
+        run: |
+          delimiter="$(openssl rand -hex 8)"
+          echo "file-content<<${delimiter}" >> "${GITHUB_OUTPUT}"
+          echo "$(cat ${{ steps.git-diff-action.outputs.raw-diff-path }})" >> "${GITHUB_OUTPUT}"
+          echo "${delimiter}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout Python Script Repository
+        uses: actions/checkout@v4
+        with:
+          repository: myplant-io/ai-code-review-test      # PATH TO THE REPOSITORY CONTAINING THE PYTHON SCRIPT
+          path: ai-code-review
+          token: ${{ secrets.CI_PAT }}
+          persist-credentials: false
+
+      - name: Prepare poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          virtualenvs-path: ai-code-review/.venv
+          installer-parallel: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: ai-code-review/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Prepare python
+        uses: actions/setup-python@v5
+        with:
+          cache: "poetry"
+          python-version-file: "ai-code-review/pyproject.toml"
+
+      - name: Configure poetry
+        run: |
+          poetry config repositories.myplant_nexus https://nexus-dev.myplant.io/repository/myplantpy/simple
+          poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
+          poetry config http-basic.myplant_nexus myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
+          poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
+
+      - name: Install dependencies
+        working-directory: ai-code-review
+        run: poetry install --no-interaction --no-root --sync
+
+      - name: Run Python script to generate message
+        id: generate_message
+        working-directory: ai-code-review
+        env:
+          AI_MODEL_NAME: "arn:aws:bedrock:us-east-1:460468186850:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+          API_KEY: ${{ secrets.openai_api_key }}
+          GIT_DIFF_OUTPUT: ${{ steps.read-diff-file.outputs.file-content }}
+          MAX_TOKENS_TO_SAMPLE: 4096
+          PR_DESCRIPTION: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PROJECT_DIRECTORY: "."
+          SYSTEM_PROMPT: You are a AI Code Review assistant.
+          TEMPERATURE: 0.1
+          TOP_P: 0.3
+        run: |
+          source .venv/bin/activate
+          delimiter="$(openssl rand -hex 8)"
+          echo "message<<${delimiter}" >> "${GITHUB_OUTPUT}"
+          echo "$(python code_review.py)" >> "${GITHUB_OUTPUT}"
+          echo "${delimiter}" >> "${GITHUB_OUTPUT}"
+
+      - name: Add PR review comment thollander
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          message: ${{ steps.generate_message.outputs.message }}
