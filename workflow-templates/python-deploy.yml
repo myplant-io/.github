@@ -269,7 +269,7 @@ jobs:
           python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
 
       - name: Configure poetry
-        if: steps.check_poetry.outputs.files_exists == 'true' && env.PUBLISH_TARGET != 'none' && (env.PUBLISH_SHA == 'true' || startsWith(github.ref, 'refs/tags/'))
+        if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
           poetry config repositories.myplant_nexus https://nexus-dev.myplant.io/repository/myplantpy/
           poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/
