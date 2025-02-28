@@ -136,17 +136,23 @@ jobs:
       - name: Initialize 'RETAG'
         run: echo RETAG=false >> ${GITHUB_ENV}
 
-      - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
+      - name: Set deploy information' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: |
+          echo DEPLOY_ENVIRONMENT="alpha" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
-      - name: Set env 'DEPLOY_TARGETS' pre-release
+      - name: Set deploy information for pre-release
         if: env.IS_PRERELEASE == 'true' && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: |
+          echo DEPLOY_ENVIRONMENT="beta" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
-      - name: Set env 'DEPLOY_TARGETS' for release
-        if: env.IS_RELEASE == 'true' &&  env.RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+      - name: Set deploy information for release
+        if: env.IS_RELEASE == 'true' && env.RELEASE_DEPLOY_TARGET != 'none'
+        run: |
+          echo DEPLOY_ENVIRONMENT="production" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
@@ -386,7 +392,7 @@ jobs:
           -DrepositoryName=${{ env.DOCKER_REPOSITORY }}
 
       - name: Deploy Service
-        if: env.DEPLOY_TARGETS != 'none' && env.GRADLE_DEPLOY_TASK != 'none'
+        if: env.DEPLOY_TARGETS != 'none' && env.DEPLOY_TARGETS != 'use-helm' && env.GRADLE_DEPLOY_TASK != 'none'
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
@@ -399,6 +405,19 @@ jobs:
             "version": "${{ env.VERSION }}",
             "component_name": "${{ env.COMPONENT_NAME }}",
             "deployment_files": ${{ env.DEPLOY_TARGETS }},
+            "git_sha": "${{ env.SHA }}"}'
+
+      - name: Deploy Service (using helm)
+        if: env.DEPLOY_TARGETS == 'use-helm' && env.GRADLE_DEPLOY_TASK != 'none'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_PAT }}
+          repository: myplant-io/myplant-helm
+          event-type: deploy-component
+          client-payload: '{
+            "image_tag": "${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}",
+            "source_repo": "${{ github.repository }}",
+            "target_environment": "${{ env.DEPLOY_ENVIRONMENT }}",
             "git_sha": "${{ env.SHA }}"}'
 
       - name: Publish artifacts to nexus repo

@@ -70,7 +70,6 @@ jobs:
   setup:
     name: 'Job: Determine environments to run on'
     runs-on: [self-hosted-standard]
-    timeout-minutes: 50
     outputs:
       browsers: ${{steps.list_envs.outputs.browsers}}
       environment: ${{steps.list_envs.outputs.environment}}
@@ -91,14 +90,14 @@ jobs:
       - id: list_envs
         name: List environments
         run: |
-          echo "::set-output name=browsers::${{ env.BROWSER}}"
-          echo "::set-output name=environment::${{ env.ENVIRONMENTS}}"
+          echo browsers="${{ env.BROWSER }}" >> ${GITHUB_OUTPUT}
+          echo environment="${{ env.ENVIRONMENTS }}" >> ${GITHUB_OUTPUT}
 
   uat:
     name: 'Job: Test ${{ matrix.environment }} with ${{ matrix.browser }} '
     needs: [setup]
     runs-on: [self-hosted-standard]
-    timeout-minutes: 20
+    timeout-minutes: 60
     outputs:
       job_id: ${{ steps.get_job_id_and_status.outputs.job_id }}
       job_status: ${{ steps.get_job_id_and_status.outputs.job_status }}
@@ -300,7 +299,7 @@ jobs:
       - name: Run tests
         uses: cypress-io/github-action@v6
         with:
-          build: yarn xray:export ${{ matrix.browser }} && npx browserslist@latest --update-db
+          build: yarn xray:load ${{ matrix.browser }} && npx browserslist@latest --update-db
           browser: ${{ matrix.browser }}
           # see https://github.com/cypress-io/github-action/issues/489#issuecomment-1021379037 why this command-prefix is here
           command-prefix: '--'
@@ -320,7 +319,7 @@ jobs:
 
       - name: Export reports to XRAY
         if: always() && env.EXPORT_XRAY_RESULTS == 'true'
-        run: yarn xray:import
+        run: yarn xray:export-results
         env:
           TEST_PLAN_ID: ${{ env.TEST_PLAN_ID }}
           TEST_ENVIRONMENT: ${{ github.event.inputs.environment || matrix.environment }}
