@@ -1,7 +1,0 @@
-{
-  "name": "Sonarqube integration",
-  "description": "Sonarqube for python projects",
-  "iconName": "icon-sonarqube",
-  "categories": ["Python"],
-  "filePatterns": ["poetry.lock", "requirements.txt"]
-}

@@ -191,21 +191,29 @@ jobs:
           cache: 'poetry'
           python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
 
-      - name: CycloneDX Python Generate SBOM with poetry
-        uses: myplant-io/github-actions/python-generate-sbom@v1
-        if: steps.check_poetry.outputs.files_exists == 'true'
-        with:
-          input: './'
-          output: './bom.xml'
-          type: 'poetry'
+      - name: Install cyclonedx dependency (with pip)
+        if: steps.check_poetry.outputs.files_exists == 'false'
+        run: pip install cyclonedx-bom
 
-      - name: CycloneDX Python Generate SBOM with pip
+      - name: Install cyclonedx dependency (with poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: poetry run pip install cyclonedx-bom
+
+      - name: CycloneDX Python Generate SBOM (with pip)
         uses: myplant-io/github-actions/python-generate-sbom@v1
         if: steps.check_poetry.outputs.files_exists == 'false'
         with:
           input: './requirements.txt'
           output: './bom.xml'
           type: 'requirements'
+
+      - name: CycloneDX Python Generate SBOM (with poetry)
+        uses: myplant-io/github-actions/python-generate-sbom@v1
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        with:
+          input: './'
+          output: './bom.xml'
+          type: 'poetry'
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4

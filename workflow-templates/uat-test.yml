@@ -1,0 +1,456 @@
+name: UAT Scenarios
+
+on:
+  push:
+    branches: [develop]
+  schedule:
+    - cron: '0 3 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      browser:
+        type: choice
+        default: chrome
+        description: 'Browser to be used for UAT testing (latest stable versions are used)'
+        options:
+          - chrome
+          - edge
+          - firefox
+        required: true
+      environment:
+        type: choice
+        default: beta
+        description: 'Environment to test against'
+        options:
+          - alpha
+          - beta
+          - prod
+        required: true
+      exportXrayResults:
+        description: 'Export results to XRay'
+        required: true
+        type: boolean
+        default: true
+      testPlanId:
+        description: 'JIRA test plan id'
+        required: true
+        default: auto
+        type: string
+      recordFeatureSpecs:
+        description: 'Record XRay feature specs'
+        required: true
+        type: boolean
+        default: true
+      recordHAR:
+        description: 'Record HAR file'
+        required: true
+        type: boolean
+        default: false
+      recordReport:
+        description: 'Keep the cucumber report (as an artifact)'
+        required: true
+        type: boolean
+        default: true
+      recordResultData:
+        description: 'Record resulting test data'
+        required: true
+        type: boolean
+        default: false
+      recordScreenshots:
+        description: 'Take screenshots during run'
+        required: true
+        type: boolean
+        default: false
+      recordVideo:
+        description: 'Take video of run'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  setup:
+    name: 'Job: Determine environments to run on'
+    runs-on: [self-hosted-standard]
+    outputs:
+      browsers: ${{steps.list_envs.outputs.browsers}}
+      environment: ${{steps.list_envs.outputs.environment}}
+
+    steps:
+      - name: Use user input
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo BROWSER="['${{ github.event.inputs.browser }}']" >> ${GITHUB_ENV}
+          echo ENVIRONMENTS="['${{ github.event.inputs.environment }}']" >> ${GITHUB_ENV}
+
+      - name: Use default value
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo BROWSER="['chrome']" >> ${GITHUB_ENV}
+          echo ENVIRONMENTS="['beta']" >> ${GITHUB_ENV}
+
+      - id: list_envs
+        name: List environments
+        run: |
+          echo browsers="${{ env.BROWSER }}" >> ${GITHUB_OUTPUT}
+          echo environment="${{ env.ENVIRONMENTS }}" >> ${GITHUB_OUTPUT}
+
+  uat:
+    name: 'Job: Test ${{ matrix.environment }} with ${{ matrix.browser }} '
+    needs: [setup]
+    runs-on: [self-hosted-standard]
+    timeout-minutes: 60
+    outputs:
+      job_id: ${{ steps.get_job_id_and_status.outputs.job_id }}
+      job_status: ${{ steps.get_job_id_and_status.outputs.job_status }}
+      notification_color: ${{ env.NOTIFICATION_COLOR }}
+      test_plan_id: ${{ env.TEST_PLAN_ID }}
+      last_success_run_timestamp: ${{ env.LAST_SUCCESS_RUN_TIMESTAMP }}
+
+    concurrency:
+      group: ${{ matrix.environment }}_${{ matrix.browser }}_${{ github.ref }}
+      cancel-in-progress: true
+
+    strategy:
+      matrix:
+        browser: ${{fromJSON(needs.setup.outputs.browsers)}}
+        browser-version: [stable]
+        environment: ${{fromJSON(needs.setup.outputs.environment)}}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        if: startsWith(github.event_name , 'pull_request') == false
+        uses: actions/checkout@v4
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout git repository (on PR)
+        if: startsWith(github.event_name , 'pull_request')
+        uses: actions/checkout@v4
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Get last successful run timestamp
+        run: |
+          echo LAST_SUCCESS_RUN_TIMESTAMP="$(gh run list --status success -w "UAT scenarios" --branch "develop" --json "createdAt" --limit 1 --jq '.[0].createdAt')" >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Initialize export to XRay results option
+        run: echo EXPORT_XRAY_RESULTS=true >> ${GITHUB_ENV}
+
+      - name: Initialize feature spec recording option
+        run: echo RECORD_FEATURE_SPEC=true >> ${GITHUB_ENV}
+
+      - name: Initialize HAR file report option
+        run: echo RECORD_HAR=false >> ${GITHUB_ENV}
+
+      - name: Initialize record report option
+        run: echo RECORD_REPORT=true >> ${GITHUB_ENV}
+
+      - name: Initialize result data option
+        run: echo RECORD_RESULT_DATA=false >> ${GITHUB_ENV}
+
+      - name: Initialize record screenshots option
+        run: echo RECORD_SCREENSHOTS=false >> ${GITHUB_ENV}
+
+      - name: Initialize record video option
+        run: echo RECORD_VIDEO=false >> ${GITHUB_ENV}
+
+      - name: Deactivate export to XRay results option
+        if: github.event.inputs.exportXrayResults == 'false'
+        run: echo EXPORT_XRAY_RESULTS=false >> ${GITHUB_ENV}
+
+      - name: Deactivate feature spec file recording
+        if: github.event.inputs.recordFeatureSpecs == 'false'
+        run: echo RECORD_FEATURE_SPEC=false >> ${GITHUB_ENV}
+
+      - name: Activate HAR file recording
+        if: github.event.inputs.recordHAR == 'true'
+        run: echo RECORD_HAR=true >> ${GITHUB_ENV}
+
+      - name: Deactivate report recording
+        if: github.event.inputs.recordReport == 'false'
+        run: echo RECORD_REPORT=false >> ${GITHUB_ENV}
+
+      - name: Activate result data recording
+        if: github.event.inputs.recordResultData == 'true'
+        run: echo RECORD_RESULT_DATA=true >> ${GITHUB_ENV}
+
+      - name: Activate screenshot recording
+        if: github.event.inputs.recordScreenshots == 'true'
+        run: echo RECORD_SCREENSHOTS=true >> ${GITHUB_ENV}
+
+      - name: Activate video recording
+        if: github.event.inputs.recordVideo == 'true'
+        run: echo RECORD_VIDEO=true >> ${GITHUB_ENV}
+
+      - name: Determine artifact identifier
+        run: echo ARTIFACT_IDENTIFIER=${{ matrix.environment }}-${{ runner.os }}-${{ matrix.browser }}-${{ matrix.browser-version }} >> ${GITHUB_ENV}
+
+      - name: Set default test plan jira id
+        run: echo TEST_PLAN_ID='DD-20026' >> ${GITHUB_ENV}
+
+      - name: Set custom test plan jira id (from user input)
+        if: inputs.testPlanId != '' && inputs.testPlanId != 'auto'
+        run: echo TEST_PLAN_ID=${{ inputs.testPlanId }} >> ${GITHUB_ENV}
+
+      - name: Set custom test plan jira id (auto)
+        if: inputs.testPlanId == 'auto' && env.DEFAULT_TEST_PLAN_ID != ''
+        run: echo TEST_PLAN_ID=${{ env.DEFAULT_TEST_PLAN_ID }} >> ${GITHUB_ENV}
+
+      - name: Publish HAR file variable to cypress
+        if: env.RECORD_HAR == 'true'
+        run: echo CYPRESS_RECORD_HAR=true >> ${GITHUB_ENV}
+
+      - name: Determine node version (check .nvmrc existence)
+        id: check_nvmrc_existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.nvmrc'
+
+      - name: Determine node version (read from .nvmrc)
+        if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
+        run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+
+      - uses: kenchan0130/actions-system-info@v1.3.0
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - name: Setup chrome
+        if: matrix.browser == 'chrome'
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: ${{ matrix.browser-version }}
+
+      - name: Setup edge
+        if: matrix.browser == 'edge'
+        uses: browser-actions/setup-edge@v1
+        with:
+          edge-version: ${{ matrix.browser-version }}
+
+      - name: Setup firefox
+        if: matrix.browser == 'firefox'
+        uses: browser-actions/setup-firefox@v1
+        with:
+          firefox-version: ${{ matrix.browser-version }}
+
+      - name: Prepare node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Create/restore cache
+        uses: actions/cache@v4
+        id: node_modules-cache
+        with:
+          path: |
+            ~/.cache/Cypress
+            **/node_modules
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install dependencies (if not previously cached)
+        if: steps.node_modules-cache.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
+
+      - name: Run tests
+        uses: cypress-io/github-action@v6
+        with:
+          build: yarn xray:load ${{ matrix.browser }} && npx browserslist@latest --update-db
+          browser: ${{ matrix.browser }}
+          # see https://github.com/cypress-io/github-action/issues/489#issuecomment-1021379037 why this command-prefix is here
+          command-prefix: '--'
+          config: video=${{ env.RECORD_VIDEO }}
+          install: false
+        env:
+          TEST_PLAN_ID: ${{ env.TEST_PLAN_ID }}
+          XRAY_CLIENT_ID: ${{ secrets.XRAY_CLIENT_ID }}
+          XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
+          XRAY_REST_URL: https://xray.cloud.getxray.app/api/v2
+          CYPRESS_TEST_ENVIRONMENT: ${{ github.event.inputs.environment || matrix.environment }}
+          CYPRESS_NO_COMMAND_LOG: 1
+
+      - name: Prepare reports
+        if: always()
+        run: yarn report
+
+      - name: Export reports to XRAY
+        if: always() && env.EXPORT_XRAY_RESULTS == 'true'
+        run: yarn xray:export-results
+        env:
+          TEST_PLAN_ID: ${{ env.TEST_PLAN_ID }}
+          TEST_ENVIRONMENT: ${{ github.event.inputs.environment || matrix.environment }}
+          XRAY_CLIENT_ID: ${{ secrets.XRAY_CLIENT_ID }}
+          XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
+          XRAY_REST_URL: https://xray.cloud.getxray.app/api/v2
+
+      - name: Publish cucumber report
+        uses: actions/upload-artifact@v4
+        if: always() && env.RECORD_REPORT == 'true'
+        with:
+          name: ${{ env.ARTIFACT_IDENTIFIER }}-cucumber-report
+          path: cypress/reports/cucumber.html
+
+      - name: Publish HAR file
+        uses: actions/upload-artifact@v4
+        if: always() && env.RECORD_HAR == 'true'
+        with:
+          name: ${{ env.ARTIFACT_IDENTIFIER }}-hars
+          path: cypress/reports/hars
+
+      - name: Publish tested feature specs
+        uses: actions/upload-artifact@v4
+        if: always() && env.RECORD_FEATURE_SPEC == 'true'
+        with:
+          name: ${{ env.ARTIFACT_IDENTIFIER }}-features
+          path: cypress/specs/xray
+
+      - name: Publish data results
+        uses: actions/upload-artifact@v4
+        if: always() && env.RECORD_RESULT_DATA == 'true' && failure()
+        with:
+          name: ${{ env.ARTIFACT_IDENTIFIER }}-test-data
+          path: cypress/fixtures
+
+      - name: Upload test results (screenshots)
+        if: always() && env.RECORD_SCREENSHOTS == 'true' && failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_IDENTIFIER }}-screenshots
+          path: cypress/reports/screenshots
+
+      - name: Publish videos results
+        uses: actions/upload-artifact@v4
+        if: always() && env.RECORD_VIDEO == 'true'
+        with:
+          name: ${{ env.ARTIFACT_IDENTIFIER }}-videos
+          path: cypress/reports/videos
+
+      - name: Set MS teams notification color (success)
+        if: success()
+        run: echo NOTIFICATION_COLOR="00ff00" >> ${GITHUB_ENV}
+
+      - name: Set MS teams notification color (failure)
+        if: failure()
+        run: echo NOTIFICATION_COLOR="ff0000" >> ${GITHUB_ENV}
+
+      - name: Get Job ID and status of UAT Job
+        id: get_job_id_and_status
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          job_info=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs")
+
+          # Extract the job ID for the build job
+          JOB_ID=$(echo "$job_info" | jq -r '.jobs[1].id')
+          if [ -z "$JOB_ID" ]; then
+            echo "Build job ID not found"
+            exit 1
+          fi
+
+          echo job_id="$JOB_ID" >> $GITHUB_OUTPUT
+          echo job_status="$JOB_STATUS" >> $GITHUB_OUTPUT
+
+  notify:
+    if: always()
+    name: 'Job: Teams Notifications'
+    needs: [uat]
+    runs-on: [self-hosted-standard]
+
+    steps:
+      - name: Fetch and scrape workflow log for number of failed tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                    -L "https://api.github.com/repos/${{ github.repository }}/actions/jobs/${{ needs.uat.outputs.job_id }}/logs")
+
+          test_summary=$(echo "$response" | grep -E '([0-9]+ of [0-9]+ failed)' || echo "No test failures")
+          if [[ "$test_summary" != "No test failures" ]]; then
+            ansi_string=$(echo "$test_summary" | awk '{print "total:" $11 " failed:" $13}')
+            result=$(echo "$ansi_string" | sed 's/\x1b\[[0-9;]*m//g')
+          else
+            result="No test failures"
+          fi
+          echo "TEST_RESULTS=$result" >> $GITHUB_ENV
+
+      - name: Notify Microsoft Teams about UAT Results
+        run: |
+          curl -H 'Content-Type: application/json' -d '{
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "summary": "UAT results for ${{ github.repository }}",
+            "themeColor": "${{ needs.uat.outputs.notification_color}}",
+            "sections": [{
+              "activityTitle": "${{ github.repository }} execution completed",
+              "activitySubtitle": "Result of the job is: ${{ needs.uat.outputs.job_status }}.",
+              "facts": [
+                { "name": "Branch", "value": "${{ github.ref_name }}" },
+                { "name": "Results", "value": "${{ env.TEST_RESULTS }}" },
+                { "name": "Last Successful Run", "value": "${{ needs.uat.outputs.last_success_run_timestamp }}" }
+              ]
+            }],
+            "potentialAction": [{
+              "@type": "OpenUri",
+              "name": "View Run",
+              "targets": [{
+                "os": "default",
+                "uri": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              }]
+            },
+            {
+              "@type": "OpenUri",
+              "name": "View Test Plan",
+              "targets": [{
+                "os": "default",
+                "uri": "https://innio.atlassian.net/browse/${{needs.uat.outputs.test_plan_id}}"
+              }]
+            }]
+          }' $MSTEAMS_WEBHOOK
+        env:
+          MSTEAMS_WEBHOOK: 'https://innio.webhook.office.com/webhookb2/db84d625-b575-49f3-8a23-90e706884f6f@818a9cf9-7d6e-4339-926b-9931bc704ef7/IncomingWebhook/b07cc01664104f3d98dff785f8500893/f9625e68-cea1-4299-9b5e-8c783cc6a82e/V28HTbzHOMu4aFmxoXEHNrgVe0aNAjcv47s1dQStLN4UM1'

@@ -1,0 +1,7 @@
+{
+  "name": "UAT test runs",
+  "description": "Test scenarios for UAT",
+  "iconName": "icon-cypress",
+  "categories": ["UAT"],
+  "filePatterns": ["cypress.config.js"]
+}

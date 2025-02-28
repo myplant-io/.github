@@ -9,14 +9,14 @@ on:
         type: choice
         options:
           - 'auto-detection'
-          - 'gradle'
-          - 'yarn'
-          - 'yarn2'
           - 'dotnetCore'
           - 'dotnetFramework'
-          - 'python'
-          - 'prefect'
           - 'go'
+          - 'gradle'
+          - 'python'
+          - 'uat'
+          - 'yarn'
+          - 'yarn2'
         default: 'auto-detection'
         description: Choose a project type
       repository:
@@ -85,6 +85,9 @@ jobs:
               echo "Gradle project detected"
               echo INPUT_TYPE=gradle >> ${GITHUB_ENV}
             fi
+          elif [[ -f "cypress.config.js" ]]; then
+            echo "UAT project detected"
+            echo INPUT_TYPE=uat >> ${GITHUB_ENV}
           elif [[ -f "yarn.lock" ]]; then
             if [[ -f ".yarnrc" || -f ".npmrc" ]]; then
               echo "Yarn project detected"
@@ -100,13 +103,8 @@ jobs:
             echo "DotnetCore project detected"
             echo INPUT_TYPE=dotnetCore >> ${GITHUB_ENV}
           elif [[ -f "requirements.txt" || -f "pyproject.toml" ]]; then
-            if [[ $TARGET_REPO == "prefect"* ]]; then
-              echo "Prefect project detected"
-              echo INPUT_TYPE=prefect >> ${GITHUB_ENV}
-            else
-              echo "Python project detected"
-              echo INPUT_TYPE=python >> ${GITHUB_ENV}
-            fi
+            echo "Python project detected"
+            echo INPUT_TYPE=python >> ${GITHUB_ENV}
           elif [[ -f "go.mod" ]]; then
             echo "go project detected"
             echo INPUT_TYPE=go >> ${GITHUB_ENV}
@@ -131,7 +129,7 @@ jobs:
           mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-dependabot.yml target/.github/dependabot.${{ env.FILE_TYPE }} 2>/dev/null || :
 
       - name: Move relevant GitHub actions in place
-        if: env.INPUT_TYPE != 'auto-detect'
+        if: env.INPUT_TYPE != 'auto-detect' && env.INPUT_TYPE != 'uat'
         run: |
           mkdir -p target/.github/workflows/
           mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-deploy.yml target/.github/workflows/deploy.${{ env.FILE_TYPE }} 2>/dev/null || :
@@ -140,6 +138,14 @@ jobs:
           mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-dependency-check.yml target/.github/workflows/dependency-check.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv -f source/workflow-templates/common-auto-update.yml target/.github/workflows/auto-update.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv -f source/workflow-templates/common-merge.yml target/.github/workflows/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
+
+      - name: Move relevant GitHub actions in place (UAT)
+        if: env.INPUT_TYPE == 'uat'
+        run: |
+          mkdir -p target/.github/workflows/
+          mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-test.yml target/.github/workflows/test.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-validate.yml target/.github/workflows/validate.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv -f source/workflow-templates/common-auto-update.yml target/.github/workflows/auto-update.${{ env.FILE_TYPE }} 2>/dev/null || :
 
       - name: Commit and push changes
         if: env.INPUT_TYPE != 'auto-detect'
