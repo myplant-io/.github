@@ -10,7 +10,7 @@ name: Test (with dotnet directly)
 
 on:
   pull_request:
-    branches: [develop, release/**, bugfix/**, hotfix/**]
+    branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
     paths-ignore:
       - '.github/workflows/*auto-update*'
   workflow_dispatch:
