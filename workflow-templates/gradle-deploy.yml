@@ -413,7 +413,7 @@ jobs:
         with:
           token: ${{ secrets.CI_PAT }}
           repository: myplant-io/myplant-helm-environment
-          event-type: deploy-component
+          event-type: update-docker-image
           client-payload: '{
             "image": "${{ env.DOCKER_REPOSITORY }}",
             "image_tag": "${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}",
