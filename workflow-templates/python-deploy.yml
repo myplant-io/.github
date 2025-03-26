@@ -38,7 +38,6 @@ jobs:
       tag: ${{ env.TAG }}
       verbose: ${{ env.VERBOSE_LOGGING }}
       version: ${{ env.VERSION }}
-      
 
     steps:
       - name: Set git to use LF
@@ -201,7 +200,7 @@ jobs:
     needs: ['setup']
     runs-on: [self-hosted-standard]
     concurrency:
-      group: deploy_${{ github.ref }}
+      group: build_${{ github.ref }}
       cancel-in-progress: false
 
     steps:
