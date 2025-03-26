@@ -16,18 +16,29 @@ on:
   workflow_dispatch:
 
 jobs:
-  buildAndDeploy:
-    name: 'Job: Build and deploy'
+  setup:
+    name: 'Job: Setup'
     runs-on: [self-hosted-standard]
     concurrency:
-      group: deploy_${{ github.ref }}
+      group: setup_${{ github.ref }}
       cancel-in-progress: false
     outputs:
+      branch-name: ${{ env.BRANCH_NAME }}
       component-name: ${{ env.COMPONENT_NAME }}
-      deploy-environment: ${{ env.DEPLOY_ENVIRONMENT }}
+      deploy-targets: ${{ env.DEPLOY_TARGETS }}
+      deployment-method: ${{ env.DEPLOYMENT_METHOD }}
+      deployment-repo: ${{ env.DEPLOYMENT_REPO }}
       docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
-      helm-value-file: ${{ env.HELM_VALUE_FILE }}
+      docker-repository: ${{ env.DOCKER_REPOSITORY }}
+      docker-tag-prefix: ${{ env.DOCKER_TAG_PREFIX }}
+      node-version: ${{ env.NODE_VERSION }}
+      is-manual-release: ${{ env.IS_MANUAL_RELEASE }}
+      is-prerelease: ${{ env.IS_PRERELEASE }}
+      is-release: ${{ env.IS_RELEASE }}
+      sha: ${{ env.SHA }}
       tag: ${{ env.TAG }}
+      verbose: ${{ env.VERBOSE_LOGGING }}
+      version: ${{ env.VERSION }}
 
     steps:
       - name: Set git to use LF
@@ -134,50 +145,61 @@ jobs:
       - name: Initialize 'DEPLOY_TARGETS'
         run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
 
-      - name: Initialize 'RETAG'
-        run: echo RETAG=false >> ${GITHUB_ENV}
-
       - name: Set deploy information' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: |
-          echo DEPLOY_ENVIRONMENT="dev" >> ${GITHUB_ENV}
-          echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for pre-release
         if: env.IS_PRERELEASE == 'true' && (env.PRE_RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: |
-          echo DEPLOY_ENVIRONMENT="staging" >> ${GITHUB_ENV}
-          echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for release
         if: env.IS_RELEASE == 'true' && (env.RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: |
-          echo DEPLOY_ENVIRONMENT="production" >> ${GITHUB_ENV}
-          echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
+  build:
+    name: 'Job: Build'
+    needs: ['setup']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: deploy_${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
       - name: Get action system info
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         id: system-info
         uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log env context
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(env) }}
 
       - name: Log GitHub context
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(github) }}
 
       - name: Log system details
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: |
           echo "os: ${{ runner.os }}"
           echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
@@ -294,7 +316,7 @@ jobs:
       - name: Check Re-Tag docker image
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.LAST_VERSION != ''
         env:
-          releaseTag: ${{ env.VERSION }}
+          releaseTag: ${{ needs.setup.outputs.version }}
           preReleaseTag: ${{ env.LAST_VERSION }}
         run: |
           echo "Check if tags are on same rev"
@@ -306,10 +328,10 @@ jobs:
             echo RETAG=true >> ${GITHUB_ENV}
           fi;
 
-      - name: Prepare node.js ${{ env.NODE_VERSION }}
+      - name: Prepare node.js ${{ needs.setup.outputs.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ needs.setup.outputs.node-version }}
 
       - name: Add registry credentials
         run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
@@ -328,19 +350,19 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
-          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          repository: ${{ env.DOCKER_REPOSITORY }}
+          imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
+          repository: ${{ needs.setup.outputs.docker-repository }}
           sha: ${{ env.LAST_VERSION }}
-          version: ${{ env.VERSION }}
+          version: ${{ needs.setup.outputs.version }}
 
       - name: Check docker registry
         id: check-docker-registry
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
-          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          repository: ${{ env.DOCKER_REPOSITORY }}
-          sha: ${{ env.SHA }}
-          version: ${{ env.VERSION }}
+          imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
+          repository: ${{ needs.setup.outputs.docker-repository }}
+          sha: ${{ needs.setup.outputs.sha }}
+          version: ${{ needs.setup.outputs.version }}
 
       - name: Create/restore cache for node_modules
         uses: actions/cache@v4
@@ -413,7 +435,7 @@ jobs:
           provenance: false
           push: true
           secrets: nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
-          tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_IDENTIFIER }}
+          tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ needs.setup.outputs.docker-repository }}:${{ needs.setup.outputs.docker-identifier }}
 
   deployLegacy:
     name: 'Job: Deploy (legacy)'
@@ -483,7 +505,7 @@ jobs:
           token: ${{ secrets.CI_PAT }}
 
       - name: Fetch value file contents
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
 
       - name: Determine value file to change
@@ -496,7 +518,7 @@ jobs:
           cmd: yq -i '.image.tag = "${{ needs.buildAndDeploy.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
 
       - name: Fetch updated value file contents
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
 
       - name: Commit changed value file (to deployment repo)

@@ -16,18 +16,29 @@ on:
   workflow_dispatch:
 
 jobs:
-  buildAndDeploy:
-    name: 'Job: Build and deploy'
+  setup:
+    name: 'Job: Setup'
     runs-on: [self-hosted-standard]
     concurrency:
-      group: deploy_${{ github.ref }}
+      group: setup_${{ github.ref }}
       cancel-in-progress: false
     outputs:
+      branch-name: ${{ env.BRANCH_NAME }}
       component-name: ${{ env.COMPONENT_NAME }}
-      deploy-environment: ${{ env.DEPLOY_ENVIRONMENT }}
+      deploy-targets: ${{ env.DEPLOY_TARGETS }}
+      deployment-method: ${{ env.DEPLOYMENT_METHOD }}
+      deployment-repo: ${{ env.DEPLOYMENT_REPO }}
       docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
-      helm-value-file: ${{ env.HELM_VALUE_FILE }}
+      docker-repository: ${{ env.DOCKER_REPOSITORY }}
+      docker-tag-prefix: ${{ env.DOCKER_TAG_PREFIX }}
+      node-version: ${{ env.NODE_VERSION }}
+      is-manual-release: ${{ env.IS_MANUAL_RELEASE }}
+      is-prerelease: ${{ env.IS_PRERELEASE }}
+      is-release: ${{ env.IS_RELEASE }}
+      sha: ${{ env.SHA }}
       tag: ${{ env.TAG }}
+      verbose: ${{ env.VERBOSE_LOGGING }}
+      version: ${{ env.VERSION }}
 
     steps:
       - name: Set git to use LF
@@ -131,55 +142,70 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
         run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
 
-      - name: Initialize 'DEPLOY_ENVIRONMENT' and 'DEPLOY_TARGETS'
-        run: |
-          echo DEPLOY_ENVIRONMENT=none >> ${GITHUB_ENV}
-          echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
-
-      - name: Initialize 'RETAG'
-        run: echo RETAG=false >> ${GITHUB_ENV}
+      - name: Initialize 'DEPLOY_TARGETS'
+        run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
 
       - name: Set deploy information' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: |
-          echo DEPLOY_ENVIRONMENT="dev" >> ${GITHUB_ENV}
-          echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for pre-release
         if: env.IS_PRERELEASE == 'true' && (env.PRE_RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: |
-          echo DEPLOY_ENVIRONMENT="staging" >> ${GITHUB_ENV}
-          echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for release
         if: env.IS_RELEASE == 'true' && (env.RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: |
-          echo DEPLOY_ENVIRONMENT="production" >> ${GITHUB_ENV}
-          echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
+  build:
+    name: 'Job: Build'
+    needs: ['setup']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: deploy_${{ github.ref }}
+      cancel-in-progress: false
+    outputs:
+      component-name: ${{ env.COMPONENT_NAME }}
+      deploy-environment: ${{ env.DEPLOY_ENVIRONMENT }}
+      docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
+      helm-value-file: ${{ env.HELM_VALUE_FILE }}
+      tag: ${{ env.TAG }}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
       - name: Get action system info
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         id: system-info
         uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log env context
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(env) }}
 
       - name: Log GitHub context
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(github) }}
 
       - name: Log system details
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: |
           echo "os: ${{ runner.os }}"
           echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
@@ -308,10 +334,10 @@ jobs:
             echo RETAG=true >> ${GITHUB_ENV}
           fi;
 
-      - name: Prepare node.js ${{ env.NODE_VERSION }}
+      - name: Prepare node.js ${{ need.setup.outputs.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ need.setup.outputs.node-version }}
 
       - name: Add registry credentials
         run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> ${GITHUB_ENV}
@@ -330,19 +356,19 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
-          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          repository: ${{ env.DOCKER_REPOSITORY }}
+          imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
+          repository: ${{ needs.setup.outputs.docker-repository }}
           sha: ${{ env.LAST_VERSION }}
-          version: ${{ env.VERSION }}
+          version: ${{ needs.setup.outputs.version }}
 
       - name: Check docker registry
         id: check-docker-registry
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
-          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          repository: ${{ env.DOCKER_REPOSITORY }}
-          sha: ${{ env.SHA }}
-          version: ${{ env.VERSION }}
+          imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
+          repository: ${{ needs.setup.outputs.docker-repository }}
+          sha: ${{ needs.setup.outputs.sha }}
+          version: ${{ needs.setup.outputs.version }}
 
       - name: Create/restore cache for webpack
         uses: actions/cache@v4
@@ -350,7 +376,7 @@ jobs:
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         with:
           path: '.cache'
-          key: ${{ runner.os }}-webpack-${{ env.VERSION }}
+          key: ${{ runner.os }}-webpack-${{ needs.setup.output.version }}
           restore-keys: ${{ runner.os }}-webpack-
 
       - name: Create/restore cache for yarn
@@ -417,52 +443,38 @@ jobs:
           provenance: false
           push: true
           secrets: nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
-          tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_IDENTIFIER }}
+          tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ needs.setup.outputs.docker-repository }}:${{ needs.setup.outputs.docker-identifier }}
 
-      - name: Deploy service
-        if: env.DEPLOY_TARGETS != 'none'
+      - name: Restore full-cache (for next build)
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        run: yarn build:unshrink
+
+  deployLegacy:
+    name: 'Job: Deploy (legacy)'
+    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets != 'none' && needs.setup.gradle-deploy-task != 'none'
+    needs: ['setup', 'buildAndDeploy']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: deployLegacy_${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Deploy Service (legacy deployment)
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
           repository: myplant-io/ci-deploy-action
           event-type: deploy
           client-payload: '{
-            "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
-            "docker_repository": "${{ env.DOCKER_REPOSITORY }}",
-            "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
-            "version": "${{ env.VERSION }}",
-            "component_name": "${{ env.COMPONENT_NAME }}",
-            "deployment_files": ${{ env.DEPLOY_TARGETS }}}'
+            "deployment_repo": "${{ needs.setup.outputs.deployment-repo }}",
+            "docker_repository": "${{ needs.setup.outputs.docker-repository }}",
+            "docker_tag_prefix": "${{ needs.setup.outputs.docker-tag-prefix }}",
+            "version": "${{ needs.setup.outputs.version }}",
+            "component_name": "${{ needs.setup.outputs.component-name }}",
+            "deployment_files": ${{ needs.setup.outputs.deploy-target }},
+            "git_sha": "${{ needs.setup.outputs.sha }}"}'
 
-      - name: Merging release changes to master
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.CI_PAT }}
-          event-type: merge
-          client-payload: '{
-            "commitish": "${{ github.event.release.target_commitish }}",
-            "source_branch": "${{ env.BRANCH_NAME }}",
-            "target_branch": "master",
-            "tag": "${{ env.TAG }}"}'
-
-      # target_commitish can be "develop" for releases that are solely based on tags
-      - name: Merging release changes to master (not using develop commitish, but tag ref)
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.CI_PAT }}
-          event-type: merge
-          client-payload: '{
-            "source_branch": "${{ env.BRANCH_NAME }}",
-            "target_branch": "master",
-            "tag": "${{ env.TAG }}"}'
-
-      - name: Restore full-cache (for next build)
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: yarn build:unshrink
-
-  helmDeploy:
+  deployHelm:
     if: ${{ needs.buildAndDeploy.outputs.helm-value-file != 'none' && needs.buildAndDeploy.outputs.deploy-environment != 'none' }}
     name: 'Job: Deploy (with a helm value file)'
     needs: ['buildAndDeploy']
@@ -502,7 +514,7 @@ jobs:
           token: ${{ secrets.CI_PAT }}
 
       - name: Fetch value file contents
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
 
       - name: Determine value file to change
@@ -515,7 +527,7 @@ jobs:
           cmd: yq -i '.image.tag = "${{ needs.buildAndDeploy.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
 
       - name: Fetch updated value file contents
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
 
       - name: Commit changed value file (to deployment repo)
@@ -529,13 +541,33 @@ jobs:
           git commit --allow-empty -m "chore(release): use ${{ needs.buildAndDeploy.outputs.docker-identifier }} on ${{ needs.buildAndDeploy.outputs.deploy-environment }}"
           git push
 
-      # - name: Update value file
-      #   run: |
-      #     IFS=';' read -ra targets <<< "$DEPLOY_TARGETS"
-      #     cd deployment-repo
-      #     git config --global user.email "myplant-io-automation@innio.com"
-      #     git config --global user.name "myplant-io-automation"
-      #     for target in ${targets[@]}; do sed -i -r "s/([\t ]+image: (('|\")?)${DOCKER_REGISTRY}\/${DOCKER_REPOSITORY}:${DOCKER_TAG_PREFIX}).*/\1${VERSION}\2/g" $target; git add $target; done
-      #     echo nr_files_changed=$(git status --porcelain | wc -l) >> ${GITHUB_OUTPUT}
-      #     git commit --allow-empty -m "chore(release): ${{ needs.buildAndDeploy.outputs.docker-identifier }}"
-      #     git push
+  releaseMerging:
+    name: "Job: Merging release changes"
+    if: always() && needs.buildAndDeploy.outputs.is-release == 'true'
+    needs: ['buildAndDeploy', 'deployLegacy', 'deployHelm']
+    runs-on: [self-hosted-standard]
+
+    steps:
+      - name: Merging release changes to master
+        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "commitish": "${{ github.event.release.target_commitish }}",
+            "source_branch": "${{ env.BRANCH_NAME }}",
+            "target_branch": "master",
+            "tag": "${{ env.TAG }}"}'
+
+      # target_commitish can be "develop" for releases that are solely based on tags
+      - name: Merging release changes to master (not using develop commitish, but tag ref)
+        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "source_branch": "${{ env.BRANCH_NAME }}",
+            "target_branch": "master",
+            "tag": "${{ env.TAG }}"}'
