@@ -32,6 +32,8 @@ jobs:
       docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
       docker-repository: ${{ env.DOCKER_REPOSITORY }}
       docker-tag-prefix: ${{ env.DOCKER_TAG_PREFIX }}
+      is-prerelease: ${{ env.IS_PRERELEASE }}
+      is-release: ${{ env.IS_RELEASE }}
       sha: ${{ env.SHA }}
       tag: ${{ env.TAG }}
       version: ${{ env.VERSION }}
