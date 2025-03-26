@@ -377,7 +377,7 @@ jobs:
 
       - name: Retag docker image
         id: check-docker-registry-retag
-        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true' && env.RETAG == 'true'
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true' && env.RETAG == 'true' && needs.setup.outputs.docker-repository != 'none'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
@@ -387,7 +387,7 @@ jobs:
 
       - name: Check docker registry
         id: check-docker-registry
-        if: needs.setup.outputs.deploy-targets != 'none' && needs.setup.outputs.gradle-deploy-task != 'none'
+        if: needs.setup.outputs.deploy-targets != 'none' && needs.setup.outputs.gradle-deploy-task != 'none' && needs.setup.outputs.docker-repository != 'none'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
@@ -532,7 +532,7 @@ jobs:
   releaseMerging:
     name: "Job: Merging release changes"
     if: always() && needs.setup.outputs.is-release == 'true'
-    needs: ['build', 'deployLegacy', 'deployHelm']
+    needs: ['setup', 'build', 'deployLegacy', 'deployHelm']
     runs-on: [self-hosted-standard]
 
     steps:

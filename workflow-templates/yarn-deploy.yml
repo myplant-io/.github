@@ -212,26 +212,26 @@ jobs:
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
         run: |
           branchTag=$(git describe --tags)
           [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
           echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
 
       - name: Find Version Infos (LAST_RELEASE_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
         run: echo LAST_RELEASE_TAG=$(git tag -l --sort=v:refname | grep -v "${{ env.BRANCH_TAG }}" | grep -v ".*-.*" | tail -n 1) >> ${GITHUB_ENV}
 
       - name: Find Version Infos (BUILD_FROM_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-prerelease == 'true'
         run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
 
       - name: Find Version Infos (BUILD_FROM_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true'
         run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
 
       - name: Build changelog on manual release
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
         uses: mikepenz/release-changelog-builder-action@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -300,7 +300,7 @@ jobs:
         uses: tubone24/update_release@v1.3.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ env.TAG }}
+          TAG_NAME: ${{ needs.setup.outputs.tag }}
         with:
           body_path: release_changelog.md
 
@@ -308,13 +308,13 @@ jobs:
         run: echo LAST_VERSION="" >> ${GITHUB_ENV}
 
       - name: Find last version
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true') && env.LAST_RELEASE_TAG != ''
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true') && env.LAST_RELEASE_TAG != ''
         run: |
           lastTag=$(git tag -l --sort=v:refname | grep -vx "${{ env.BRANCH_TAG }}" | tail -n 1)
           echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
 
       - name: Check Re-Tag docker image
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.LAST_VERSION != ''
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true' && env.LAST_VERSION != ''
         env:
           releaseTag: ${{ needs.setup.outputs.version }}
           preReleaseTag: ${{ env.LAST_VERSION }}
@@ -347,7 +347,7 @@ jobs:
 
       - name: Retag docker image
         id: check-docker-registry-retag
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true' && env.RETAG == 'true' && needs.setup.outputs.docker-repository != 'none'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
@@ -357,6 +357,7 @@ jobs:
 
       - name: Check docker registry
         id: check-docker-registry
+        if: needs.setup.outputs.docker-repository != 'none'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
@@ -410,13 +411,13 @@ jobs:
         run: docker context create buildx-context
 
       - name: Set up Docker Buildx
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && needs.setup.outputs.docker-repository != 'none'
         uses: docker/setup-buildx-action@v3
         with:
           endpoint: buildx-context
 
       - name: Build and push docker image
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && needs.setup.outputs.docker-repository != 'none'
         uses: docker/build-push-action@v6
         env:
           DOCKER_BUILDKIT: 1
@@ -431,7 +432,7 @@ jobs:
 
   deployLegacy:
     name: 'Job: Deploy (legacy)'
-    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets != 'none' && needs.setup.gradle-deploy-task != 'none'
+    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets != 'none'
     needs: ['setup', 'build']
     runs-on: [self-hosted-standard]
     concurrency:
@@ -493,7 +494,7 @@ jobs:
         with:
           fetch-depth: 0
           path: deployment-repo
-          repository: ${{ env.DEPLOYMENT_REPO }}
+          repository: ${{ needs.setup.outputs.deployment-repo }}
           token: ${{ secrets.CI_PAT }}
 
       - name: Fetch value file contents
@@ -527,30 +528,30 @@ jobs:
   releaseMerging:
     name: "Job: Merging release changes"
     if: always() && needs.setup.outputs.is-release == 'true'
-    needs: ['build', 'deployLegacy', 'deployHelm']
+    needs: ['setup', 'build', 'deployLegacy', 'deployHelm']
     runs-on: [self-hosted-standard]
 
     steps:
       - name: Merging release changes to master
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
+        if: github.event.release.target_commitish != 'develop'
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
           client-payload: '{
             "commitish": "${{ github.event.release.target_commitish }}",
-            "source_branch": "${{ env.BRANCH_NAME }}",
+            "source_branch": "${{ needs.setup.outputs.branch-name }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"}'
+            "tag": "${{ needs.setup.outputs.tag }}"}'
 
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
+        if: github.event.release.target_commitish == 'develop'
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
           client-payload: '{
-            "source_branch": "${{ env.BRANCH_NAME }}",
+            "source_branch": "${{ needs.setup.outputs.branch-name }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"}'
+            "tag": "${{ needs.setup.outputs.tag }}"}'
