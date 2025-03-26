@@ -579,7 +579,7 @@ jobs:
       - name: Fetch value file contents
         if: env.VERBOSE_LOGGING == 'true'
         run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
-      
+
       - name: Determine value file to change
         id: helm-value-file
         run: echo filename='deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}' >> ${GITHUB_OUTPUT}
@@ -596,7 +596,7 @@ jobs:
       - name: Commit changed value file (to deployment repo)
         env:
           GITHUB_TOKEN: ${{ secrets.CI_PAT }}
-        run: | 
+        run: |
           cd deployment-repo
           git config --global user.email "myplant-io-automation@innio.com"
           git config --global user.name "myplant-io-automation"
