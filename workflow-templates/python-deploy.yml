@@ -536,3 +536,81 @@ jobs:
             "source_branch": "${{ env.BRANCH_NAME }}",
             "target_branch": "master",
             "tag": "${{ env.TAG }}"}'
+
+  helmDeploy:
+    if: ${{ needs.buildAndDeploy.outputs.helm-value-file != 'none' && needs.buildAndDeploy.outputs.deploy-environment != 'none' }}
+    name: 'Job: Deploy (with a helm value file)'
+    needs: ['buildAndDeploy']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: 'helmDeploy_${{ github.ref }}'
+      cancel-in-progress: false
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Checkout deployment repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: deployment-repo
+          repository: ${{ env.DEPLOYMENT_REPO }}
+          token: ${{ secrets.CI_PAT }}
+
+      - name: Fetch value file contents
+        if: env.VERBOSE_LOGGING == 'true'
+        run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
+      
+      - name: Determine value file to change
+        id: helm-value-file
+        run: echo filename='deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}' >> ${GITHUB_OUTPUT}
+
+      - name: Update component image tag for Deployment and Rollout
+        uses: mikefarah/yq@v4
+        with:
+          cmd: yq -i '.image.tag = "${{ needs.buildAndDeploy.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
+
+      - name: Fetch updated value file contents
+        if: env.VERBOSE_LOGGING == 'true'
+        run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
+
+      - name: Commit changed value file (to deployment repo)
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_PAT }}
+        run: | 
+          cd deployment-repo
+          git config --global user.email "myplant-io-automation@innio.com"
+          git config --global user.name "myplant-io-automation"
+          git add ${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
+          git commit --allow-empty -m "chore(release): use ${{ needs.buildAndDeploy.outputs.docker-identifier }} on ${{ needs.buildAndDeploy.outputs.deploy-environment }}"
+          git push
+
+      # - name: Update value file
+      #   run: |
+      #     IFS=';' read -ra targets <<< "$DEPLOY_TARGETS"
+      #     cd deployment-repo
+      #     git config --global user.email "myplant-io-automation@innio.com"
+      #     git config --global user.name "myplant-io-automation"
+      #     for target in ${targets[@]}; do sed -i -r "s/([\t ]+image: (('|\")?)${DOCKER_REGISTRY}\/${DOCKER_REPOSITORY}:${DOCKER_TAG_PREFIX}).*/\1${VERSION}\2/g" $target; git add $target; done
+      #     echo nr_files_changed=$(git status --porcelain | wc -l) >> ${GITHUB_OUTPUT}
+      #     git commit --allow-empty -m "chore(release): ${{ needs.buildAndDeploy.outputs.docker-identifier }}"
+      #     git push
