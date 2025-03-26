@@ -24,11 +24,17 @@ jobs:
       group: deploy_${{ github.ref }}
       cancel-in-progress: false
     outputs:
+      branch-name: ${{ env.BRANCH_NAME }}
       component-name: ${{ env.COMPONENT_NAME }}
-      deploy-environment: ${{ env.DEPLOY_ENVIRONMENT }}
+      deploy-targets: ${{ env.DEPLOY_TARGETS }}
+      deployment-method: ${{ env.DEPLOYMENT_METHOD }}
+      deployment-repo: ${{ env.DEPLOYMENT_REPO }}
       docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
-      helm-value-file: ${{ env.HELM_VALUE_FILE }}
+      docker-repository: ${{ env.DOCKER_REPOSITORY }}
+      docker-tag-prefix: ${{ env.DOCKER_TAG_PREFIX }}
+      sha: ${{ env.SHA }}
       tag: ${{ env.TAG }}
+      version: ${{ env.VERSION }}
 
     steps:
       - name: Set git to use LF
@@ -147,21 +153,15 @@ jobs:
 
       - name: Set deploy information' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: |
-          echo DEPLOY_ENVIRONMENT="dev" >> ${GITHUB_ENV}
-          echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for pre-release
         if: env.IS_PRERELEASE == 'true' && (env.PRE_RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: |
-          echo DEPLOY_ENVIRONMENT="staging" >> ${GITHUB_ENV}
-          echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for release
         if: env.IS_RELEASE == 'true' && (env.RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: |
-          echo DEPLOY_ENVIRONMENT="production" >> ${GITHUB_ENV}
-          echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
@@ -400,58 +400,58 @@ jobs:
           -Pversion=${{ env.VERSION }}
           -DrepositoryName=${{ env.DOCKER_REPOSITORY }}
 
-      - name: Deploy Service
-        if: env.DEPLOY_TARGETS != 'none' && env.GRADLE_DEPLOY_TASK != 'none'
+      - name: Publish artifacts to nexus repo
+        if: env.GRADLE_PUBLISH_TASK != 'none' && (env.GRADLE_PUBLISH_SHA == 'true' || startsWith(github.ref, 'refs/tags/'))
+        run: ./gradlew ${{ env.GRADLE_PUBLISH_TASK }} -Pversion=${{ env.VERSION }}
+
+  deployLegacy:
+    name: 'Job: Deploy (legacy)'
+    if: needs.buildAndDeploy.outputs.deployment-method != 'helm' && needs.buildAndDeploy.outputs.deploy-targets != 'none'
+    needs: ['buildAndDeploy']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: deployLegacy_${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Deploy Service (legacy deployment)
+        if: env.GRADLE_DEPLOY_TASK != 'none'
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
           repository: myplant-io/ci-deploy-action
           event-type: deploy
           client-payload: '{
-            "deployment_repo": "${{ env.DEPLOYMENT_REPO }}",
-            "docker_repository": "${{ env.DOCKER_REPOSITORY }}",
-            "docker_tag_prefix": "${{ env.DOCKER_TAG_PREFIX }}",
-            "version": "${{ env.VERSION }}",
-            "component_name": "${{ env.COMPONENT_NAME }}",
-            "deployment_files": ${{ env.DEPLOY_TARGETS }},
-            "git_sha": "${{ env.SHA }}"}'
+            "deployment_repo": "${{ needs.buildAndDeploy.outputs.deployment-repo }}",
+            "docker_repository": "${{ needs.buildAndDeploy.outputs.docker-repository }}",
+            "docker_tag_prefix": "${{ needs.buildAndDeploy.outputs.docker-tag-prefix }}",
+            "version": "${{ needs.buildAndDeploy.outputs.version }}",
+            "component_name": "${{ needs.buildAndDeploy.outputs.component-name }}",
+            "deployment_files": ${{ needs.buildAndDeploy.outputs.deploy-target }},
+            "git_sha": "${{ needs.buildAndDeploy.outputs.sha }}"}'
 
-      - name: Publish artifacts to nexus repo
-        if: env.GRADLE_PUBLISH_TASK != 'none' && (env.GRADLE_PUBLISH_SHA == 'true' || startsWith(github.ref, 'refs/tags/'))
-        run: ./gradlew ${{ env.GRADLE_PUBLISH_TASK }} -Pversion=${{ env.VERSION }}
-
-      - name: Merging release changes to master
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.CI_PAT }}
-          event-type: merge
-          client-payload: '{
-            "commitish": "${{ github.event.release.target_commitish }}",
-            "source_branch": "${{ env.BRANCH_NAME }}",
-            "target_branch": "master",
-            "tag": "${{ env.TAG }}"}'
-
-      # target_commitish can be "develop" for releases that are solely based on tags
-      - name: Merging release changes to master (not using develop commitish, but tag ref)
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.CI_PAT }}
-          event-type: merge
-          client-payload: '{
-            "source_branch": "${{ env.BRANCH_NAME }}",
-            "target_branch": "master",
-            "tag": "${{ env.TAG }}"}'
-
-  helmDeploy:
-    if: ${{ needs.buildAndDeploy.outputs.helm-value-file != 'none' && needs.buildAndDeploy.outputs.deploy-environment != 'none' }}
-    name: 'Job: Deploy (with a helm value file)'
+  deployHelm:
+    if: needs.buildAndDeploy.outputs.deployment-method == 'helm'
+    name: 'Job: Deploy'
     needs: ['buildAndDeploy']
     runs-on: [self-hosted-standard]
     concurrency:
-      group: 'helmDeploy_${{ github.ref }}'
+      group: deployHelm_${{ matrix.deploy-target }}
       cancel-in-progress: false
+    strategy:
+      matrix:
+        deploy-target: ${{fromJSON(needs.buildAndDeploy.outputs.deploy-targets) }}
 
     steps:
       - name: Set git to use LF
@@ -485,11 +485,11 @@ jobs:
 
       - name: Fetch value file contents
         if: env.VERBOSE_LOGGING == 'true'
-        run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
+        run: cat deployment-repo/${{ matrix.deploy-target }}
 
       - name: Determine value file to change
         id: helm-value-file
-        run: echo filename='deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}' >> ${GITHUB_OUTPUT}
+        run: echo filename='deployment-repo/${{ matrix.deploy-target }}' >> ${GITHUB_OUTPUT}
 
       - name: Update component image tag for Deployment and Rollout
         uses: mikefarah/yq@v4
@@ -498,7 +498,7 @@ jobs:
 
       - name: Fetch updated value file contents
         if: env.VERBOSE_LOGGING == 'true'
-        run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
+        run: cat deployment-repo/${{ matrix.deploy-target }}
 
       - name: Commit changed value file (to deployment repo)
         env:
@@ -507,17 +507,37 @@ jobs:
           cd deployment-repo
           git config --global user.email "myplant-io-automation@innio.com"
           git config --global user.name "myplant-io-automation"
-          git add ${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
-          git commit --allow-empty -m "chore(release): use ${{ needs.buildAndDeploy.outputs.docker-identifier }} on ${{ needs.buildAndDeploy.outputs.deploy-environment }}"
+          git add ${{ matrix.deploy-target }}
+          git commit --allow-empty -m "chore(release): use ${{ needs.buildAndDeploy.outputs.docker-identifier }}"
           git push
 
-      # - name: Update value file
-      #   run: |
-      #     IFS=';' read -ra targets <<< "$DEPLOY_TARGETS"
-      #     cd deployment-repo
-      #     git config --global user.email "myplant-io-automation@innio.com"
-      #     git config --global user.name "myplant-io-automation"
-      #     for target in ${targets[@]}; do sed -i -r "s/([\t ]+image: (('|\")?)${DOCKER_REGISTRY}\/${DOCKER_REPOSITORY}:${DOCKER_TAG_PREFIX}).*/\1${VERSION}\2/g" $target; git add $target; done
-      #     echo nr_files_changed=$(git status --porcelain | wc -l) >> ${GITHUB_OUTPUT}
-      #     git commit --allow-empty -m "chore(release): ${{ needs.buildAndDeploy.outputs.docker-identifier }}"
-      #     git push
+  releaseMerging:
+    name: "Job: Merging release changes"
+    if: always() && needs.buildAndDeploy.outputs.is-release == 'true'
+    needs: ['buildAndDeploy', 'deployLegacy', 'deployHelm']
+    runs-on: [self-hosted-standard]
+
+    steps:
+    - name: Merging release changes to master
+      if: github.event.release.target_commitish != 'develop'
+      uses: peter-evans/repository-dispatch@v3
+      with:
+        token: ${{ secrets.CI_PAT }}
+        event-type: merge
+        client-payload: '{
+          "commitish": "${{ github.event.release.target_commitish }}",
+          "source_branch": "${{ needs.buildAndDeploy.outputs.branch-name }}",
+          "target_branch": "master",
+          "tag": "${{ needs.buildAndDeploy.outputs.tag }}"}'
+
+    # target_commitish can be "develop" for releases that are solely based on tags
+    - name: Merging release changes to master (not using develop commitish, but tag ref)
+      if: github.event.release.target_commitish == 'develop'
+      uses: peter-evans/repository-dispatch@v3
+      with:
+        token: ${{ secrets.CI_PAT }}
+        event-type: merge
+        client-payload: '{
+          "source_branch": "${{ needs.buildAndDeploy.outputs.branch-name }}",
+          "target_branch": "master",
+          "tag": "${{ needs.buildAndDeploy.outputs.tag }}"}'
