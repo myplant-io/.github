@@ -401,7 +401,7 @@ jobs:
           -DrepositoryName=${{ env.DOCKER_REPOSITORY }}
 
       - name: Deploy Service
-        if: env.DEPLOY_TARGETS != 'none' && env.DEPLOY_TARGETS != 'use-helm' && env.GRADLE_DEPLOY_TASK != 'none'
+        if: env.DEPLOY_TARGETS != 'none' && env.GRADLE_DEPLOY_TASK != 'none'
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
@@ -414,20 +414,6 @@ jobs:
             "version": "${{ env.VERSION }}",
             "component_name": "${{ env.COMPONENT_NAME }}",
             "deployment_files": ${{ env.DEPLOY_TARGETS }},
-            "git_sha": "${{ env.SHA }}"}'
-
-      - name: Deploy Service (using helm)
-        if: env.DEPLOY_TARGETS == 'use-helm' && env.GRADLE_DEPLOY_TASK != 'none'
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.CI_PAT }}
-          repository: myplant-io/myplant-helm-environment
-          event-type: update-docker-image
-          client-payload: '{
-            "image": "${{ env.DOCKER_REPOSITORY }}",
-            "image_tag": "${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}",
-            "source_repo": "${{ github.repository }}",
-            "target_environment": "${{ env.DEPLOY_ENVIRONMENT }}",
             "git_sha": "${{ env.SHA }}"}'
 
       - name: Publish artifacts to nexus repo
