@@ -105,6 +105,9 @@ jobs:
       - name: Set env 'BRANCH_NAME'
         run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
 
+      - name: Set env 'DOCKER_IDENTIFIER'
+        run: echo DOCKER_IDENTIFIER="${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}" >> ${GITHUB_ENV}
+
       - name: Determine latest (pre-)release
         id: latest_release
         uses: InsonusK/get-latest-release@v1.1.0
@@ -209,7 +212,7 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
         run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
 
-      - name: Find Version Infos (BUID_FROM_TAG)
+      - name: Find Version Infos (BUILD_FROM_TAG)
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
 

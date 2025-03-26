@@ -189,7 +189,7 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
         run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
 
-      - name: Find Version Infos (BUID_FROM_TAG)
+      - name: Find Version Infos (BUILD_FROM_TAG)
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
 

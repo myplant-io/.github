@@ -73,6 +73,12 @@ jobs:
     concurrency:
       group: deploy_${{ github.ref }}
       cancel-in-progress: false
+    outputs:
+      component-name: ${{ env.COMPONENT_NAME }}
+      deploy-environment: ${{ env.DEPLOY_ENVIRONMENT }}
+      docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
+      helm-value-file: ${{ env.HELM_VALUE_FILE }}
+      tag: ${{ env.TAG }}
 
     steps:
       - name: Set git to use LF
@@ -137,6 +143,9 @@ jobs:
       - name: Set env 'BRANCH_NAME'
         run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
 
+      - name: Set env 'DOCKER_IDENTIFIER'
+        run: echo DOCKER_IDENTIFIER="${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}" >> ${GITHUB_ENV}
+
       - name: Determine latest (pre-)release
         id: latest_release
         uses: InsonusK/get-latest-release@v1.1.0
@@ -182,17 +191,23 @@ jobs:
       - name: Initialize 'DEPLOY_TARGETS'
         run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
 
-      - name: Set env 'DEPLOY_TARGETS' for push (to alpha/staging)
-        if: env.BRANCH_NAME == 'develop' && env.PUSH_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+      - name: Set deploy information' for push (to alpha/staging)
+        if: env.BRANCH_NAME == 'develop' && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
+        run: |
+          echo DEPLOY_ENVIRONMENT="dev" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
-      - name: Set env 'DEPLOY_TARGETS' pre-release
-        if: env.IS_PRERELEASE == 'true' && env.PRE_RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+      - name: Set deploy information for pre-release
+        if: env.IS_PRERELEASE == 'true' && (env.PRE_RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
+        run: |
+          echo DEPLOY_ENVIRONMENT="staging" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
-      - name: Set env 'DEPLOY_TARGETS' for release
-        if: env.IS_RELEASE == 'true' &&  env.RELEASE_DEPLOY_TARGET != 'none'
-        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+      - name: Set deploy information for release
+        if: env.IS_RELEASE == 'true' && (env.RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
+        run: |
+          echo DEPLOY_ENVIRONMENT="production" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
@@ -291,7 +306,7 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
         run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
 
-      - name: Find Version Infos (BUID_FROM_TAG)
+      - name: Find Version Infos (BUILD_FROM_TAG)
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
         run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
 
@@ -464,7 +479,7 @@ jobs:
           provenance: false
           push: true
           secrets: nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
-          tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}
+          tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_IDENTIFIER }}
 
       - name: Install dependencies
         if: steps.check_poetry.outputs.files_exists == 'true' && env.PUBLISH_TARGET != 'none' && (env.PUBLISH_SHA == 'true' || startsWith(github.ref, 'refs/tags/'))
