@@ -17,11 +17,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  buildAndDeploy:
-    name: 'Job: Build and deploy'
+  setup:
+    name: 'Job: Setup'
     runs-on: [self-hosted-standard]
     concurrency:
-      group: deploy_${{ github.ref }}
+      group: setup_${{ github.ref }}
       cancel-in-progress: false
     outputs:
       branch-name: ${{ env.BRANCH_NAME }}
@@ -32,6 +32,7 @@ jobs:
       docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
       docker-repository: ${{ env.DOCKER_REPOSITORY }}
       docker-tag-prefix: ${{ env.DOCKER_TAG_PREFIX }}
+      is-manual-release: ${{ env.IS_MANUAL_RELEASE }}
       is-prerelease: ${{ env.IS_PRERELEASE }}
       is-release: ${{ env.IS_RELEASE }}
       sha: ${{ env.SHA }}
@@ -49,12 +50,6 @@ jobs:
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_READONLY_PAT }}
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
@@ -150,9 +145,6 @@ jobs:
       - name: Initialize 'DEPLOY_TARGETS'
         run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
 
-      - name: Initialize 'RETAG'
-        run: echo RETAG=false >> ${GITHUB_ENV}
-
       - name: Set deploy information' for push (to alpha/staging)
         if: env.BRANCH_NAME == 'develop' && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
         run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
@@ -168,6 +160,49 @@ jobs:
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
+
+  buildAndDeploy:
+    name: 'Job: Build'
+    needs: ['setup']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: deploy_${{ github.ref }}
+      cancel-in-progress: false
+    outputs:
+      java-version: ${{ env.JAVA_VERSION }}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_READONLY_PAT }}
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Initialize 'RETAG'
+        id: check-retag
+        run: echo value=false >> ${GITHUB_OUTPUT}
 
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
@@ -200,26 +235,26 @@ jobs:
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
         run: |
           branchTag=$(git describe --tags)
           [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
           echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
 
       - name: Find Version Infos (LAST_RELEASE_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
         run: echo LAST_RELEASE_TAG=$(git tag -l --sort=v:refname | grep -v "${{ env.BRANCH_TAG }}" | grep -v ".*-.*" | tail -n 1) >> ${GITHUB_ENV}
 
       - name: Find Version Infos (BUILD_FROM_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-prerelease == 'true'
         run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
 
       - name: Find Version Infos (BUILD_FROM_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true'
         run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
 
       - name: Build changelog on manual release
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
         uses: mikepenz/release-changelog-builder-action@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -288,7 +323,7 @@ jobs:
         uses: tubone24/update_release@v1.3.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ env.TAG }}
+          TAG_NAME: ${{ needs.setup.outputs.tag }}
         with:
           body_path: release_changelog.md
 
@@ -296,15 +331,15 @@ jobs:
         run: echo LAST_VERSION="" >> ${GITHUB_ENV}
 
       - name: Find last version
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true') && env.LAST_RELEASE_TAG != ''
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true') && env.LAST_RELEASE_TAG != ''
         run: |
           lastTag=$(git tag -l --sort=v:refname | grep -vx "${{ env.BRANCH_TAG }}" | tail -n 1)
           echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
 
       - name: Check Re-Tag docker image
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.LAST_VERSION != ''
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true' && env.LAST_VERSION != ''
         env:
-          releaseTag: ${{ env.VERSION }}
+          releaseTag: ${{ needs.setup.outputs.version }}
           preReleaseTag: ${{ env.LAST_VERSION }}
         run: |
           echo "Check if tags are on same rev"
@@ -349,27 +384,27 @@ jobs:
 
       - name: Retag docker image
         id: check-docker-registry-retag
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.RETAG == 'true'
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true' && steps.check-retag.outputs.value == 'true'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
-          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          repository: ${{ env.DOCKER_REPOSITORY }}
+          imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
+          repository: ${{ needs.setup.outputs.docker-repository }}
           sha: ${{ env.LAST_VERSION }}
-          version: ${{ env.VERSION }}
+          version: ${{ needs.setup.outputs.version }}
 
       - name: Check docker registry
         id: check-docker-registry
-        if: env.DEPLOY_TARGETS != 'none' && env.GRADLE_DEPLOY_TASK != 'none'
+        if: needs.setup.outputs.deploy-targets != 'none' && env.GRADLE_DEPLOY_TASK != 'none'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
-          imagePrefix: ${{ env.DOCKER_TAG_PREFIX }}
-          repository: ${{ env.DOCKER_REPOSITORY }}
-          sha: ${{ env.SHA }}
-          version: ${{ env.VERSION }}
+          imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
+          repository: ${{ needs.setup.outputs.docker-repository }}
+          sha: ${{ needs.setup.outputs.sha }}
+          version: ${{ needs.setup.outputs.version }}
 
       - name: Build with gradle (incl. test)
-        if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') || env.GRADLE_DEPLOY_TASK == 'none'
-        run: ./gradlew ${{ env.GRADLE_BUILD_TASK }} -Pversion=${{ env.VERSION }}
+        if: (steps.check-retag.outputs.value == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') || env.GRADLE_DEPLOY_TASK == 'none'
+        run: ./gradlew ${{ env.GRADLE_BUILD_TASK }} -Pversion=${{ needs.setup.outputs.version }}
 
       - name: Determine number of gradle (sub)projects
         id: gradle-project-stats
@@ -397,19 +432,19 @@ jobs:
           path: test-results.zip
 
       - name: Build and push docker image
-        if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && env.GRADLE_DEPLOY_TASK != 'none'
+        if: (steps.check-retag.outputs.value == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && env.GRADLE_DEPLOY_TASK != 'none'
         run: ./gradlew ${{ env.GRADLE_DEPLOY_TASK }}
-          -Pversion=${{ env.VERSION }}
-          -DrepositoryName=${{ env.DOCKER_REPOSITORY }}
+          -Pversion=${{ needs.setup.outputs.version }}
+          -DrepositoryName=${{ needs.setup.outputs.docker-repository }}
 
       - name: Publish artifacts to nexus repo
         if: env.GRADLE_PUBLISH_TASK != 'none' && (env.GRADLE_PUBLISH_SHA == 'true' || startsWith(github.ref, 'refs/tags/'))
-        run: ./gradlew ${{ env.GRADLE_PUBLISH_TASK }} -Pversion=${{ env.VERSION }}
+        run: ./gradlew ${{ env.GRADLE_PUBLISH_TASK }} -Pversion=${{ needs.setup.outputs.version }}
 
   deployLegacy:
     name: 'Job: Deploy (legacy)'
-    if: needs.buildAndDeploy.outputs.deployment-method != 'helm' && needs.buildAndDeploy.outputs.deploy-targets != 'none'
-    needs: ['buildAndDeploy']
+    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets != 'none'
+    needs: ['setup', 'buildAndDeploy']
     runs-on: [self-hosted-standard]
     concurrency:
       group: deployLegacy_${{ github.ref }}
@@ -435,25 +470,25 @@ jobs:
           repository: myplant-io/ci-deploy-action
           event-type: deploy
           client-payload: '{
-            "deployment_repo": "${{ needs.buildAndDeploy.outputs.deployment-repo }}",
-            "docker_repository": "${{ needs.buildAndDeploy.outputs.docker-repository }}",
-            "docker_tag_prefix": "${{ needs.buildAndDeploy.outputs.docker-tag-prefix }}",
-            "version": "${{ needs.buildAndDeploy.outputs.version }}",
-            "component_name": "${{ needs.buildAndDeploy.outputs.component-name }}",
-            "deployment_files": ${{ needs.buildAndDeploy.outputs.deploy-target }},
-            "git_sha": "${{ needs.buildAndDeploy.outputs.sha }}"}'
+            "deployment_repo": "${{ needs.setup.outputs.deployment-repo }}",
+            "docker_repository": "${{ needs.setup.outputs.docker-repository }}",
+            "docker_tag_prefix": "${{ needs.setup.outputs.docker-tag-prefix }}",
+            "version": "${{ needs.setup.outputs.version }}",
+            "component_name": "${{ needs.setup.outputs.component-name }}",
+            "deployment_files": ${{ needs.setup.outputs.deploy-target }},
+            "git_sha": "${{ needs.setup.outputs.sha }}"}'
 
   deployHelm:
-    if: needs.buildAndDeploy.outputs.deployment-method == 'helm'
     name: 'Job: Deploy'
-    needs: ['buildAndDeploy']
+    if: needs.setup.outputs.deployment-method == 'helm'
+    needs: ['setup', 'buildAndDeploy']
     runs-on: [self-hosted-standard]
     concurrency:
       group: deployHelm_${{ matrix.deploy-target }}
       cancel-in-progress: false
     strategy:
       matrix:
-        deploy-target: ${{fromJSON(needs.buildAndDeploy.outputs.deploy-targets) }}
+        deploy-target: ${{fromJSON(needs.setup.outputs.deploy-targets) }}
 
     steps:
       - name: Set git to use LF
@@ -496,7 +531,7 @@ jobs:
       - name: Update component image tag for Deployment and Rollout
         uses: mikefarah/yq@v4
         with:
-          cmd: yq -i '.image.tag = "${{ needs.buildAndDeploy.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
+          cmd: yq -i '.image.tag = "${{ needs.setup.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
 
       - name: Fetch updated value file contents
         if: env.VERBOSE_LOGGING == 'true'
@@ -510,7 +545,7 @@ jobs:
           git config --global user.email "myplant-io-automation@innio.com"
           git config --global user.name "myplant-io-automation"
           git add ${{ matrix.deploy-target }}
-          git commit --allow-empty -m "chore(release): use ${{ needs.buildAndDeploy.outputs.docker-identifier }}"
+          git commit --allow-empty -m "chore(release): use ${{ needs.setup.outputs.docker-identifier }}"
           git push
 
   releaseMerging:
