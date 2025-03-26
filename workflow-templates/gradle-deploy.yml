@@ -166,7 +166,7 @@ jobs:
         if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
-  buildAndDeploy:
+  build:
     name: 'Job: Build'
     needs: ['setup']
     runs-on: [self-hosted-standard]
@@ -437,7 +437,7 @@ jobs:
   deployLegacy:
     name: 'Job: Deploy (legacy)'
     if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets != 'none' && needs.setup.gradle-deploy-task != 'none'
-    needs: ['setup', 'buildAndDeploy']
+    needs: ['setup', 'build']
     runs-on: [self-hosted-standard]
     concurrency:
       group: deployLegacy_${{ github.ref }}
@@ -462,7 +462,7 @@ jobs:
   deployHelm:
     name: 'Job: Deploy'
     if: needs.setup.outputs.deployment-method == 'helm'
-    needs: ['setup', 'buildAndDeploy']
+    needs: ['setup', 'build']
     runs-on: [self-hosted-standard]
     concurrency:
       group: deployHelm_${{ matrix.deploy-target }}
@@ -531,8 +531,8 @@ jobs:
 
   releaseMerging:
     name: "Job: Merging release changes"
-    if: always() && needs.buildAndDeploy.outputs.is-release == 'true'
-    needs: ['buildAndDeploy', 'deployLegacy', 'deployHelm']
+    if: always() && needs.setup.outputs.is-release == 'true'
+    needs: ['build', 'deployLegacy', 'deployHelm']
     runs-on: [self-hosted-standard]
 
     steps:
@@ -544,9 +544,9 @@ jobs:
         event-type: merge
         client-payload: '{
           "commitish": "${{ github.event.release.target_commitish }}",
-          "source_branch": "${{ needs.buildAndDeploy.outputs.branch-name }}",
+          "source_branch": "${{ needs.setup.outputs.branch-name }}",
           "target_branch": "master",
-          "tag": "${{ needs.buildAndDeploy.outputs.tag }}"}'
+          "tag": "${{ needs.setup.outputs.tag }}"}'
 
     # target_commitish can be "develop" for releases that are solely based on tags
     - name: Merging release changes to master (not using develop commitish, but tag ref)
@@ -556,6 +556,6 @@ jobs:
         token: ${{ secrets.CI_PAT }}
         event-type: merge
         client-payload: '{
-          "source_branch": "${{ needs.buildAndDeploy.outputs.branch-name }}",
+          "source_branch": "${{ needs.setup.outputs.branch-name }}",
           "target_branch": "master",
-          "tag": "${{ needs.buildAndDeploy.outputs.tag }}"}'
+          "tag": "${{ needs.setup.outputs.tag }}"}'
