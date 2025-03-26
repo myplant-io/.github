@@ -475,13 +475,16 @@ jobs:
             "git_sha": "${{ needs.setup.outputs.sha }}"}'
 
   deployHelm:
-    if: ${{ needs.buildAndDeploy.outputs.helm-value-file != 'none' && needs.buildAndDeploy.outputs.deploy-environment != 'none' }}
-    name: 'Job: Deploy (with a helm value file)'
-    needs: ['buildAndDeploy']
+    name: 'Job: Deploy'
+    if: needs.setup.outputs.deployment-method == 'helm'
+    needs: ['setup', 'buildAndDeploy']
     runs-on: [self-hosted-standard]
     concurrency:
-      group: 'helmDeploy_${{ github.ref }}'
+      group: deployHelm_${{ matrix.deploy-target }}
       cancel-in-progress: false
+    strategy:
+      matrix:
+        deploy-target: ${{fromJSON(needs.setup.outputs.deploy-targets) }}
 
     steps:
       - name: Set git to use LF
@@ -515,11 +518,11 @@ jobs:
 
       - name: Fetch value file contents
         if: needs.setup.outputs.verbose == 'true'
-        run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
+        run: cat deployment-repo/${{ matrix.deploy-target }}
 
       - name: Determine value file to change
         id: helm-value-file
-        run: echo filename='deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}' >> ${GITHUB_OUTPUT}
+        run: echo filename='deployment-repo/${{ matrix.deploy-target }}' >> ${GITHUB_OUTPUT}
 
       - name: Update component image tag for Deployment and Rollout
         uses: mikefarah/yq@v4
@@ -528,7 +531,7 @@ jobs:
 
       - name: Fetch updated value file contents
         if: needs.setup.outputs.verbose == 'true'
-        run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
+        run: cat deployment-repo/${{ matrix.deploy-target }}
 
       - name: Commit changed value file (to deployment repo)
         env:

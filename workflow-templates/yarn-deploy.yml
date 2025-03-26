@@ -506,11 +506,11 @@ jobs:
 
       - name: Fetch value file contents
         if: needs.setup.outputs.verbose == 'true'
-        run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
+        run: cat deployment-repo/${{ matrix.deploy-target }}
 
       - name: Determine value file to change
         id: helm-value-file
-        run: echo filename='deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}' >> ${GITHUB_OUTPUT}
+        run: echo filename='deployment-repo/${{ matrix.deploy-target }}' >> ${GITHUB_OUTPUT}
 
       - name: Update component image tag for Deployment and Rollout
         uses: mikefarah/yq@v4
@@ -519,7 +519,7 @@ jobs:
 
       - name: Fetch updated value file contents
         if: needs.setup.outputs.verbose == 'true'
-        run: cat deployment-repo/${{ needs.buildAndDeploy.outputs.deploy-environment }}/${{ needs.buildAndDeploy.outputs.helm-value-file }}
+        run: cat deployment-repo/${{ matrix.deploy-target }}
 
       - name: Commit changed value file (to deployment repo)
         env:
