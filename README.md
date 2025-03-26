@@ -41,6 +41,7 @@ Here is an example workflow configuration file (useable for java microservices b
 ```
 COMPONENT_NAME=auto
 DEPLOYMENT_REPO=myplant-io/deployment
+DEPLOYMENT_METHOD=helm
 DOCKER_REPOSITORY=auto
 DOCKER_TAG_PREFIX=auto
 GRADLE_BUILD_TASK=build test
@@ -50,7 +51,6 @@ GRADLE_PUBLISH_SHA=false
 GRADLE_PUBLISH_TASK=none
 GRADLE_SONARQUBE_TASK=test sonar
 GRADLE_TEST_TASK=test
-HELM_VALUE_FILE=none
 PUSH_DEPLOY_TARGET=["staging-alpha-io/${COMPONENT_NAME}.yaml"]
 PRE_RELEASE_DEPLOY_TARGET=["staging-beta-io/${COMPONENT_NAME}.yaml"]
 RELEASE_DEPLOY_TARGET=["production-io/${COMPONENT_NAME}.yaml"]
@@ -64,11 +64,11 @@ Another example workflow configuration file (useable for python microservices) c
 ```
 COMPONENT_NAME=auto
 DEPLOYMENT_REPO=myplant-io/deployment
+DEPLOYMENT_METHOD=legacy
 DOCKER_REPOSITORY=myplant-io
 #DOCKER_REPOSITORY=auto
 #DOCKER_REPOSITORY=none
 DOCKER_TAG_PREFIX=auto
-HELM_VALUE_FILE=none
 PUBLISH_SHA=false
 PUBLISH_TARGET=["myplant_nexus", "myplant_nexus_external"]
 #PUBLISH_TARGET=none

@@ -32,11 +32,16 @@ jobs:
       docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
       docker-repository: ${{ env.DOCKER_REPOSITORY }}
       docker-tag-prefix: ${{ env.DOCKER_TAG_PREFIX }}
+      gradle-build-task: ${{ env.GRADLE_BUILD_TASK }}
+      gradle-deploy-task: ${{ env.GRADLE_DEPLOY_TASK }}
+      gradle-publish-sha: ${{ env.GRADLE_PUBLISH_SHA }}
+      gradle-publish-task: ${{ env.GRADLE_PUBLISH_TASK }}
       is-manual-release: ${{ env.IS_MANUAL_RELEASE }}
       is-prerelease: ${{ env.IS_PRERELEASE }}
       is-release: ${{ env.IS_RELEASE }}
       sha: ${{ env.SHA }}
       tag: ${{ env.TAG }}
+      verbose: ${{ env.VERBOSE_LOGGING }}
       version: ${{ env.VERSION }}
 
     steps:
@@ -189,40 +194,29 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_READONLY_PAT }}
 
-      - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v3
-        with:
-          fail: true
-          files: '.github/workflow-config.env'
-
-      - name: Load workflow config (.env file)
-        uses: cardinalby/export-env-action@v2
-        with:
-          envFile: '.github/workflow-config.env'
-
       - name: Initialize 'RETAG'
         id: check-retag
         run: echo value=false >> ${GITHUB_OUTPUT}
 
       - name: Get action system info
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         id: system-info
         uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log env context
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(env) }}
 
       - name: Log GitHub context
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(github) }}
 
       - name: Log system details
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: |
           echo "os: ${{ runner.os }}"
           echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
@@ -394,7 +388,7 @@ jobs:
 
       - name: Check docker registry
         id: check-docker-registry
-        if: needs.setup.outputs.deploy-targets != 'none' && env.GRADLE_DEPLOY_TASK != 'none'
+        if: needs.setup.outputs.deploy-targets != 'none' && needs.setup.outputs.gradle-deploy-task != 'none'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
@@ -403,8 +397,8 @@ jobs:
           version: ${{ needs.setup.outputs.version }}
 
       - name: Build with gradle (incl. test)
-        if: (steps.check-retag.outputs.value == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') || env.GRADLE_DEPLOY_TASK == 'none'
-        run: ./gradlew ${{ env.GRADLE_BUILD_TASK }} -Pversion=${{ needs.setup.outputs.version }}
+        if: (steps.check-retag.outputs.value == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') || needs.setup.outputs.gradle-deploy-task == 'none'
+        run: ./gradlew ${{ needs.setup.outputs.gradle-build-task }} -Pversion=${{ needs.setup.outputs.version }}
 
       - name: Determine number of gradle (sub)projects
         id: gradle-project-stats
@@ -432,18 +426,18 @@ jobs:
           path: test-results.zip
 
       - name: Build and push docker image
-        if: (steps.check-retag.outputs.value == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && env.GRADLE_DEPLOY_TASK != 'none'
-        run: ./gradlew ${{ env.GRADLE_DEPLOY_TASK }}
+        if: (steps.check-retag.outputs.value == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && needs.setup.outputs.gradle-deploy-task != 'none'
+        run: ./gradlew ${{ needs.setup.outputs.gradle-deploy-task }}
           -Pversion=${{ needs.setup.outputs.version }}
           -DrepositoryName=${{ needs.setup.outputs.docker-repository }}
 
       - name: Publish artifacts to nexus repo
-        if: env.GRADLE_PUBLISH_TASK != 'none' && (env.GRADLE_PUBLISH_SHA == 'true' || startsWith(github.ref, 'refs/tags/'))
-        run: ./gradlew ${{ env.GRADLE_PUBLISH_TASK }} -Pversion=${{ needs.setup.outputs.version }}
+        if: needs.setup.outputs.gradle-publish-task != 'none' && (needs.setup.outputs.gradle-publish-sha == 'true' || startsWith(github.ref, 'refs/tags/'))
+        run: ./gradlew ${{ needs.setup.outputs.gradle-publish-task }} -Pversion=${{ needs.setup.outputs.version }}
 
   deployLegacy:
     name: 'Job: Deploy (legacy)'
-    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets != 'none'
+    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets != 'none' && needs.setup.gradle-deploy-task != 'none'
     needs: ['setup', 'buildAndDeploy']
     runs-on: [self-hosted-standard]
     concurrency:
@@ -451,19 +445,7 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      - name: Check workflow config file existence
-        uses: andstor/file-existence-action@v3
-        with:
-          fail: true
-          files: '.github/workflow-config.env'
-
-      - name: Load workflow config (.env file)
-        uses: cardinalby/export-env-action@v2
-        with:
-          envFile: '.github/workflow-config.env'
-
       - name: Deploy Service (legacy deployment)
-        if: env.GRADLE_DEPLOY_TASK != 'none'
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
@@ -517,11 +499,11 @@ jobs:
         with:
           fetch-depth: 0
           path: deployment-repo
-          repository: ${{ env.DEPLOYMENT_REPO }}
+          repository: ${{ needs.setup.outputs.deployment-repo }}
           token: ${{ secrets.CI_PAT }}
 
       - name: Fetch value file contents
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: cat deployment-repo/${{ matrix.deploy-target }}
 
       - name: Determine value file to change
@@ -534,7 +516,7 @@ jobs:
           cmd: yq -i '.image.tag = "${{ needs.setup.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
 
       - name: Fetch updated value file contents
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: cat deployment-repo/${{ matrix.deploy-target }}
 
       - name: Commit changed value file (to deployment repo)
