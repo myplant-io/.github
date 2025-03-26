@@ -514,8 +514,11 @@ jobs:
     needs: ['setup', 'build']
     runs-on: [self-hosted-standard]
     concurrency:
-      group: 'deployHelm_${{ github.ref }}'
+      group: deployHelm_${{ matrix.deploy-target }}
       cancel-in-progress: false
+    strategy:
+      matrix:
+        deploy-target: ${{fromJSON(needs.setup.outputs.deploy-targets) }}
 
     steps:
       - name: Set git to use LF
@@ -548,7 +551,7 @@ jobs:
           token: ${{ secrets.CI_PAT }}
 
       - name: Fetch value file contents
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: cat deployment-repo/${{ matrix.deploy-target }}
 
       - name: Determine value file to change
@@ -561,7 +564,7 @@ jobs:
           cmd: yq -i '.image.tag = "${{ needs.setup.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
 
       - name: Fetch updated value file contents
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: cat deployment-repo/${{ matrix.deploy-target }}
 
       - name: Commit changed value file (to deployment repo)
