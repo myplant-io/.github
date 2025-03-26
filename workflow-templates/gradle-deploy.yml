@@ -195,8 +195,7 @@ jobs:
           password: ${{ secrets.DOCKER_READONLY_PAT }}
 
       - name: Initialize 'RETAG'
-        id: check-retag
-        run: echo value=false >> ${GITHUB_OUTPUT}
+        run: echo RETAG=false >> ${GITHUB_ENV}
 
       - name: Get action system info
         if: needs.setup.outputs.verbose == 'true'
@@ -378,7 +377,7 @@ jobs:
 
       - name: Retag docker image
         id: check-docker-registry-retag
-        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true' && steps.check-retag.outputs.value == 'true'
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true' && env.RETAG == 'true'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
@@ -397,7 +396,7 @@ jobs:
           version: ${{ needs.setup.outputs.version }}
 
       - name: Build with gradle (incl. test)
-        if: (steps.check-retag.outputs.value == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') || needs.setup.outputs.gradle-deploy-task == 'none'
+        if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') || needs.setup.outputs.gradle-deploy-task == 'none'
         run: ./gradlew ${{ needs.setup.outputs.gradle-build-task }} -Pversion=${{ needs.setup.outputs.version }}
 
       - name: Determine number of gradle (sub)projects
@@ -426,7 +425,7 @@ jobs:
           path: test-results.zip
 
       - name: Build and push docker image
-        if: (steps.check-retag.outputs.value == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && needs.setup.outputs.gradle-deploy-task != 'none'
+        if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') && needs.setup.outputs.gradle-deploy-task != 'none'
         run: ./gradlew ${{ needs.setup.outputs.gradle-deploy-task }}
           -Pversion=${{ needs.setup.outputs.version }}
           -DrepositoryName=${{ needs.setup.outputs.docker-repository }}
