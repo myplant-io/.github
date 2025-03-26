@@ -4,7 +4,7 @@
 # Prerequisites:
 #  - ".github/workflow-config.env" exists
 #
-# Created by: Nikolaus Krismer
+# Created by: Daniel Hons, Nikolaus Krismer
 ###
 name: Build and deploy
 
@@ -168,12 +168,6 @@ jobs:
     concurrency:
       group: deploy_${{ github.ref }}
       cancel-in-progress: false
-    outputs:
-      component-name: ${{ env.COMPONENT_NAME }}
-      deploy-environment: ${{ env.DEPLOY_ENVIRONMENT }}
-      docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
-      helm-value-file: ${{ env.HELM_VALUE_FILE }}
-      tag: ${{ env.TAG }}
 
     steps:
       - name: Set git to use LF
@@ -322,7 +316,7 @@ jobs:
       - name: Check Re-Tag docker image
         if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true' && env.LAST_VERSION != ''
         env:
-          releaseTag: ${{ env.VERSION }}
+          releaseTag: ${{ needs.setup.outputs.version }}
           preReleaseTag: ${{ env.LAST_VERSION }}
         run: |
           echo "Check if tags are on same rev"
@@ -334,10 +328,10 @@ jobs:
             echo RETAG=true >> ${GITHUB_ENV}
           fi;
 
-      - name: Prepare node.js ${{ need.setup.outputs.node-version }}
+      - name: Prepare node.js ${{ needs.setup.outputs.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ need.setup.outputs.node-version }}
+          node-version: ${{ needs.setup.outputs.node-version }}
 
       - name: Add registry credentials
         run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> ${GITHUB_ENV}
