@@ -178,6 +178,14 @@ jobs:
           fail: false
           files: '.pre-commit-config.yaml'
 
+      - name: Prepare PATH (Unix)
+        if: runner.os != 'Windows'
+        run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Prepare PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "${HOME}/.local/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Configure poetry
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
@@ -349,6 +357,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version-file: ${{ needs.setup.outputs.python-version-file }}
+
+      - name: Prepare PATH (Unix)
+        if: runner.os != 'Windows'
+        run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Prepare PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "${HOME}/.local/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Configure poetry
         if: steps.check_poetry.outputs.files_exists == 'true'

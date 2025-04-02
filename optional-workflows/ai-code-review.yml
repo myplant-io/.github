@@ -68,6 +68,14 @@ jobs:
           cache: 'poetry'
           python-version-file: 'ai-code-review/pyproject.toml'
 
+      - name: Prepare PATH (Unix)
+        if: runner.os != 'Windows'
+        run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Prepare PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "${HOME}/.local/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Configure poetry
         run: |
           poetry config repositories.myplant_nexus https://nexus-dev.myplant.io/repository/myplantpy/simple
