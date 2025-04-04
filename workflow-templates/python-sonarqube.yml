@@ -324,14 +324,14 @@ jobs:
         run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
 
       - name: Test with pytest
-        if: (steps.check_poetry.outputs.files_exists == 'true' || steps.check_poetry.outputs.files_exists == 'true') && steps.check_test_poetry.outputs.testCount != 0
+        if: (steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true') && steps.check_test_poetry.outputs.testCount != 0
         run: |
           source .venv/bin/activate
           coverage run -m pytest
           coverage xml
 
       - name: Skip (with poetry)
-        if: (steps.check_poetry.outputs.files_exists == 'true' || steps.check_poetry.outputs.files_exists == 'true') && steps.check_test_poetry.outputs.testCount == 0
+        if: (steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true') && steps.check_test_poetry.outputs.testCount == 0
         run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
 
       - name: Setup sonarqube
