@@ -302,7 +302,7 @@ jobs:
 
   releaseMerging:
     name: "Job: Merging release changes"
-    if: always() && needs.build.outputs.is-release == 'true'
+    if: always() && needs.setup.outputs.is-release == 'true'
     needs: ['setup', 'build', 'deployLegacy', 'deployHelm']
     runs-on: [self-hosted-standard]
 
