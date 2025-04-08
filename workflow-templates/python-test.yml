@@ -223,8 +223,8 @@ jobs:
       - name: Install dependencies (with uv)
         if: steps.check_uv.outputs.files_exists == 'true' && steps.pre-commit-config.outputs.files_exists == 'true'
         run: |
-          uv sync dev
-          poetry run pip install pre-commit
+          uv sync -- dev
+          uv run pip install pre-commit
 
       - name: Run pre-commit (on PR with pip)
         if: env.BRANCH_NAME != 'develop' && steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false' && steps.pre-commit-config.outputs.files_exists == 'true'
