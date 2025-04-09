@@ -277,10 +277,10 @@ jobs:
         run: |
           echo REPOSITORIES_MYPLANT_NEXUS='https://nexus-dev.myplant.io/repository/myplantpy/' >> ${GITHUB_ENV}
           echo REPOSITORIES_MYPLANT_NEXUS_EXTERNAL='https://nexus-dev.myplant.io/repository/myplantpyexternal/' >> ${GITHUB_ENV}
-          echo HTTP_BASIC_MYPLANT_NEXUS_MYPLANT_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
-          echo HTTP_BASIC_MYPLANT_NEXUS_MYPLANT_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
-          echo HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_MYPLANT_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
-          echo HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_MYPLANT_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo HTTP_BASIC_MYPLANT_NEXUS_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo HTTP_BASIC_MYPLANT_NEXUS_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
 
       - name: Configure uv
         if: steps.check_uv.outputs.files_exists == 'true'
