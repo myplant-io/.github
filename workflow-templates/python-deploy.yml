@@ -271,10 +271,12 @@ jobs:
       - name: Configure poetry
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
-          poetry config repositories.myplant_nexus https://nexus-dev.myplant.io/repository/myplantpy/
-          poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/
-          poetry config http-basic.myplant_nexus myplant-publisher ${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
-          poetry config http-basic.myplant_nexus_external myplant-publisher ${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
+          echo REPOSITORIES_MYPLANT_NEXUS='https://nexus-dev.myplant.io/repository/myplantpy/' >> ${GITHUB_ENV}
+          echo REPOSITORIES_MYPLANT_NEXUS_EXTERNAL='https://nexus-dev.myplant.io/repository/myplantpyexternal/' >> ${GITHUB_ENV}
+          echo HTTP_BASIC_MYPLANT_NEXUS_MYPLANT_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo HTTP_BASIC_MYPLANT_NEXUS_MYPLANT_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_MYPLANT_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_MYPLANT_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
         if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
