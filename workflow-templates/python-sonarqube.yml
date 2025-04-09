@@ -231,6 +231,7 @@ jobs:
 
       - name: Prepare python (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
+        id: setup_python_pip
         uses: actions/setup-python@v5
         with:
           cache: 'pip'
@@ -238,6 +239,7 @@ jobs:
 
       - name: Prepare python (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
+        id: setup_python_poetry
         uses: actions/setup-python@v5
         with:
           cache: 'poetry'
@@ -245,9 +247,22 @@ jobs:
 
       - name: Prepare python (with uv)
         if: steps.check_uv.outputs.files_exists == 'true'
+        id: setup_python_uv
         uses: actions/setup-python@v5
         with:
           python-version-file: ${{ needs.setup.outputs.python-version-file }}
+
+      - name: Set env PYTHON_VERSION
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
+        run: echo PYTHON_VERSION="${{steps.setup_python_pip.outputs.python-version}}" >> ${GITHUB_ENV}
+
+      - name: Set env PYTHON_VERSION
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: echo PYTHON_VERSION="${{steps.setup_python_poetry.outputs.python-version}}" >> ${GITHUB_ENV}
+
+      - name: Set env PYTHON_VERSION
+        if: steps.check_uv.outputs.files_exists == 'true'
+        run: echo PYTHON_VERSION="${{steps.setup_python_uv.outputs.python-version}}" >> ${GITHUB_ENV}
 
       - name: Prepare PATH (Unix)
         if: runner.os != 'Windows'
@@ -350,6 +365,7 @@ jobs:
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.coverage.exclusions=${{ env.PROJECT_TEST_SOURCES }}/**
           -Dsonar.python.coverage.reportPaths=./coverage.xml
+          -Dsonar.python.version=${{ env.PYTHON_VERSION }}
           -Dsonar.qualitygate.wait=true
 
       - name: Run sonarqube (on PR)
@@ -369,4 +385,5 @@ jobs:
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.coverage.exclusions=${{ env.PROJECT_TEST_SOURCES }}/**
           -Dsonar.python.coverage.reportPaths=./coverage.xml
+          -Dsonar.python.version=${{ env.PYTHON_VERSION }}
           -Dsonar.qualitygate.wait=true
