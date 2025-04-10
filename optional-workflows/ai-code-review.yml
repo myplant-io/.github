@@ -43,7 +43,7 @@ jobs:
       - name: Review changes with AI
         id: perform_ai_review
         uses: myplant-io/github-actions/ai-code-review@feat/add-ai-code-review
-        env:
+        with:
           API_KEY: ${{ secrets.openai_api_key }}
           GIT_DIFF_OUTPUT: ${{ steps.read-diff-file.outputs.file-content }}
           PR_DESCRIPTION: ${{ github.event.pull_request.body }}
