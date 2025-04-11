@@ -44,10 +44,13 @@ jobs:
         id: perform_ai_review
         uses: myplant-io/github-actions/ai-code-review@feat/add-ai-code-review
         with:
-          API_KEY: ${{ secrets.openai_api_key }}
-          GIT_DIFF_OUTPUT: ${{ steps.read-diff-file.outputs.file-content }}
-          PR_DESCRIPTION: ${{ github.event.pull_request.body }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
+          aws-region: us-east-1
+          git-diff-output: ${{ steps.read-diff-file.outputs.file-content }}
+          openai-api-key: ${{ secrets.openai_api_key }}
+          pr-description: ${{ github.event.pull_request.body }}
+          pr-title: ${{ github.event.pull_request.title }}
 
       - name: Add PR review comment thollander
         uses: thollander/actions-comment-pull-request@v3
