@@ -412,9 +412,10 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
-          repository: myplant-io/myplant-helm
-          event-type: deploy-component
+          repository: myplant-io/myplant-helm-environment
+          event-type: update-docker-image
           client-payload: '{
+            "image": "${{ env.DOCKER_REPOSITORY }}",
             "image_tag": "${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}",
             "source_repo": "${{ github.repository }}",
             "target_environment": "${{ env.DEPLOY_ENVIRONMENT }}",
