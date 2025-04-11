@@ -26,18 +26,17 @@ jobs:
 
       - name: Determine changes
         uses: GrantBirki/git-diff-action@v2
-        id: git-diff-action
+        id: git_diff_action
         with:
-          json_diff_file_output: diff.json
           raw_diff_file_output: diff.txt
           file_output_only: 'true'
 
-      - name: Read diff
-        id: read-diff-file
+      - name: Read changes from file
+        id: read_diff_file
         run: |
           delimiter="$(openssl rand -hex 8)"
-          echo "file-content<<${delimiter}" >> "${GITHUB_OUTPUT}"
-          echo "$(cat ${{ steps.git-diff-action.outputs.raw-diff-path }})" >> "${GITHUB_OUTPUT}"
+          echo "file_content<<${delimiter}" >> "${GITHUB_OUTPUT}"
+          echo "$(cat ${{ steps.git_diff_action.outputs.raw-diff-path }})" >> "${GITHUB_OUTPUT}"
           echo "${delimiter}" >> "${GITHUB_OUTPUT}"
 
       - name: Review changes with AI
@@ -47,7 +46,7 @@ jobs:
           aws_access_key_id: ${{ secrets.ECR_AWS_USER }}
           aws_secret_access_key: ${{ secrets.ECR_AWS_SECRET }}
           aws_region: us-east-1
-          git_diff_output: ${{ steps.read-diff-file.outputs.file-content }}
+          git_diff_output: ${{ steps.read_diff_file.outputs.file_content }}
           openai_api_key: ${{ secrets.openai_api_key }}
           pr_description: ${{ github.event.pull_request.body }}
           pr_title: ${{ github.event.pull_request.title }}
