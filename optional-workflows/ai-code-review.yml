@@ -70,10 +70,12 @@ jobs:
 
       - name: Configure poetry
         run: |
-          poetry config repositories.myplant_nexus https://nexus-dev.myplant.io/repository/myplantpy/simple
-          poetry config repositories.myplant_nexus_external https://nexus-dev.myplant.io/repository/myplantpyexternal/simple
-          poetry config http-basic.myplant_nexus myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
-          poetry config http-basic.myplant_nexus_external myplant-publisher ${{secrets.NEXUS_MYPLANT_PUBLISHER}}
+          echo POETRY_REPOSITORIES_MYPLANT_NEXUS='https://nexus-dev.myplant.io/repository/myplantpy/' >> ${GITHUB_ENV}
+          echo POETRY_REPOSITORIES_MYPLANT_NEXUS_EXTERNAL='https://nexus-dev.myplant.io/repository/myplantpyexternal/' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
 
       - name: Install dependencies
         working-directory: ai-code-review
