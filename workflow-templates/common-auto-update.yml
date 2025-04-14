@@ -69,6 +69,9 @@ jobs:
       - name: Set 'SOURCE_DIR'
         run: echo SOURCE_DIR="source/workflow-templates" >> ${GITHUB_ENV}
 
+      - name: Set 'SOURCE_DIR_OPTIONAL'
+        run: echo SOURCE_DIR_OPTIONAL="source/optional-workflows" >> ${GITHUB_ENV}
+
       - name: Set 'TARGET_DIR'
         run: echo TARGET_DIR="target/.github/workflows" >> ${GITHUB_ENV}
 
@@ -170,6 +173,39 @@ jobs:
           mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
+
+      - name: Check optional workflow usage (ai-code-review)
+        id: check_optional_ai-code-review
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: "${{ env.TARGET_DIR}}/ai-code-review.${{ env.FILE_TYPE }}"
+
+      - name: Move optional GitHub action in place (ai-code-review)
+        if: steps.check_optional_ai-code-review.outputs.files_exists == 'true'
+        run: mv ${{ env.SOURCE_DIR_OPTIONAL}}/ai-code-review.yml ${{ env.TARGET_DIR }}/ai-code-review.${{ env.FILE_TYPE }}
+
+      - name: Check optional workflow usage (combine-dependabot-pr)
+        id: check_optional_combine-dependabot-pr
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: "${{ env.TARGET_DIR}}/combine-dependabot-pr.${{ env.FILE_TYPE }}"
+
+      - name: Move optional GitHub action in place (combine-dependabot-pr)
+        if: steps.check_optional_combine-dependabot-pr.outputs.files_exists == 'true'
+        run: mv ${{ env.SOURCE_DIR_OPTIONAL}}/combine-dependabot-pr.yml ${{ env.TARGET_DIR }}/combine-dependabot-pr.${{ env.FILE_TYPE }}
+
+      - name: Check optional workflow usage (create-release-branch)
+        id: check_optional_create-release-branch
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: "${{ env.TARGET_DIR}}/create-release-branch.${{ env.FILE_TYPE }}"
+
+      - name: Move optional GitHub action in place (create-release-branch)
+        if: steps.check_optional_create-release-branch.outputs.files_exists == 'true'
+        run: mv ${{ env.SOURCE_DIR_OPTIONAL}}/create-release-branch.yml ${{ env.TARGET_DIR }}/create-release-branch.${{ env.FILE_TYPE }}
 
       - name: Commit and push changes
         uses: actions-js/push@v1.5
