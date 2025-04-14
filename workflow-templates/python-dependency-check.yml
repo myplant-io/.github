@@ -244,7 +244,7 @@ jobs:
 
       - name: CycloneDX Python Generate SBOM (with pip)
         uses: myplant-io/github-actions/python-generate-sbom@v1
-        if: steps.check_poetry.outputs.files_exists == 'false'
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
         with:
           input: './requirements.txt'
           output: './bom.xml'
@@ -252,7 +252,7 @@ jobs:
 
       - name: CycloneDX Python Generate SBOM (with poetry)
         uses: myplant-io/github-actions/python-generate-sbom@v1
-        if: steps.check_poetry.outputs.files_exists == 'true'
+        if: steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true'
         with:
           input: './'
           output: './bom.xml'
