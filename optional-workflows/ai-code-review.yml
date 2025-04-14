@@ -43,8 +43,8 @@ jobs:
         id: perform_ai_review
         uses: myplant-io/github-actions/ai-code-review@feat/add-ai-code-review
         with:
-          aws_access_key_id: ${{ secrets.ECR_AWS_USER }}
-          aws_secret_access_key: ${{ secrets.ECR_AWS_SECRET }}
+          aws_access_key_id: ${{ secrets.AWS_STG_USER_AI }}
+          aws_secret_access_key: ${{ secrets.AWS_STG_SECRET_AI }}
           aws_region: us-east-1
           git_diff_output: ${{ steps.read_diff_file.outputs.file_content }}
           openai_api_key: ${{ secrets.openai_api_key }}
