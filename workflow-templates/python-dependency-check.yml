@@ -204,6 +204,32 @@ jobs:
         with:
           python-version-file: ${{ needs.setup.outputs.python-version-file }}
 
+      - name: Prepare PATH (Unix)
+        if: runner.os != 'Windows'
+        run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Prepare PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "${HOME}/.local/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Configure poetry
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: |
+          echo POETRY_REPOSITORIES_MYPLANT_NEXUS='https://nexus-dev.myplant.io/repository/myplantpy/' >> ${GITHUB_ENV}
+          echo POETRY_REPOSITORIES_MYPLANT_NEXUS_EXTERNAL='https://nexus-dev.myplant.io/repository/myplantpyexternal/' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+
+      - name: Configure uv
+        if: steps.check_uv.outputs.files_exists == 'true'
+        run: |
+          echo UV_INDEX_MYPLANT_NEXUS_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_EXTERNAL_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_EXTERNAL_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+
       - name: Install cyclonedx dependency (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
         run: pip install cyclonedx-bom
