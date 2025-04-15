@@ -225,7 +225,7 @@ jobs:
       - name: Install dependencies (with uv)
         if: steps.check_uv.outputs.files_exists == 'true' && steps.pre-commit-config.outputs.files_exists == 'true'
         run: |
-          uv sync -- dev
+          uv sync --dev
           uv run pip install pre-commit
 
       - name: Run pre-commit (on PR with pip)
