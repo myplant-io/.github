@@ -35,7 +35,7 @@ jobs:
       tag: ${{ env.TAG }}
       verbose: ${{ env.VERBOSE_LOGGING }}
       version: ${{ env.VERSION }}
-    
+
     steps:
       - name: Set git to use LF
         run: |
@@ -507,7 +507,7 @@ jobs:
           git push
 
   releaseMerging:
-    name: "Job: Merging release changes"
+    name: 'Job: Merging release changes'
     if: always() && needs.setup.outputs.is-release == 'true'
     needs: ['setup', 'build', 'deployLegacy', 'deployHelm']
     runs-on: [self-hosted-standard]

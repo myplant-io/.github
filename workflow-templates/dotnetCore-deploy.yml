@@ -301,7 +301,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
   releaseMerging:
-    name: "Job: Merging release changes"
+    name: 'Job: Merging release changes'
     if: always() && needs.setup.outputs.is-release == 'true'
     needs: ['setup', 'build', 'deployLegacy', 'deployHelm']
     runs-on: [self-hosted-standard]
