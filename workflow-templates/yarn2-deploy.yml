@@ -357,7 +357,7 @@ jobs:
 
       - name: Check docker registry
         id: check-docker-registry
-        id: needs.setup.outputs.docker-repository != 'none'
+        if: needs.setup.outputs.docker-repository != 'none'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
