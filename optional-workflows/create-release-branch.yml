@@ -56,7 +56,7 @@ jobs:
           fi
 
       - uses: peterjgrainger/action-create-branch@v3.0.0
-        if: ${{ steps.branch-exists.outputs.exists == 'false' }}
+        if: steps.branch-exists.outputs.exists == 'false'
         name: Create branch for release cycle
         env:
           # Use another token then GITHUB_TOKEN to trigger subsequent workflows
@@ -65,7 +65,7 @@ jobs:
           branch: ${{ steps.branch-names.outputs.name }}
 
       - name: Prepare commit message
-        if: ${{ steps.branch-exists.outputs.exists == 'true' }}
+        if: steps.branch-exists.outputs.exists == 'true'
         id: commit-message
         env:
           BRANCH: ${{ steps.branch-names.outputs.source-branch }}
@@ -73,7 +73,7 @@ jobs:
         run: echo message="Merge branch $BRANCH into release $RELEASE" >> ${GITHUB_OUTPUT}
 
       - name: Merge for PreRelease
-        if: ${{ steps.branch-exists.outputs.exists == 'true' }}
+        if: steps.branch-exists.outputs.exists == 'true'
         uses: tukasz/direct-merge-action@master
         with:
           # Use another token then GITHUB_TOKEN to trigger subsequent workflows
