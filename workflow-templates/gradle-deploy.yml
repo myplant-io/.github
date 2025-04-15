@@ -530,32 +530,32 @@ jobs:
           git push
 
   releaseMerging:
-    name: "Job: Merging release changes"
+    name: 'Job: Merging release changes'
     if: always() && needs.setup.outputs.is-release == 'true'
     needs: ['setup', 'build', 'deployLegacy', 'deployHelm']
     runs-on: [self-hosted-standard]
 
     steps:
-    - name: Merging release changes to master
-      if: github.event.release.target_commitish != 'develop'
-      uses: peter-evans/repository-dispatch@v3
-      with:
-        token: ${{ secrets.CI_PAT }}
-        event-type: merge
-        client-payload: '{
-          "commitish": "${{ github.event.release.target_commitish }}",
-          "source_branch": "${{ needs.setup.outputs.branch-name }}",
-          "target_branch": "master",
-          "tag": "${{ needs.setup.outputs.tag }}"}'
+      - name: Merging release changes to master
+        if: github.event.release.target_commitish != 'develop'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "commitish": "${{ github.event.release.target_commitish }}",
+            "source_branch": "${{ needs.setup.outputs.branch-name }}",
+            "target_branch": "master",
+            "tag": "${{ needs.setup.outputs.tag }}"}'
 
-    # target_commitish can be "develop" for releases that are solely based on tags
-    - name: Merging release changes to master (not using develop commitish, but tag ref)
-      if: github.event.release.target_commitish == 'develop'
-      uses: peter-evans/repository-dispatch@v3
-      with:
-        token: ${{ secrets.CI_PAT }}
-        event-type: merge
-        client-payload: '{
-          "source_branch": "${{ needs.setup.outputs.branch-name }}",
-          "target_branch": "master",
-          "tag": "${{ needs.setup.outputs.tag }}"}'
+      # target_commitish can be "develop" for releases that are solely based on tags
+      - name: Merging release changes to master (not using develop commitish, but tag ref)
+        if: github.event.release.target_commitish == 'develop'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "source_branch": "${{ needs.setup.outputs.branch-name }}",
+            "target_branch": "master",
+            "tag": "${{ needs.setup.outputs.tag }}"}'
