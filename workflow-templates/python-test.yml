@@ -220,13 +220,13 @@ jobs:
         if: steps.check_poetry.outputs.files_exists == 'true' && steps.pre-commit-config.outputs.files_exists == 'true'
         run: |
           poetry install --no-interaction --no-root --sync
-          poetry run pip install pre-commit
+          poetry add --dev pre-commit
 
       - name: Install dependencies (with uv)
         if: steps.check_uv.outputs.files_exists == 'true' && steps.pre-commit-config.outputs.files_exists == 'true'
         run: |
           uv sync --frozen --dev
-          uv run pip install pre-commit
+          uv add --dev pre-commit
 
       - name: Run pre-commit (on PR with pip)
         if: env.BRANCH_NAME != 'develop' && steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false' && steps.pre-commit-config.outputs.files_exists == 'true'
@@ -398,14 +398,14 @@ jobs:
       - name: Install dependencies (including pytest; with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
-          poetry install --no-interaction --no-root --sync
-          poetry run pip install pytest
+          poetry install --no-root --sync
+          poetry add --dev pytest
 
       - name: Install dependencies (including pytest; with uv)
         if: steps.check_uv.outputs.files_exists == 'true'
         run: |
           uv sync --frozen --dev
-          uv run pip install pytest
+          uv add --dev pytest
 
       - name: Check for test availability (with pip)
         id: check_test_pip

@@ -304,14 +304,15 @@ jobs:
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
           poetry install --no-root --sync
-          poetry run pip install pytest
-          poetry run pip install coverage
+          poetry add --dev pytest
+          poetry add --dev coverage
 
       - name: Install dependencies (including pytest; with uv)
         if: steps.check_uv.outputs.files_exists == 'true'
         run: |
           uv sync --frozen --dev
-          uv run pip install pytest
+          uv add --dev pytest
+          uv add --dev coverage
 
       - name: Determine source folders
         run: |
@@ -347,7 +348,7 @@ jobs:
           coverage run -m pytest
           coverage xml
 
-      - name: Skip (with poetry)
+      - name: Skip
         if: (steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true') && steps.check_test_poetry.outputs.testCount == 0
         run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
 
