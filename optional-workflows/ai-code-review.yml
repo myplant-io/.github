@@ -41,7 +41,7 @@ jobs:
 
       - name: Review changes with AI
         id: perform_ai_review
-        uses: myplant-io/github-actions/ai-code-review@feat/add-ai-code-review
+        uses: myplant-io/github-actions/ai-code-review@v1
         with:
           aws_access_key_id: ${{ secrets.AWS_STG_USER_AI }}
           aws_secret_access_key: ${{ secrets.AWS_STG_SECRET_AI }}
