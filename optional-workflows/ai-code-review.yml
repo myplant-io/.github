@@ -55,3 +55,5 @@ jobs:
         uses: thollander/actions-comment-pull-request@v3
         with:
           message: ${{ steps.perform_ai_review.outputs.message }}
+          comment-tag: ai_code_review
+          reactions: eyes
