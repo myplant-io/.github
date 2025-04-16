@@ -264,7 +264,7 @@ jobs:
         with:
           input: './'
           output: './bom.xml'
-          type: 'environment'
+          type: 'environment .venv/bin/python'
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
