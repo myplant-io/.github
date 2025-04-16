@@ -262,9 +262,9 @@ jobs:
         uses: myplant-io/github-actions/python-generate-sbom@v1
         if: steps.check_uv.outputs.files_exists == 'true'
         with:
-          input: './'
+          input: '.venv/bin/python'
           output: './bom.xml'
-          type: 'environment .venv/bin/python'
+          type: 'environment'
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
