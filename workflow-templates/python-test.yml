@@ -398,7 +398,7 @@ jobs:
       - name: Install dependencies (including pytest; with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
-          poetry install --no-root --sync
+          poetry install --no-interaction --no-root --sync
           poetry add --dev pytest
 
       - name: Install dependencies (including pytest; with uv)
