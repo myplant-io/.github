@@ -258,7 +258,7 @@ jobs:
           output: './bom.xml'
           type: 'poetry'
 
-      - name: CycloneDX Python Generate SBOM (with poetry)
+      - name: CycloneDX Python Generate SBOM (with uv)
         uses: myplant-io/github-actions/python-generate-sbom@v1
         if: steps.check_uv.outputs.files_exists == 'true'
         with:
