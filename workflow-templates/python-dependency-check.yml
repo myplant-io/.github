@@ -24,7 +24,8 @@ jobs:
     name: 'Job: Python setup'
     runs-on: [self-hosted-standard]
     outputs:
-      pythonVersionFile: ${{steps.set_outputs.outputs.pythonVersionFile}}
+      poetry-version: ${{ env.POETRY_VERSION }}
+      python-version-file: ${{ env.PYTHON_VERSION_FILE }}
 
     steps:
       - name: Set git to use LF
@@ -66,9 +67,12 @@ jobs:
           echo "::error Either pyproject.toml or .python-version must exists (and contain a python version number)"
           exit 1
 
-      - id: set_outputs
-        name: Set python version file
-        run: echo pythonVersionFile="${{ env.PYTHON_VERSION_FILE}}" >> ${GITHUB_OUTPUT}
+      - name: Determine poetry version from pyproject.toml
+        id: determine_poetry_version
+        uses: myplant-io/github-actions/poetry-version@v1
+
+      - name: Set env 'POETRY_VERSION'
+        run: echo POETRY_VERSION="${{ steps.determine_poetry_version.outputs.version }}" >> ${GITHUB_ENV}
 
   dependencyCheck:
     name: 'Job: Dependency check'
@@ -165,6 +169,7 @@ jobs:
         if: steps.check_poetry.outputs.files_exists == 'true'
         uses: snok/install-poetry@v1
         with:
+          version: ${{ needs.setup.outputs.poetry-version }}
           virtualenvs-create: true
           virtualenvs-in-project: true
           installer-parallel: true
@@ -177,31 +182,78 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
 
+      - name: Check uv file existence
+        id: check_uv
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'uv.lock'
+
+      - name: Prepare uv
+        if: steps.check_uv.outputs.files_exists == 'true'
+        uses: astral-sh/setup-uv@v5
+
       - name: Prepare python (with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false'
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
         uses: actions/setup-python@v5
         with:
           cache: 'pip'
-          python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
+          python-version-file: ${{ needs.setup.outputs.python-version-file }}
 
       - name: Prepare python (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         uses: actions/setup-python@v5
         with:
           cache: 'poetry'
-          python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
+          python-version-file: ${{ needs.setup.outputs.python-version-file }}
+
+      - name: Prepare python (with uv)
+        if: steps.check_uv.outputs.files_exists == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ${{ needs.setup.outputs.python-version-file }}
+
+      - name: Prepare PATH (Unix)
+        if: runner.os != 'Windows'
+        run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Prepare PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "${HOME}/.local/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Configure poetry
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: |
+          echo POETRY_REPOSITORIES_MYPLANT_NEXUS='https://nexus-dev.myplant.io/repository/myplantpy/' >> ${GITHUB_ENV}
+          echo POETRY_REPOSITORIES_MYPLANT_NEXUS_EXTERNAL='https://nexus-dev.myplant.io/repository/myplantpyexternal/' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+
+      - name: Configure uv
+        if: steps.check_uv.outputs.files_exists == 'true'
+        run: |
+          echo UV_INDEX_MYPLANT_NEXUS_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_EXTERNAL_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_EXTERNAL_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
 
       - name: Install cyclonedx dependency (with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false'
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
         run: pip install cyclonedx-bom
 
       - name: Install cyclonedx dependency (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: poetry run pip install cyclonedx-bom
 
+      - name: Install cyclonedx dependency (with uv)
+        if: steps.check_uv.outputs.files_exists == 'true'
+        run: uv run pip install cyclonedx-bom
+
       - name: CycloneDX Python Generate SBOM (with pip)
         uses: myplant-io/github-actions/python-generate-sbom@v1
-        if: steps.check_poetry.outputs.files_exists == 'false'
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
         with:
           input: './requirements.txt'
           output: './bom.xml'
@@ -214,6 +266,14 @@ jobs:
           input: './'
           output: './bom.xml'
           type: 'poetry'
+
+      - name: CycloneDX Python Generate SBOM (with uv)
+        uses: myplant-io/github-actions/python-generate-sbom@v1
+        if: steps.check_uv.outputs.files_exists == 'true'
+        with:
+          input: '.venv/bin/python'
+          output: './bom.xml'
+          type: 'environment'
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4

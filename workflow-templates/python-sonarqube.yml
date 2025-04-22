@@ -25,7 +25,8 @@ jobs:
     name: 'Job: Python setup'
     runs-on: [self-hosted-standard]
     outputs:
-      pythonVersionFile: ${{steps.set_outputs.outputs.pythonVersionFile}}
+      poetry-version: ${{ env.POETRY_VERSION }}
+      python-version-file: ${{ env.PYTHON_VERSION_FILE }}
 
     steps:
       - name: Set git to use LF
@@ -67,9 +68,12 @@ jobs:
           echo "::error Either pyproject.toml or .python-version must exists (and contain a python version number)"
           exit 1
 
-      - id: set_outputs
-        name: Set python version file
-        run: echo pythonVersionFile="${{ env.PYTHON_VERSION_FILE}}" >> ${GITHUB_OUTPUT}
+      - name: Determine poetry version from pyproject.toml
+        id: determine_poetry_version
+        uses: myplant-io/github-actions/poetry-version@v1
+
+      - name: Set env 'POETRY_VERSION'
+        run: echo POETRY_VERSION="${{ steps.determine_poetry_version.outputs.version }}" >> ${GITHUB_ENV}
 
   sonarqube:
     name: 'Job: Sonarqube'
@@ -210,6 +214,7 @@ jobs:
         if: steps.check_poetry.outputs.files_exists == 'true'
         uses: snok/install-poetry@v1
         with:
+          version: ${{ needs.setup.outputs.poetry-version }}
           virtualenvs-create: true
           virtualenvs-in-project: true
           installer-parallel: true
@@ -222,19 +227,59 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
 
+      - name: Check uv file existence
+        id: check_uv
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'uv.lock'
+
+      - name: Prepare uv
+        if: steps.check_uv.outputs.files_exists == 'true'
+        uses: astral-sh/setup-uv@v5
+
       - name: Prepare python (with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false'
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
+        id: setup_python_pip
         uses: actions/setup-python@v5
         with:
           cache: 'pip'
-          python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
+          python-version-file: ${{ needs.setup.outputs.python-version-file }}
 
       - name: Prepare python (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
+        id: setup_python_poetry
         uses: actions/setup-python@v5
         with:
           cache: 'poetry'
-          python-version-file: ${{ needs.setup.outputs.pythonVersionFile }}
+          python-version-file: ${{ needs.setup.outputs.python-version-file }}
+
+      - name: Prepare python (with uv)
+        if: steps.check_uv.outputs.files_exists == 'true'
+        id: setup_python_uv
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ${{ needs.setup.outputs.python-version-file }}
+
+      - name: Set env PYTHON_VERSION
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
+        run: echo PYTHON_VERSION="${{steps.setup_python_pip.outputs.python-version}}" >> ${GITHUB_ENV}
+
+      - name: Set env PYTHON_VERSION
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: echo PYTHON_VERSION="${{steps.setup_python_poetry.outputs.python-version}}" >> ${GITHUB_ENV}
+
+      - name: Set env PYTHON_VERSION
+        if: steps.check_uv.outputs.files_exists == 'true'
+        run: echo PYTHON_VERSION="${{steps.setup_python_uv.outputs.python-version}}" >> ${GITHUB_ENV}
+
+      - name: Prepare PATH (Unix)
+        if: runner.os != 'Windows'
+        run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Prepare PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "${HOME}/.local/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Configure poetry
         if: steps.check_poetry.outputs.files_exists == 'true'
@@ -246,8 +291,16 @@ jobs:
           echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
           echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
 
+      - name: Configure uv
+        if: steps.check_uv.outputs.files_exists == 'true'
+        run: |
+          echo UV_INDEX_MYPLANT_NEXUS_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_EXTERNAL_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_EXTERNAL_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+
       - name: Install dependencies (including pytest; with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false'
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
         run: |
           pip install -r requirements.txt \
                --index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpy/simple" \
@@ -259,9 +312,16 @@ jobs:
       - name: Install dependencies (including pytest; with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         run: |
-          poetry install --no-root --sync
-          poetry run pip install pytest
-          poetry run pip install coverage
+          poetry install --no-interaction --no-root --sync
+          poetry add pytest --group dev
+          poetry add coverage --group dev
+
+      - name: Install dependencies (including pytest; with uv)
+        if: steps.check_uv.outputs.files_exists == 'true'
+        run: |
+          uv sync --frozen --group dev
+          uv add pytest --group dev
+          uv add coverage --group dev
 
       - name: Determine source folders
         run: |
@@ -270,35 +330,35 @@ jobs:
 
       - name: Check for test availability (with pip)
         id: check_test_pip
-        if: steps.check_poetry.outputs.files_exists == 'false'
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
         run: echo testCount=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_OUTPUT}
 
-      - name: Check for test availability (with poetry)
+      - name: Check for test availability
         id: check_test_poetry
-        if: steps.check_poetry.outputs.files_exists == 'true'
+        if: steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true'
         run: |
           source .venv/bin/activate
           echo testCount=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Test with pytest (with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount != 0
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount != 0
         run: |
           coverage run -m pytest
           coverage xml
 
       - name: Skip (with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount == 0
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount == 0
         run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
 
-      - name: Test with pytest (with poetry)
-        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_test_poetry.outputs.testCount != 0
+      - name: Test with pytest
+        if: (steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true') && steps.check_test_poetry.outputs.testCount != 0
         run: |
           source .venv/bin/activate
           coverage run -m pytest
           coverage xml
 
-      - name: Skip (with poetry)
-        if: steps.check_poetry.outputs.files_exists == 'true' && steps.check_test_poetry.outputs.testCount == 0
+      - name: Skip
+        if: (steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true') && steps.check_test_poetry.outputs.testCount == 0
         run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
 
       - name: Setup sonarqube
@@ -317,6 +377,7 @@ jobs:
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.coverage.exclusions=${{ env.PROJECT_TEST_SOURCES }}/**
           -Dsonar.python.coverage.reportPaths=./coverage.xml
+          -Dsonar.python.version=${{ env.PYTHON_VERSION }}
           -Dsonar.qualitygate.wait=true
 
       - name: Run sonarqube (on PR)
@@ -336,4 +397,5 @@ jobs:
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.coverage.exclusions=${{ env.PROJECT_TEST_SOURCES }}/**
           -Dsonar.python.coverage.reportPaths=./coverage.xml
+          -Dsonar.python.version=${{ env.PYTHON_VERSION }}
           -Dsonar.qualitygate.wait=true

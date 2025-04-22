@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  buildAndDeploy:
-    name: 'Job: Build and deploy'
+  build:
+    name: 'Job: Build'
     runs-on: [windows-latest]
     defaults:
       run:
@@ -87,7 +87,6 @@ jobs:
         uses: NuGet/setup-nuget@v2
 
       - name: Run create-image-windows-XT4 script
-        shell: bash
         run: sh deployment/create-image-windows-XT4.sh
 
       - name: Upload image as artifact
