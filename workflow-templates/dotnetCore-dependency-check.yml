@@ -126,7 +126,7 @@ jobs:
           github-bearer-token: ${{ secrets.CI_PAT }}
 
       - name: Upload SBOM artifact
-        if: ${{ env.VERBOSE_ARTIFACT_UPLOAD == true }}
+        if: env.VERBOSE_ARTIFACT_UPLOAD == true
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error

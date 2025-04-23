@@ -16,17 +16,21 @@ on:
   workflow_dispatch:
 
 jobs:
-  buildAndDeploy:
-    name: 'Job: Build and deploy'
+  setup:
+    name: 'Job: Setup'
     runs-on: [self-hosted-standard]
-    concurrency:
-      group: deploy_${{ github.ref }}
-      cancel-in-progress: false
-
-    strategy:
-      matrix:
-        dotnet-version: ['6.0.x']
-        dotnet-rid: ['win-x64']
+    outputs:
+      branch-name: ${{ env.BRANCH_NAME }}
+      component-name: ${{ env.COMPONENT_NAME }}
+      is-manual-release: ${{ env.IS_MANUAL_RELEASE }}
+      is-prerelease: ${{ env.IS_PRERELEASE }}
+      is-release: ${{ env.IS_RELEASE }}
+      my-version: ${{ env.MY_VERSION }}
+      publish-as-self-contained: ${{ env.PUBLISH_AS_SELF_CONTAINED }}
+      sha: ${{ env.SHA }}
+      tag: ${{ env.TAG }}
+      verbose: ${{ env.VERBOSE_LOGGING }}
+      version: ${{ env.VERSION }}
 
     steps:
       - name: Set git to use LF
@@ -106,25 +110,50 @@ jobs:
         if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
         run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
 
+  buildAndDeploy:
+    name: 'Job: Build and deploy'
+    needs: ['setup']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: deploy_${{ github.ref }}
+      cancel-in-progress: false
+
+    strategy:
+      matrix:
+        dotnet-version: ['6.0.x']
+        dotnet-rid: ['win-x64']
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
       - name: Get action system info
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         id: system-info
         uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Log env context
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(env) }}
 
       - name: Log GitHub context
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: echo $JSON | jq
         env:
           JSON: ${{ toJSON(github) }}
 
       - name: Log system details
-        if: env.VERBOSE_LOGGING == 'true'
+        if: needs.setup.outputs.verbose == 'true'
         run: |
           echo "os: ${{ runner.os }}"
           echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
@@ -137,26 +166,26 @@ jobs:
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: Find Version Infos (BRANCH_TAG incl. pre-check)
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
         run: |
           branchTag=$(git describe --tags)
           [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
           echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
 
       - name: Find Version Infos (LAST_RELEASE_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
         run: echo LAST_RELEASE_TAG=$(git tag -l --sort=v:refname | grep -v "${{ env.BRANCH_TAG }}" | grep -v ".*-.*" | tail -n 1) >> ${GITHUB_ENV}
 
       - name: Find Version Infos (BUILD_FROM_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-prerelease == 'true'
         run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
 
-      - name: Find Version Infos (BUID_FROM_TAG)
-        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+      - name: Find Version Infos (BUILD_FROM_TAG)
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true'
         run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
 
       - name: Build changelog on manual release
-        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
         uses: mikepenz/release-changelog-builder-action@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -225,7 +254,7 @@ jobs:
         uses: tubone24/update_release@v1.3.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ env.TAG }}
+          TAG_NAME: ${{ needs.setup.outputs.tag }}
         with:
           body_path: release_changelog.md
 
@@ -241,56 +270,63 @@ jobs:
 
       - name: Publish application
         run: |
-          dotnet publish "${{ env.COMPONENT_NAME }}/${{ env.COMPONENT_NAME }}.csproj" \
+          dotnet publish "${{ needs.setup.outputs.component-name }}/${{ needs.setup.outputs.component-name }}.csproj" \
             --no-restore \
             -c Release \
             -r ${{ matrix.dotnet-rid }} \
             -p:PublishSingleFile=true \
-            --self-contained ${{ env.PUBLISH_AS_SELF_CONTAINED }} \
-            -o "build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}"
+            --self-contained ${{ needs.setup.outputs.publish-as-self-contained }} \
+            -o "build/${{ needs.setup.outputs.my-version }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: Release (${{ matrix.dotnet-version }} - ${{ matrix.dotnet-rid }})
-          path: 'build/${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}/'
+          path: 'build/${{ needs.setup.outputs.my-version }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}/'
 
       - name: Create release artifact archive
-        if: env.IS_RELEASE == 'true'
+        if: needs.setup.outputs.is-release == 'true'
         uses: vimtor/action-zip@v1
         with:
-          files: 'build/${{ env.MY_VERSION }}_${{ matrix.dotnet-rid }}_${{ matrix.dotnet-rid }}/*'
-          dest: '${{ env.COMPONENT_NAME }}_${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip'
+          files: 'build/${{ needs.setup.outputs.my-version }}_${{ matrix.dotnet-rid }}_${{ matrix.dotnet-rid }}/*'
+          dest: '${{ needs.setup.outputs.component-name }}_${{ needs.setup.outputs.my-version }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip'
 
       - name: Upload release artifact (as assets)
-        if: env.IS_RELEASE == 'true' || env.IS_PRE_RELEASE == 'true'
+        if: needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true'
         uses: AButler/upload-release-assets@v3.0
         with:
-          files: '${{ env.COMPONENT_NAME }}_${{ env.MY_VERSION }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip'
-          release-tag: ${{ env.TAG }}
+          files: '${{ needs.setup.outputs.component-name }}_${{ needs.setup.outputs.my-version }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip'
+          TAG_NAME: ${{ needs.setup.outputs.tag }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+  releaseMerging:
+    name: 'Job: Merging release changes'
+    if: always() && needs.setup.outputs.is-release == 'true'
+    needs: ['setup', 'build', 'deployLegacy', 'deployHelm']
+    runs-on: [self-hosted-standard]
+
+    steps:
       - name: Merging release changes to master
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
+        if: github.event.release.target_commitish != 'develop'
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
           client-payload: '{
             "commitish": "${{ github.event.release.target_commitish }}",
-            "source_branch": "${{ env.BRANCH_NAME }}",
+            "source_branch": "${{ needs.setup.outputs.branch-name }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"}'
+            "tag": "${{ needs.setup.outputs.tag }}"}'
 
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
-        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
+        if: github.event.release.target_commitish == 'develop'
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
           client-payload: '{
-            "source_branch": "${{ env.BRANCH_NAME }}",
+            "source_branch": "${{ needs.setup.outputs.branch-name }}",
             "target_branch": "master",
-            "tag": "${{ env.TAG }}"}'
+            "tag": "${{ needs.setup.outputs.tag }}"}'

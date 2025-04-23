@@ -41,6 +41,7 @@ Here is an example workflow configuration file (useable for java microservices b
 ```
 COMPONENT_NAME=auto
 DEPLOYMENT_REPO=myplant-io/deployment
+DEPLOYMENT_METHOD=helm
 DOCKER_REPOSITORY=auto
 DOCKER_TAG_PREFIX=auto
 GRADLE_BUILD_TASK=build test
@@ -63,6 +64,7 @@ Another example workflow configuration file (useable for python microservices) c
 ```
 COMPONENT_NAME=auto
 DEPLOYMENT_REPO=myplant-io/deployment
+DEPLOYMENT_METHOD=legacy
 DOCKER_REPOSITORY=myplant-io
 #DOCKER_REPOSITORY=auto
 #DOCKER_REPOSITORY=none
