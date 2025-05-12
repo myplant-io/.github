@@ -414,8 +414,13 @@ jobs:
       - name: Compress test report folders (for multirepo)
         if: failure() && steps.gradle-project-stats.outputs.subproject-count != '0'
         run: |
-          folders=$(./gradlew tasks --all | grep ':assemble' | cut -d ':' -f 1 | sort -u | sed 's#$#/build/reports/tests#' | xargs)
-          zip -qq -r test-results.zip $(echo ${folders})
+          projects=$(./gradlew tasks --all | grep ':assemble' | cut -d ':' -f 1 | sort -u)
+          declare -a testReportFolders
+          for p in ${projects[@]}; do
+            buildDir=$(./gradlew -q :${p}:getProjectMetaJson | tail -n 1 | jq -r '.buildDir')
+            testReportFolders+="${buildDir}/reports/tests "
+          done
+          zip -qq -r test-results.zip $(echo ${testReportFolders})
 
       - name: Upload test results (for multirepo)
         if: failure() && steps.gradle-project-stats.outputs.subproject-count != '0'
