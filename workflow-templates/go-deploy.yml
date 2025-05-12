@@ -489,7 +489,7 @@ jobs:
       - name: Update component image tag for Deployment and Rollout
         uses: mikefarah/yq@v4
         with:
-          cmd: yq -i '.image.tag = "${{ needs.setup.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
+          cmd: yq -i '.workloads[] |= select( .image.tag == "${{ needs.setup.outputs.docker-tag-prefix }}*").image.tag = "${{ needs.setup.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
 
       - name: Fetch updated value file contents
         if: needs.setup.outputs.verbose == 'true'
