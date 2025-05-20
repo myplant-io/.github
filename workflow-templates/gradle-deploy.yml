@@ -514,7 +514,20 @@ jobs:
         id: helm-value-file
         run: echo filename='deployment-repo/${{ matrix.deploy-target }}' >> ${GITHUB_OUTPUT}
 
-      - name: Update component image tag for Deployment and Rollout
+      - name: Value file validation - check for workloads
+        id: workloads-exist
+        uses: mikefarah/yq@v4
+        with:
+          cmd: echo check=$(yq '. | has("workloads")' ${{ steps.helm-value-file.outputs.filename }}) >> ${GITHUB_OUTPUT}
+
+      - name: Update component image tag for Deployment and Rollout (single-service value file)
+        if: steps.workloads-exist.outputs.check == 'false'
+        uses: mikefarah/yq@v4
+        with:
+          cmd: yq -i '.image.tag = "${{ needs.setup.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
+
+      - name: Update component image tag for Deployment and Rollout (multi-service value file)
+        if: steps.workloads-exist.outputs.check == 'true'
         uses: mikefarah/yq@v4
         with:
           cmd: yq -i '.workloads[] |= select( .image.tag == "${{ needs.setup.outputs.docker-tag-prefix }}*").image.tag = "${{ needs.setup.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
