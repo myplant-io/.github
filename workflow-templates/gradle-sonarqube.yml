@@ -383,8 +383,8 @@ jobs:
           echo topics="$topics" >> ${GITHUB_OUTPUT}
 
       - name: Update sonar tags with Github topics
-        id: put_topics
-        run: curl --header 'Authorization: Bearer ${{ secrets.SONAR_LOGIN }}' \
+        run: |
+          curl --header 'Authorization: Bearer ${{ secrets.SONAR_LOGIN }}' \
           -X POST '${{ secrets.SONAR_URL }}/api/project_tags/set' \
           -d 'project=${{ env.SONAR_KEY }}&tags=${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
 
