@@ -26,14 +26,14 @@ jobs:
     name: 'Job: Setup'
     runs-on: [self-hosted-standard]
     outputs:
-      branch-name: ${{ env.BRANCH_NAME }}
-      component-name: ${{ env.COMPONENT_NAME }}
-      java-version: ${{ env.JAVA_VERSION }}
-      project-details: ${{ env.PROJECT_DETAILS_JSON }}
-      project-names: ${{ env.PROJECT_NAMES }}
-      sonar-base-version: ${{ env.SONAR_BASE_VERSION }}
+      branch-name: ${{ steps.results.outputs.branch-name }}
+      component-name: ${{ steps.results.outputs.component-name }}
+      java-version: ${{ steps.results.outputs.java-version }}
+      project-details: ${{ steps.results.outputs.project-details }}
+      project-names: ${{ steps.results.outputs.project-names }}
+      sonar-base-version: ${{ steps.results.outputs.sonar-base-version }}
       subproject-count: ${{ steps.gradle-project-stats.outputs.subproject-count }}
-      version: ${{ env.VERSION }}
+      version: ${{ steps.results.outputs.version }}
 
     steps:
       - name: Set git to use LF
@@ -211,6 +211,17 @@ jobs:
             names+=", \"${p}\""
           done
           echo PROJECT_NAMES="'[${names:2}]'" >> ${GITHUB_ENV}
+
+      - name: Publish job information
+        id: results
+        run: |
+          echo branch-name=${{ env.BRANCH_NAME }} >> ${GITHUB_OUTPUT}
+          echo component-name=${{ env.COMPONENT_NAME }} >> ${GITHUB_OUTPUT}
+          echo java-version=${{ env.JAVA_VERSION }} >> ${GITHUB_OUTPUT}
+          echo project-details=${{ env.PROJECT_DETAILS_JSON }} >> ${GITHUB_OUTPUT}
+          echo project-names=${{ env.PROJECT_NAMES }} >> ${GITHUB_OUTPUT}
+          echo sonar-base-version=${{ env.SONAR_BASE_VERSION }} >> ${GITHUB_OUTPUT}
+          echo version=${{ env.VERSION }} >> ${GITHUB_OUTPUT}
 
   sonarqube:
     name: 'Job: Sonarqube'
