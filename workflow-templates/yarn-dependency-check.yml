@@ -27,8 +27,6 @@ jobs:
       branch-name: ${{ env.BRANCH_NAME }}
       component-name: ${{ env.COMPONENT_NAME }}
       node-version: ${{ env.NODE_VERSION }}
-      project-details: ${{ env.PROJECT_DETAILS_JSON }}
-      project-names: ${{ env.PROJECT_NAMES }}
       verbose-artifact-upload: ${{ env.VERBOSE_ARTIFACT_UPLOAD }}
       version: ${{ env.VERSION }}
 
