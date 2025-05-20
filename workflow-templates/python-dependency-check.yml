@@ -24,8 +24,11 @@ jobs:
     name: 'Job: Python setup'
     runs-on: [self-hosted-standard]
     outputs:
+      branch-name: ${{ env.BRANCH_NAME }}
+      component-name: ${{ env.COMPONENT_NAME }}
       poetry-version: ${{ env.POETRY_VERSION }}
       python-version-file: ${{ env.PYTHON_VERSION_FILE }}
+      version: ${{ env.VERSION }}
 
     steps:
       - name: Set git to use LF
@@ -73,24 +76,6 @@ jobs:
 
       - name: Set env 'POETRY_VERSION'
         run: echo POETRY_VERSION="${{ steps.determine_poetry_version.outputs.version }}" >> ${GITHUB_ENV}
-
-  dependencyCheck:
-    name: 'Job: Dependency check'
-    needs: ['setup']
-    runs-on: [self-hosted-standard]
-
-    steps:
-      - name: Set git to use LF
-        run: |
-          git config --global core.autocrlf false
-          git config --global core.eol lf
-
-      - name: Checkout git repository
-        uses: actions/checkout@v4
-        if: github.event_name != 'repository_dispatch'
-        with:
-          # Disabling shallow clone is recommended for improving relevancy of reporting
-          fetch-depth: 0
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
@@ -158,6 +143,24 @@ jobs:
           echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+  dependencyCheck:
+    name: 'Job: Dependency check'
+    needs: ['setup']
+    runs-on: [self-hosted-standard]
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        if: github.event_name != 'repository_dispatch'
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
 
       - name: Check poetry file existence
         id: check_poetry
@@ -284,11 +287,23 @@ jobs:
           name: SBOM
           path: './bom.xml'
 
+      - name: Fetch repository topics
+        id: repository_topics
+        run: |
+          topics=$(curl -H "Accept: application/vnd.github.mercy-preview+json" \
+                        -H "Authorization: token ${{ secrets.CI_PAT }}" \
+                        https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/topics \
+                        | jq -r '.names | join(",")')
+          echo topics="$topics" >> ${GITHUB_OUTPUT}
+
       - name: Publish dependency check result to tracker
-        id: upload-dependency-track
-        uses: myplant-io/github-actions/upload-dependency-track@v1
+        uses: DependencyTrack/gh-upload-sbom@v3
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          autoCreate: true
           bomfilename: './bom.xml'
-          projectname: ${{ env.COMPONENT_NAME }}
-          projectversion: ${{ env.BRANCH_NAME }}
+          projectname: ${{ needs.setup.outputs.component-name }}
+          projectversion: ${{ needs.setup.outputs.branch-name }}
+          projecttags: "${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}"
+          serverHostname: ${{ secrets.DEPENDENCYTRACK_URL }}        
+

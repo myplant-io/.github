@@ -22,16 +22,17 @@ on:
 
 jobs:
   setup:
-    name: 'Job: Setup dependency check'
+    name: 'Job: Setup'
     runs-on: [self-hosted-standard]
     outputs:
-      component-name: ${{ steps.results.outputs.component-name }}
-      branch-name: ${{ steps.results.outputs.branch-name }}
-      java-version: ${{ steps.results.outputs.java-version }}
-      project-details: ${{ steps.results.outputs.project-details }}
-      project-names: ${{ steps.results.outputs.project-names }}
+      branch-name: ${{ env.BRANCH_NAME }}
+      component-name: ${{ env.COMPONENT_NAME }}
+      java-version: ${{ env.JAVA_VERSION }}
+      project-details: ${{ env.PROJECT_DETAILS_JSON }}
+      project-names: ${{ env.PROJECT_NAMES }}
       subproject-count: ${{ steps.gradle-project-stats.outputs.subproject-count }}
-      version: ${{ steps.results.outputs.version }}
+      verbose-artifact-upload: ${{ env.VERBOSE_ARTIFACT_UPLOAD }}
+      version: ${{ env.VERSION }}
 
     steps:
       - name: Set git to use LF
@@ -193,16 +194,6 @@ jobs:
           done
           echo PROJECT_DETAILS_JSON="'[${json:2}]'" >> ${GITHUB_ENV}
 
-      - name: Publish job information
-        id: results
-        run: |
-          echo branch-name=${{ env.BRANCH_NAME }} >> ${GITHUB_OUTPUT}
-          echo component-name=${{ env.COMPONENT_NAME }} >> ${GITHUB_OUTPUT}
-          echo java-version=${{ env.JAVA_VERSION }} >> ${GITHUB_OUTPUT}
-          echo project-details=${{ env.PROJECT_DETAILS_JSON }} >> ${GITHUB_OUTPUT}
-          echo project-names=${{ env.PROJECT_NAMES }} >> ${GITHUB_OUTPUT}
-          echo version=${{ env.VERSION }} >> ${GITHUB_OUTPUT}
-
   dependencyCheck:
     name: 'Job: Dependency check (${{ matrix.project-name }})'
     needs: ['setup']
@@ -314,18 +305,29 @@ jobs:
         run: sed -i "s/type=jar//g" ${{ env.BUILD_DIR }}/reports/bom.xml
 
       - name: Upload SBOM artifact
-        if: env.VERBOSE_ARTIFACT_UPLOAD == 'true'
+        if: needs.setup.outputs.verbose-artifact-upload == 'true'
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: SBOM
           path: '${{ env.BUILD_DIR }}/reports/bom.xml'
 
+      - name: Fetch repository topics
+        id: repository_topics
+        run: |
+          topics=$(curl -H "Accept: application/vnd.github.mercy-preview+json" \
+                        -H "Authorization: token ${{ secrets.CI_PAT }}" \
+                        https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/topics \
+                        | jq -r '.names | join(",")')
+          echo topics="$topics" >> ${GITHUB_OUTPUT}
+
       - name: Publish dependency check result to tracker
-        id: upload-dependency-track
-        uses: myplant-io/github-actions/upload-dependency-track@v1
+        uses: DependencyTrack/gh-upload-sbom@v3
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          autoCreate: true
           bomfilename: '${{ env.BUILD_DIR }}/reports/bom.xml'
           projectname: ${{ env.PROJECT_NAME }}
           projectversion: ${{ needs.setup.outputs.branch-name }}
+          projecttags: "${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}"
+          serverHostname: ${{ secrets.DEPENDENCYTRACK_URL }}

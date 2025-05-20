@@ -21,7 +21,7 @@ on:
 
 jobs:
   test:
-    name: 'Job: Test (with dotnet directly)'
+    name: 'Job: Dependency check (with dotnet directly)'
     runs-on: [ubuntu-latest]
 
     strategy:
@@ -133,11 +133,22 @@ jobs:
           name: SBOM
           path: './bom.xml'
 
+      - name: Fetch repository topics
+        id: repository_topics
+        run: |
+          topics=$(curl -H "Accept: application/vnd.github.mercy-preview+json" \
+                        -H "Authorization: token ${{ secrets.CI_PAT }}" \
+                        https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/topics \
+                        | jq -r '.names | join(",")')
+          echo topics="$topics" >> ${GITHUB_OUTPUT}
+
       - name: Publish dependency check result to tracker
-        id: upload-dependency-track
-        uses: myplant-io/github-actions/upload-dependency-track@v1
+        uses: DependencyTrack/gh-upload-sbom@v3
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          autoCreate: true
           bomfilename: './bom.xml'
           projectname: ${{ env.COMPONENT_NAME }}
           projectversion: ${{ env.BRANCH_NAME }}
+          projecttags: "${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}"
+          serverHostname: ${{ secrets.DEPENDENCYTRACK_URL }}        
