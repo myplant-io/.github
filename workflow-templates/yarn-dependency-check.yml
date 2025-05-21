@@ -214,9 +214,9 @@ jobs:
         uses: DependencyTrack/gh-upload-sbom@v3
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
-          autoCreate: true
+          autocreate: true
           bomfilename: './bom.xml'
           projectname: ${{ needs.setup.outputs.component-name }}
           projectversion: ${{ needs.setup.outputs.branch-name }}
           projecttags: "${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}"
-          serverHostname: ${{ secrets.DEPENDENCYTRACK_URL }}
+          serverhostname: ${{ secrets.DEPENDENCYTRACK_URL }}
