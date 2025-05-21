@@ -25,8 +25,8 @@ jobs:
     name: 'Job: Setup'
     runs-on: [self-hosted-standard]
     outputs:
-      component-name: ${{ steps.results.outputs.component-name }}
       branch-name: ${{ steps.results.outputs.branch-name }}
+      component-name: ${{ steps.results.outputs.component-name }}
       java-version: ${{ steps.results.outputs.java-version }}
       project-details: ${{ steps.results.outputs.project-details }}
       project-names: ${{ steps.results.outputs.project-names }}
