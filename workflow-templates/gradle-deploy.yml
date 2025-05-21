@@ -461,7 +461,7 @@ jobs:
             "docker_tag_prefix": "${{ needs.setup.outputs.docker-tag-prefix }}",
             "version": "${{ needs.setup.outputs.version }}",
             "component_name": "${{ needs.setup.outputs.component-name }}",
-            "deployment_files": "${{ needs.setup.outputs.deploy-targets }}",
+            "deployment_files": ${{ needs.setup.outputs.deploy-targets }},
             "git_sha": "${{ needs.setup.outputs.sha }}"}'
 
   deployHelm:
