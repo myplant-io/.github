@@ -150,5 +150,5 @@ jobs:
           bomfilename: './bom.xml'
           projectname: ${{ env.COMPONENT_NAME }}
           projectversion: ${{ env.BRANCH_NAME }}
-          projecttags: "${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}"
-          serverhostname: ${{ secrets.DEPENDENCYTRACK_URL }}        
+          projecttags: '${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
+          serverhostname: ${{ secrets.DEPENDENCYTRACK_URL }}
