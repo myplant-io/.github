@@ -470,7 +470,7 @@ jobs:
     needs: ['setup', 'build']
     runs-on: [self-hosted-standard]
     concurrency:
-      group: deployHelm_${{ matrix.deploy-target }}
+      group: deployHelm_${{ github.ref }}
       cancel-in-progress: false
     strategy:
       matrix:
