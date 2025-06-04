@@ -20,12 +20,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  dependencyCheck:
-    name: 'Job: Dependency check'
+  setup:
+    name: 'Job: Setup'
     runs-on: [self-hosted-standard]
-    concurrency:
-      group: dependencyCheck_${{ github.ref }}
-      cancel-in-progress: true
+    outputs:
+      branch-name: ${{ env.BRANCH_NAME }}
+      component-name: ${{ env.COMPONENT_NAME }}
+      node-version: ${{ env.NODE_VERSION }}
+      verbose-artifact-upload: ${{ env.VERBOSE_ARTIFACT_UPLOAD }}
+      version: ${{ env.VERSION }}
 
     steps:
       - name: Set git to use LF
@@ -37,14 +40,13 @@ jobs:
         uses: actions/checkout@v4
         if: github.event_name != 'repository_dispatch'
         with:
-          # Disabling shallow clone is recommended for improving relevancy of reporting
-          fetch-depth: 0
+          sparse-checkout: .
 
       - name: Checkout git repository (for dispatched runs)
         uses: actions/checkout@v4
         if: github.event_name == 'repository_dispatch'
         with:
-          fetch-depth: 0
+          sparse-checkout: .
           ref: '${{ github.event.client_payload.branch }}'
 
       - name: Check workflow config file existence
@@ -117,10 +119,38 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
-      - name: Prepare node.js ${{ env.NODE_VERSION }}
+  dependencyCheck:
+    name: 'Job: Dependency check'
+    needs: ['setup']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: dependencyCheck_${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        if: github.event_name != 'repository_dispatch'
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v4
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
+
+      - name: Prepare node.js ${{ needs.setup.outputs.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ needs.setup.outputs.node-version }}
 
       - name: Add registry credentials
         run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
@@ -139,15 +169,15 @@ jobs:
         run: yarn install --frozen-lockfile --ignore-optional
 
       - name: Install yarn-audit-html report
-        if: env.VERBOSE_ARTIFACT_UPLOAD == 'true'
+        if: needs.setup.outputs.verbose-artifact-upload == 'true'
         run: yarn add --dev --ignore-workspace-root-check yarn-audit-html --ignore-optional
 
       - name: Perform yarn audit
-        if: env.VERBOSE_ARTIFACT_UPLOAD == 'true'
+        if: needs.setup.outputs.verbose-artifact-upload == 'true'
         run: yarn audit --groups dependencies --level ${SECURITY_LEVEL} --json | npx --no-install yarn-audit-html
 
       - name: Upload audit report artifact
-        if: env.VERBOSE_ARTIFACT_UPLOAD == 'true'
+        if: needs.setup.outputs.verbose-artifact-upload == 'true'
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
@@ -164,18 +194,29 @@ jobs:
         run: git checkout -- package.json yarn.lock
 
       - name: Upload SBOM artifact
-        if: env.VERBOSE_ARTIFACT_UPLOAD == 'true'
+        if: needs.setup.outputs.verbose-artifact-upload == 'true'
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: SBOM
           path: bom.xml
 
+      - name: Fetch repository topics
+        id: repository_topics
+        run: |
+          topics=$(curl -H "Accept: application/vnd.github.mercy-preview+json" \
+                        -H "Authorization: token ${{ secrets.CI_PAT }}" \
+                        https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/topics \
+                        | jq -r '.names | join(",")')
+          echo topics="$topics" >> ${GITHUB_OUTPUT}
+
       - name: Publish dependency check result to tracker
-        id: upload-dependency-track
-        uses: myplant-io/github-actions/upload-dependency-track@v1
+        uses: DependencyTrack/gh-upload-sbom@v3
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          autocreate: true
           bomfilename: './bom.xml'
-          projectname: ${{ env.COMPONENT_NAME }}
-          projectversion: ${{ env.BRANCH_NAME }}
+          projectname: ${{ needs.setup.outputs.component-name }}
+          projectversion: ${{ needs.setup.outputs.branch-name }}
+          projecttags: '${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
+          serverhostname: ${{ secrets.DEPENDENCYTRACK_URL }}
