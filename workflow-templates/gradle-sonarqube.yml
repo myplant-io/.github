@@ -23,7 +23,7 @@ on:
 jobs:
   setup:
     if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
-    name: 'Job: Setup sonarqube'
+    name: 'Job: Setup'
     runs-on: [self-hosted-standard]
     outputs:
       branch-name: ${{ steps.results.outputs.branch-name }}
@@ -170,7 +170,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Get java version from gradle
-        run: echo "JAVA_VERSION=$(./gradlew -q javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
+        run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home=$JAVA_HOME_17_X64 | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
@@ -383,6 +383,21 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: 17
+
+      - name: Fetch repository topics
+        id: repository_topics
+        run: |
+          topics=$(curl -H "Accept: application/vnd.github.mercy-preview+json" \
+                        -H "Authorization: token ${{ secrets.CI_PAT }}" \
+                        https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/topics \
+                        | jq -r '.names | join(",")')
+          echo topics="$topics" >> ${GITHUB_OUTPUT}
+
+      - name: Update sonar tags with Github topics
+        run: |
+          curl --header 'Authorization: Bearer ${{ secrets.SONAR_LOGIN }}' \
+          -X POST '${{ secrets.SONAR_URL }}/api/project_tags/set' \
+          -d 'project=${{ env.SONAR_KEY }}&tags=${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
 
       - name: Run sonar-scanner with gradle
         if: startsWith(github.event_name, 'pull_request') == false
