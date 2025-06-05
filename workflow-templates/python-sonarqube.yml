@@ -164,7 +164,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.3.0
+        uses: kenchan0130/actions-system-info@v1.3.1
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
