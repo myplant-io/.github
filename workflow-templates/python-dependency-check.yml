@@ -39,7 +39,8 @@ jobs:
       - name: Checkout git repository
         uses: actions/checkout@v4
         with:
-          sparse-checkout: .
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
 
       - name: Check python version determination (pyproject.toml)
         id: check_file_pyproject
