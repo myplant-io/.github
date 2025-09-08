@@ -1,0 +1,21 @@
+name: GitLeaks
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+jobs:
+  gitleaks:
+    name: "Job: gitleaks"
+    runs-on: [self-hosted-standard]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_PAT }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}} # Only required for Organizations, not personal accounts.

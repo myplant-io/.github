@@ -1,0 +1,4 @@
+{
+  "name": "Gitleaks integration",
+  "description": "Gitleaks is a secret scanner for git repositories, files and directories"
+}

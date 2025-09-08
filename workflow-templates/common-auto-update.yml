@@ -154,6 +154,7 @@ jobs:
         if: env.PROJECT_TYPE != 'unknown' && env.PROJECT_TYPE != 'uat'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/common-gitleaks.yml ${{ env.TARGET_DIR }}/gitleaks.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-merge-gatekeeper.yml ${{ env.TARGET_DIR }}/merge-gatekeeper.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }} 2>/dev/null || :
@@ -165,6 +166,7 @@ jobs:
         if: env.PROJECT_TYPE == 'uat'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/common-gitleaks.yml ${{ env.TARGET_DIR }}/gitleaks.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-merge-gatekeeper.yml ${{ env.TARGET_DIR }}/merge-gatekeeper.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-test.yml ${{ env.TARGET_DIR }}/test.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-validate.yml ${{ env.TARGET_DIR }}/validate.${{ env.FILE_TYPE }} 2>/dev/null || :
@@ -173,6 +175,7 @@ jobs:
         if: env.PROJECT_TYPE == 'unknown'
         run: |
           mv ${{ env.SOURCE_DIR}}/common-auto-update.yml ${{ env.TARGET_DIR }}/auto-update.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/common-gitleaks.yml ${{ env.TARGET_DIR }}/gitleaks.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-merge-gatekeeper.yml ${{ env.TARGET_DIR }}/merge-gatekeeper.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }}
