@@ -148,7 +148,7 @@ jobs:
         run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
 
       - name: Set deploy information' for push (to alpha/staging)
-        if: env.BRANCH_NAME == 'develop' && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
+        if: (env.BRANCH_NAME == 'develop' || github.event_name == 'workflow_dispatch') && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
         run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for pre-release
