@@ -1,0 +1,19 @@
+name: Merge Gatekeeper
+
+on:
+  pull_request:
+    paths-ignore:
+      - '.github/workflows/*auto-update*'
+  workflow_dispatch:
+
+jobs:
+  merge-gatekeeper:
+    runs-on: [self-hosted-standard]
+    permissions:
+      checks: read
+      statuses: read
+    steps:
+      - name: Run Merge Gatekeeper
+        uses: upsidr/merge-gatekeeper@v1
+        with:
+          token: ${{ secrets.CI_PAT }}
