@@ -328,28 +328,28 @@ jobs:
           XRAY_REST_URL: https://xray.cloud.getxray.app/api/v2
 
       - name: Publish cucumber report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         if: always() && env.RECORD_REPORT == 'true'
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-cucumber-report
           path: cypress/reports/cucumber.html
 
       - name: Publish HAR file
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         if: always() && env.RECORD_HAR == 'true'
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-hars
           path: cypress/reports/hars
 
       - name: Publish tested feature specs
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         if: always() && env.RECORD_FEATURE_SPEC == 'true'
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-features
           path: cypress/specs/xray
 
       - name: Publish data results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         if: always() && env.RECORD_RESULT_DATA == 'true' && failure()
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-test-data
@@ -357,13 +357,13 @@ jobs:
 
       - name: Upload test results (screenshots)
         if: always() && env.RECORD_SCREENSHOTS == 'true' && failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-screenshots
           path: cypress/reports/screenshots
 
       - name: Publish videos results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         if: always() && env.RECORD_VIDEO == 'true'
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-videos
