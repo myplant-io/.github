@@ -37,13 +37,13 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         if: github.event_name != 'repository_dispatch'
         with:
           fetch-depth: 0
 
       - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
@@ -86,7 +86,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.3.1
+        uses: kenchan0130/actions-system-info@v1.4.0
 
       - name: Log dependency tracker context
         if: env.VERBOSE_LOGGING == 'true'
@@ -134,21 +134,21 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
           ref: '${{ github.event.client_payload.branch }}'
 
       - name: Prepare node.js ${{ needs.setup.outputs.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ needs.setup.outputs.node-version }}
 
@@ -158,7 +158,7 @@ jobs:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Create/restore cache for yarn
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: yarn-cache
         with:
           path: .yarn
@@ -180,7 +180,7 @@ jobs:
 
       - name: Upload audit report artifact
         if: needs.setup.outputs.verbose-artifact-upload == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           if-no-files-found: error
           name: audit-report
@@ -197,7 +197,7 @@ jobs:
 
       - name: Upload SBOM artifact
         if: needs.setup.outputs.verbose-artifact-upload == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           if-no-files-found: error
           name: SBOM

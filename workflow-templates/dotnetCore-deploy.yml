@@ -39,7 +39,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -130,7 +130,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -138,7 +138,7 @@ jobs:
       - name: Get action system info
         if: needs.setup.outputs.verbose == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.3.1
+        uses: kenchan0130/actions-system-info@v1.4.0
 
       - name: Log env context
         if: needs.setup.outputs.verbose == 'true'
@@ -279,7 +279,7 @@ jobs:
             -o "build/${{ needs.setup.outputs.my-version }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           if-no-files-found: error
           name: Release (${{ matrix.dotnet-version }} - ${{ matrix.dotnet-rid }})

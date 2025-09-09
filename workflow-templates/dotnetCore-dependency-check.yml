@@ -36,14 +36,14 @@ jobs:
 
       - name: Checkout git repository
         if: startsWith(github.event_name , 'pull_request') == false
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (on PR)
         if: startsWith(github.event_name , 'pull_request')
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -75,7 +75,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.3.1
+        uses: kenchan0130/actions-system-info@v1.4.0
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
@@ -127,7 +127,7 @@ jobs:
 
       - name: Upload SBOM artifact
         if: env.VERBOSE_ARTIFACT_UPLOAD == true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           if-no-files-found: error
           name: SBOM
