@@ -93,13 +93,13 @@ jobs:
 
       - name: Check that source branch has been found
         if: env.IS_DETACHED_HEAD == 'true' && env.SOURCE_BRANCH == ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: core.setFailed('Started in detached head and could not find source branch!')
 
       - name: Check that source branch is not develop
         if: env.SOURCE_BRANCH == 'develop' || env.SOURCE_BRANCH == 'refs/heads/develop'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: core.setFailed('Not merging develop into other branches automatically. Please use release/hotfix/bugfix branches!')
 
