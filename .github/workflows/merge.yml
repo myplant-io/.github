@@ -64,7 +64,7 @@ jobs:
         run: echo TITLE="merge ${{ env.TAG }} into ${{ env.TARGET_BRANCH }}" >> ${GITHUB_ENV}
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ env.SOURCE_BRANCH }}
@@ -93,13 +93,13 @@ jobs:
 
       - name: Check that source branch has been found
         if: env.IS_DETACHED_HEAD == 'true' && env.SOURCE_BRANCH == ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: core.setFailed('Started in detached head and could not find source branch!')
 
       - name: Check that source branch is not develop
         if: env.SOURCE_BRANCH == 'develop' || env.SOURCE_BRANCH == 'refs/heads/develop'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: core.setFailed('Not merging develop into other branches automatically. Please use release/hotfix/bugfix branches!')
 
@@ -144,14 +144,14 @@ jobs:
 
       - name: Checkout git repository
         if: env.IS_DETACHED_HEAD == 'true' && env.AUTO_MERGE == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: '${{ env.SOURCE_BRANCH }}'
 
       - name: Checkout github actions repo
         if: env.AUTO_MERGE == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: myplant-io/github-actions
           ref: v1

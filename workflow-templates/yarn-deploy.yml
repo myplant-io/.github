@@ -47,7 +47,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -146,7 +146,7 @@ jobs:
         run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
 
       - name: Set deploy information' for push (to alpha/staging)
-        if: env.BRANCH_NAME == 'develop' && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
+        if: (env.BRANCH_NAME == 'develop' || github.event_name == 'workflow_dispatch') && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
         run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for pre-release
@@ -176,7 +176,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -187,7 +187,7 @@ jobs:
       - name: Get action system info
         if: needs.setup.outputs.verbose == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.3.1
+        uses: kenchan0130/actions-system-info@v1.4.0
 
       - name: Log env context
         if: needs.setup.outputs.verbose == 'true'
@@ -332,7 +332,7 @@ jobs:
           fi;
 
       - name: Prepare node.js ${{ needs.setup.outputs.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ needs.setup.outputs.node-version }}
 
@@ -342,7 +342,7 @@ jobs:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
@@ -369,7 +369,7 @@ jobs:
           version: ${{ needs.setup.outputs.version }}
 
       - name: Create/restore cache for node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: node_modules-cache
         if: env.RETAG == 'false'
         with:
@@ -477,7 +477,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -493,7 +493,7 @@ jobs:
           envFile: '.github/workflow-config.env'
 
       - name: Checkout deployment repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           path: deployment-repo

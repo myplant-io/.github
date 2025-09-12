@@ -123,14 +123,14 @@ jobs:
 
       - name: Checkout git repository
         if: startsWith(github.event_name , 'pull_request') == false
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (on PR)
         if: startsWith(github.event_name , 'pull_request')
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -231,7 +231,7 @@ jobs:
         if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
         run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
 
-      - uses: kenchan0130/actions-system-info@v1.3.1
+      - uses: kenchan0130/actions-system-info@v1.4.0
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
 
@@ -279,12 +279,12 @@ jobs:
           firefox-version: ${{ matrix.browser-version }}
 
       - name: Prepare node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Create/restore cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: node_modules-cache
         with:
           path: |

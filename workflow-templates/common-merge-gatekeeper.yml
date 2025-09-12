@@ -1,0 +1,21 @@
+upload.name: Merge gatekeeper
+
+on:
+  pull_request:
+    paths-ignore:
+      - '.github/workflows/*auto-update*'
+  workflow_dispatch:
+
+jobs:
+  merge-gatekeeper:
+    name: "Job: merge-gatekeeper"
+    runs-on: [self-hosted-standard]
+    permissions:
+      checks: read
+      statuses: read
+
+    steps:
+      - name: Run merge-gatekeeper
+        uses: upsidr/merge-gatekeeper@v1
+        with:
+          token: ${{ secrets.CI_PAT }}
