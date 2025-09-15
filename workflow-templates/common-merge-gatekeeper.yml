@@ -1,4 +1,4 @@
-upload.name: Merge gatekeeper
+name: Merge gatekeeper
 
 on:
   pull_request:
