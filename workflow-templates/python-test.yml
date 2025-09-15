@@ -27,7 +27,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: .
 
@@ -79,7 +79,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
@@ -98,7 +98,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.3.1
+        uses: kenchan0130/actions-system-info@v1.4.0
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
@@ -144,7 +144,7 @@ jobs:
       - name: Load cached venv
         if: steps.check_poetry.outputs.files_exists == 'true'
         id: cached-poetry-dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
@@ -271,7 +271,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
@@ -290,7 +290,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.3.1
+        uses: kenchan0130/actions-system-info@v1.4.0
 
       - name: Log env context
         if: env.VERBOSE_LOGGING == 'true'
@@ -336,7 +336,7 @@ jobs:
       - name: Load cached venv
         if: steps.check_poetry.outputs.files_exists == 'true'
         id: cached-poetry-dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}

@@ -31,7 +31,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
@@ -49,7 +49,7 @@ jobs:
           envFile: '.github/workflow-config.env'
 
       - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
@@ -71,7 +71,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.3.1
+        uses: kenchan0130/actions-system-info@v1.4.0
 
       - name: Log dependency tracker context
         if: env.VERBOSE_LOGGING == 'true'
