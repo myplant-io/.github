@@ -104,7 +104,7 @@ jobs:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Create/restore cache for webpack
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         id: webpack-cache
         with:
           path: '.cache'
@@ -112,7 +112,7 @@ jobs:
           restore-keys: ${{ runner.os }}-webpack-
 
       - name: Create/restore cache for yarn
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         id: yarn-cache
         with:
           path: .yarn
@@ -222,7 +222,7 @@ jobs:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Create/restore cache for webpack
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         id: webpack-cache
         with:
           path: '.cache'
@@ -230,7 +230,7 @@ jobs:
           restore-keys: ${{ runner.os }}-webpack-
 
       - name: Create/restore cache for yarn
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         id: yarn-cache
         with:
           path: .yarn
