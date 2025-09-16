@@ -181,7 +181,7 @@ jobs:
       - name: Load cached venv
         if: steps.check_poetry.outputs.files_exists == 'true'
         id: cached-poetry-dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
