@@ -6,7 +6,7 @@ on:
 
 jobs:
   gitleaks:
-    name: "Job: gitleaks"
+    name: 'Job: gitleaks'
     runs-on: [self-hosted-standard]
 
     steps:
