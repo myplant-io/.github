@@ -8,7 +8,6 @@ on:
 
 jobs:
   merge-gatekeeper:
-    name: 'Job: merge-gatekeeper'
     runs-on: [self-hosted-standard]
     permissions:
       checks: read
