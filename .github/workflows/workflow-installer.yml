@@ -133,9 +133,9 @@ jobs:
         run: |
           mkdir -p target/.github/workflows/
           mv -f source/workflow-templates/common-auto-update.yml target/.github/workflows/auto-update.${{ env.FILE_TYPE }} 2>/dev/null || :
-          mv -f source/workflow-templates/common-gitleaks.yml target/.github/workflows/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv -f source/workflow-templates/common-gitleaks.yml target/.github/workflows/gitleaks.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv -f source/workflow-templates/common-merge.yml target/.github/workflows/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
-          mv -f source/workflow-templates/common-merge-gatekeeper.yml target/.github/workflows/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv -f source/workflow-templates/common-merge-gatekeeper.yml target/.github/workflows/merge-gatekeeper.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-deploy.yml target/.github/workflows/deploy.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-test.yml target/.github/workflows/test.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-sonarqube.yml target/.github/workflows/sonarqube.${{ env.FILE_TYPE }} 2>/dev/null || :
@@ -146,7 +146,7 @@ jobs:
         run: |
           mkdir -p target/.github/workflows/
           mv -f source/workflow-templates/common-auto-update.yml target/.github/workflows/auto-update.${{ env.FILE_TYPE }} 2>/dev/null || :
-          mv -f source/workflow-templates/common-gitleaks.yml target/.github/workflows/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
+          mv -f source/workflow-templates/common-gitleaks.yml target/.github/workflows/gitleaks.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv -f source/workflow-templates/common-merge-gatekeeper.yml target/.github/workflows/merge.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-test.yml target/.github/workflows/test.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv -f source/workflow-templates/${{ env.INPUT_TYPE }}-validate.yml target/.github/workflows/validate.${{ env.FILE_TYPE }} 2>/dev/null || :
