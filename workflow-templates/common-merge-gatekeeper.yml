@@ -19,3 +19,4 @@ jobs:
         with:
           token: ${{ secrets.CI_PAT }}
           timeout: 1200
+          ignored: 'gitStream.cm'
