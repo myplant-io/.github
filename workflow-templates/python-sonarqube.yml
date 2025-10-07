@@ -243,7 +243,7 @@ jobs:
       - name: Prepare python (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
         id: setup_python_pip
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           cache: 'pip'
           python-version-file: ${{ needs.setup.outputs.python-version-file }}
@@ -251,7 +251,7 @@ jobs:
       - name: Prepare python (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
         id: setup_python_poetry
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           cache: 'poetry'
           python-version-file: ${{ needs.setup.outputs.python-version-file }}
@@ -259,7 +259,7 @@ jobs:
       - name: Prepare python (with uv)
         if: steps.check_uv.outputs.files_exists == 'true'
         id: setup_python_uv
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version-file: ${{ needs.setup.outputs.python-version-file }}
 
