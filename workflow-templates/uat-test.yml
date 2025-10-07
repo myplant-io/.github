@@ -262,7 +262,7 @@ jobs:
 
       - name: Setup chrome
         if: matrix.browser == 'chrome'
-        uses: browser-actions/setup-chrome@v1
+        uses: browser-actions/setup-chrome@v2
         with:
           chrome-version: ${{ matrix.browser-version }}
 
