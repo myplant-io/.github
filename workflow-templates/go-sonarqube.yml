@@ -171,7 +171,7 @@ jobs:
           go test -coverprofile=coverage.out ./... > testresults.out
 
       - name: Setup sonarqube
-        uses: warchant/setup-sonar-scanner@v8
+        uses: warchant/setup-sonar-scanner@v9
 
       - name: Fetch repository topics
         id: repository_topics

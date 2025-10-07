@@ -364,7 +364,7 @@ jobs:
         run: echo PROJECT_TEST_SOURCES="" >> ${GITHUB_ENV}
 
       - name: Setup sonarqube
-        uses: warchant/setup-sonar-scanner@v8
+        uses: warchant/setup-sonar-scanner@v9
 
       - name: Fetch repository topics
         id: repository_topics
