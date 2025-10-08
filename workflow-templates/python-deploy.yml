@@ -521,6 +521,10 @@ jobs:
         with:
           endpoint: buildx-context
 
+      - name: Update version in pyproject file
+        if: steps.check_file_pyproject.outputs.files_exists == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
+        run: sed -i 's/^version\s=\s.*[0-9]\?/version = "${{ needs.setup.outputs.version }}"/g' pyproject.toml
+
       - name: Build and push docker image
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && needs.setup.outputs.docker-repository != 'none'
         uses: docker/build-push-action@v6
