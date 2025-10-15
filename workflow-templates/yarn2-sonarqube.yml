@@ -223,6 +223,7 @@ jobs:
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
           -Dsonar.qualitygate.wait=true
+          -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}
 
       - name: Run sonarqube (on PR)
         if: startsWith(github.event_name , 'pull_request')
@@ -240,3 +241,4 @@ jobs:
           -Dsonar.pullrequest.branch=${{ github.head_ref }}
           -Dsonar.pullrequest.key=${{ github.event.number }}
           -Dsonar.qualitygate.wait=true
+          -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}
