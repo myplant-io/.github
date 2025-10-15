@@ -396,6 +396,7 @@ jobs:
           -Dsonar.python.coverage.reportPaths=./coverage.xml
           -Dsonar.python.version=${{ env.PYTHON_VERSION }}
           -Dsonar.qualitygate.wait=true
+          -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}
 
       - name: Run sonarqube (on PR)
         if: startsWith(github.event_name , 'pull_request')
@@ -416,3 +417,4 @@ jobs:
           -Dsonar.python.coverage.reportPaths=./coverage.xml
           -Dsonar.python.version=${{ env.PYTHON_VERSION }}
           -Dsonar.qualitygate.wait=true
+          -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}
