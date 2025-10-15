@@ -418,6 +418,7 @@ jobs:
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.junit.reportPaths=${{ env.PROJECT_TEST_RESULTS }}
           -Dsonar.qualitygate.wait=true
+          -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}
 
       - name: Run sonar-scanner with gradle (on PR)
         if: startsWith(github.event_name, 'pull_request')
@@ -441,3 +442,4 @@ jobs:
           -Dsonar.pullrequest.branch=${{ github.head_ref }}
           -Dsonar.pullrequest.key=${{ github.event.number }}
           -Dsonar.qualitygate.wait=true
+          -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}

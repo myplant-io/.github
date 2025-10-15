@@ -201,6 +201,7 @@ jobs:
           -Dsonar.go.coverage.reportPaths=coverage.out
           -Dsonar.go.tests.reportPaths=testresults.out
           -Dsonar.qualitygate.wait=true
+          -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}
 
       - name: Run sonarqube (on PR)
         if: startsWith(github.event_name , 'pull_request')
@@ -219,3 +220,4 @@ jobs:
           -Dsonar.go.coverage.reportPaths=coverage.out
           -Dsonar.go.tests.reportPaths=testresults.out
           -Dsonar.qualitygate.wait=true
+          -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}
