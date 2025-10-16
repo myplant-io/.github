@@ -119,6 +119,8 @@ jobs:
       cancel-in-progress: false
 
     strategy:
+      fail-fast: false
+      max-parallel: 1
       matrix:
         dotnet-version: ['6.0.x']
         dotnet-rid: ['win-x64']
