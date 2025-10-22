@@ -15,7 +15,7 @@ on:
     # at 00:00 every sunday (on the default branch - develop)
     - cron: '0 0 * * SUN'
   push:
-    branches: [main, master]
+    branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
   repository_dispatch:
     types: [dependencyCheck]
   workflow_dispatch:
@@ -149,7 +149,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Get java version from gradle
         if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
@@ -281,7 +281,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Prepare java ${{ needs.setup.outputs.java-version }}
         uses: actions/setup-java@v5

@@ -119,6 +119,8 @@ jobs:
       cancel-in-progress: false
 
     strategy:
+      fail-fast: false
+      max-parallel: 1
       matrix:
         dotnet-version: ['6.0.x']
         dotnet-rid: ['win-x64']
@@ -259,7 +261,7 @@ jobs:
           body_path: release_changelog.md
 
       - name: Prepare dotnet environment
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         env:
           DOTNET_INSTALL_DIR: './.dotnet'
         with:
@@ -309,7 +311,7 @@ jobs:
     steps:
       - name: Merging release changes to master
         if: github.event.release.target_commitish != 'develop'
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
@@ -322,7 +324,7 @@ jobs:
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
         if: github.event.release.target_commitish == 'develop'
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge

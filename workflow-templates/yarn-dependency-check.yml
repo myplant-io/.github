@@ -14,7 +14,7 @@ on:
     # at 00:00 every sunday (on the default branch - develop)
     - cron: '0 0 * * SUN'
   push:
-    branches: [main, master]
+    branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
   repository_dispatch:
     types: [dependencyCheck]
   workflow_dispatch:
@@ -148,7 +148,7 @@ jobs:
           ref: '${{ github.event.client_payload.branch }}'
 
       - name: Prepare node.js ${{ needs.setup.outputs.node-version }}
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ needs.setup.outputs.node-version }}
 

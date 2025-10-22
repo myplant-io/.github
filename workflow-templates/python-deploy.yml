@@ -295,27 +295,27 @@ jobs:
 
       - name: Prepare uv
         if: steps.check_uv.outputs.files_exists == 'true'
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           activate-environment: true
 
       - name: Prepare python (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           cache: 'pip'
           python-version-file: ${{ needs.setup.outputs.python-version-file }}
 
       - name: Prepare python (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           cache: 'poetry'
           python-version-file: ${{ needs.setup.outputs.python-version-file }}
 
       - name: Prepare python (with uv)
         if: steps.check_uv.outputs.files_exists == 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version-file: ${{ needs.setup.outputs.python-version-file }}
 
@@ -521,6 +521,10 @@ jobs:
         with:
           endpoint: buildx-context
 
+      - name: Update version in pyproject file
+        if: steps.check_file_pyproject.outputs.files_exists == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
+        run: sed -i 's/^version\s=\s.*[0-9]\?/version = "${{ needs.setup.outputs.version }}"/g' pyproject.toml
+
       - name: Build and push docker image
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && needs.setup.outputs.docker-repository != 'none'
         uses: docker/build-push-action@v6
@@ -546,7 +550,7 @@ jobs:
       - name: Publish package to nexus (with poetry)
         if: steps.check_poetry.outputs.files_exists == 'true' && needs.setup.outputs.publish-target != 'none' && (needs.setup.outputs.publish-sha == 'true' || startsWith(github.ref, 'refs/tags/'))
         run: |
-          for targetRegistry in $TARGET[@]; do
+          for targetRegistry in $(echo "$TARGET" | jq -r '.[]'); do
             poetry publish -r $targetRegistry
           done
         env:
@@ -563,7 +567,7 @@ jobs:
       - name: Publish package to nexus (with uv)
         if: steps.check_uv.outputs.files_exists == 'true' && needs.setup.outputs.publish-target != 'none' && (needs.setup.outputs.publish-sha == 'true' || startsWith(github.ref, 'refs/tags/'))
         run: |
-          for targetRegistry in $TARGET[@]; do
+          for targetRegistry in $(echo "$TARGET" | jq -r '.[]'); do
             uv publish --index $targetRegistry
           done
         env:
@@ -580,7 +584,7 @@ jobs:
 
     steps:
       - name: Deploy Service (legacy deployment)
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.CI_PAT }}
           repository: myplant-io/ci-deploy-action
@@ -603,6 +607,8 @@ jobs:
       group: deployHelm_${{ github.ref }}
       cancel-in-progress: false
     strategy:
+      fail-fast: false
+      max-parallel: 1
       matrix:
         deploy-target: ${{fromJSON(needs.setup.outputs.deploy-targets) }}
 
@@ -686,7 +692,7 @@ jobs:
     steps:
       - name: Merging release changes to master
         if: github.event.release.target_commitish != 'develop'
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
@@ -699,7 +705,7 @@ jobs:
       # target_commitish can be "develop" for releases that are solely based on tags
       - name: Merging release changes to master (not using develop commitish, but tag ref)
         if: github.event.release.target_commitish == 'develop'
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.CI_PAT }}
           event-type: merge
