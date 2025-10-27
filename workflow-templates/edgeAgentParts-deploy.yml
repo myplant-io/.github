@@ -5,7 +5,7 @@
 #  - ".github/workflow-config.env" exists
 #
 # Created by: Nikolaus Krismer
-# modified by: Gerhard Koell, David Specht
+# modified by: Gerhard Koell, David Spechtt
 ###
 name: Build and deploy agent part
 
@@ -23,7 +23,7 @@ jobs:
     runs-on: self-hosted-standard
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-    
+
     steps:
       - name: Set git to use LF
         run: |
@@ -54,7 +54,7 @@ jobs:
           else
             echo "RUN_ON_WINDOWS=false" >> $GITHUB_ENV;
           fi
-        
+
       - name: Set RUN_ON_LINUX
         run: |
           if [ "${{ env.TARGET_FRAMEWORK_LINUX }}" != '' ]; then
@@ -81,7 +81,7 @@ jobs:
 
     strategy:
       matrix: ${{ fromJSON(needs.prepareMatrix.outputs.matrix) }}
-             
+
     steps:
       - name: Set git to use LF
         run: |
@@ -106,56 +106,56 @@ jobs:
           envFile: '.github/workflow-config.env'
 
       - name: Set env 'REAL_COMPONENT_NAME' if not split
-        shell: bash   
+        shell: bash
         run: echo REAL_COMPONENT_NAME="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
 
       - name: Set env 'REAL_COMPONENT_NAME' if split for linux
         if: env.SPLITTED_COMPONENT_NAME == 'true' && matrix.os == 'self-hosted-standard'
-        shell: bash 
+        shell: bash
         run: echo REAL_COMPONENT_NAME="${{ env.COMPONENT_NAME_LINUX }}" >> ${GITHUB_ENV}
 
       - name: Set env 'REAL_COMPONENT_NAME' if split for windows
         if: env.SPLITTED_COMPONENT_NAME == 'true' && matrix.os == 'windows-latest'
-        shell: bash   
+        shell: bash
         run: echo REAL_COMPONENT_NAME="${{ env.COMPONENT_NAME_WINDOWS }}" >> ${GITHUB_ENV}
 
       - name: Set env 'ARTIFACT_DEST' (linux)
         if: matrix.os == 'self-hosted-standard'
-        shell: bash 
+        shell: bash
         run: echo ARTIFACT_DEST="linux" >> ${GITHUB_ENV}
 
       - name: Set env 'ARTIFACT_DEST' (windows)
         if: matrix.os == 'windows-latest'
-        shell: bash   
+        shell: bash
         run: echo ARTIFACT_DEST="win" >> ${GITHUB_ENV}
-        
+
       - name: Set env 'ARTIFACT_NAME'
-        shell: bash   
+        shell: bash
         run: echo ARTIFACT_NAME="${GITHUB_REPOSITORY#*/}_${ARTIFACT_DEST}" >> ${GITHUB_ENV}
 
       - name: Set env 'SHA'
-        shell: bash        
+        shell: bash
         run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
 
       - name: Set env 'TAG' (for tagged deployment)
-        shell: bash   
+        shell: bash
         if: startsWith(github.ref, 'refs/tags/')
         run: echo TAG="${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
 
       - name: Set env 'MY_VERSION' to SHA (for untagged deployments)
-        shell: bash   
+        shell: bash
         if: startsWith(github.ref, 'refs/tags/') == false
         run: echo MY_VERSION="${{ env.SHA }}${{ matrix.version-suffix }}" >> ${GITHUB_ENV}
 
       - name: Set 'MY_VERSION' (for tagged deployment)
-        shell: bash   
+        shell: bash
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           echo MY_VERSION="${TAG#v}${{ matrix.version-suffix }}" >> ${GITHUB_ENV}
           echo VERSION="${TAG#v}${{ matrix.version-suffix }}" >> ${GITHUB_ENV}
 
       - name: Set env 'BRANCH_NAME'
-        shell: bash   
+        shell: bash
         run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
 
       - name: Determine latest (pre-)release
@@ -201,12 +201,12 @@ jobs:
         uses: kenchan0130/actions-system-info@v1.3.0
 
       - name: Set env 'INFORMATIONAL_VERSION' alpha
-        shell: bash   
+        shell: bash
         if: env.IS_PRERELEASE == 'true' && contains(env.TAG, '-alpha')
         run: echo INFORMATIONAL_VERSION="alpha" >> ${GITHUB_ENV}
 
       - name: Set env 'INFORMATIONAL_VERSION' beta
-        shell: bash   
+        shell: bash
         if: env.IS_PRERELEASE == 'true' && contains(env.TAG, '-beta')
         run: echo INFORMATIONAL_VERSION="beta" >> ${GITHUB_ENV}
 
@@ -224,7 +224,7 @@ jobs:
 
       - name: Log system details
         if: env.VERBOSE_LOGGING == 'true'
-        shell: bash 
+        shell: bash
         run: |
           echo "os: ${{ runner.os }}"
           echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
@@ -377,7 +377,7 @@ jobs:
             -p:IncludeDotfuscatorImport=true
 
       - name: Build application (windows)
-        shell: bash      
+        shell: bash
         if: matrix.os == 'windows-latest'
         run: |
           dotnet publish "${{ env.REAL_COMPONENT_NAME }}/${{ env.REAL_COMPONENT_NAME }}.csproj" \
@@ -389,42 +389,42 @@ jobs:
           -p:DotfuscatorMSBuildDir="../dotfuscator/tools/msbuilddir" \
           -p:IncludeDotfuscatorImport=true
 
-    # prepare deployment folder
+      # prepare deployment folder
 
       - name: Copy deployment to artifact
         shell: bash
-        continue-on-error: true  
+        continue-on-error: true
         run: cp -Rv "deployment${{ matrix.version-suffix }}/${{ env.ARTIFACT_DEST }}/" artifact/
 
       - name: Set SUBFOLDER_ON_ASSET (linux)
         if: matrix.os == 'self-hosted-standard'
-        shell: bash 
+        shell: bash
         run: echo SUBFOLDER_ON_ASSET=${{ env.SUBFOLDER_ON_ASSET_LINUX }} >> ${GITHUB_ENV}
 
       - name: Set SUBFOLDER_ON_ASSET (windows)
         if: matrix.os == 'windows-latest'
-        shell: bash   
+        shell: bash
         run: echo SUBFOLDER_ON_ASSET=${{ env.SUBFOLDER_ON_ASSET_WINDOWS }} >> ${GITHUB_ENV}
 
       - name: Copy app to artifact (linux)
         if: matrix.os == 'self-hosted-standard'
         shell: bash
         run: |
-            mkdir -p "artifact/opt/myplant-edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET}}/"
-            cp -Rv build/* "artifact/opt/myplant-edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET}}/"
+          mkdir -p "artifact/opt/myplant-edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET}}/"
+          cp -Rv build/* "artifact/opt/myplant-edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET}}/"
 
       - name: Create version.txt file (linux)
-        if: matrix.os == 'self-hosted-standard'   
+        if: matrix.os == 'self-hosted-standard'
         shell: bash
         run: |
           echo "${{ env.MY_VERSION }}" > "artifact/opt/myplant-edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET}}/version.txt"
 
       - name: Copy app to artifact (windows)
-        shell: bash  
-        if: matrix.os == 'windows-latest'      
-        run: | 
-            mkdir -p "artifact/Edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET }}/"
-            cp -Rv build/* "artifact/Edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET }}/"
+        shell: bash
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir -p "artifact/Edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET }}/"
+          cp -Rv build/* "artifact/Edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET }}/"
 
       - name: Create version.txt file (windows)
         if: matrix.os == 'windows-latest'
