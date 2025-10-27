@@ -317,7 +317,7 @@ jobs:
 
       - name: Upload SBOM artifact
         if: needs.setup.outputs.verbose-artifact-upload == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           if-no-files-found: error
           name: SBOM

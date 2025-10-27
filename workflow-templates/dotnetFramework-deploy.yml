@@ -90,7 +90,7 @@ jobs:
         run: sh deployment/create-image-windows-XT4.sh
 
       - name: Upload image as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: windows-XT4
           path: deployment/windows-XT4/Edge
