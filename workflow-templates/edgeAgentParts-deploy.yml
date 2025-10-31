@@ -1,0 +1,495 @@
+###
+# GitHub action that builds .net edge agent part and uploads artifacts to nexus
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Nikolaus Krismer
+# modified by: Gerhard Koell, David Spechtt
+###
+name: Build and deploy agent part
+
+on:
+  release:
+    types: [released, prereleased]
+
+env:
+  MATRIX_VERSION_SUFFIX: \"version-suffix\":[\"-alpha\",\"-beta\",\"\"]
+  DOTFUSCATOR_LICENSE: ${{ secrets.DOTFUSCATOR_LICENSE }}
+
+jobs:
+  prepareMatrix:
+    name: 'prepare matrix'
+    runs-on: self-hosted-standard
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Set RUN_ON_WINDOWS
+        run: |
+          if [ "${{ env.TARGET_FRAMEWORK_WINDOWS }}" != '' ]; then
+            echo "RUN_ON_WINDOWS=true" >> $GITHUB_ENV;
+          else
+            echo "RUN_ON_WINDOWS=false" >> $GITHUB_ENV;
+          fi
+
+      - name: Set RUN_ON_LINUX
+        run: |
+          if [ "${{ env.TARGET_FRAMEWORK_LINUX }}" != '' ]; then
+            echo "RUN_ON_LINUX=true" >> $GITHUB_ENV;
+          else
+            echo "RUN_ON_LINUX=false" >> $GITHUB_ENV;
+          fi
+
+      - name: Prepare matrix for windows and/or linux
+        id: set-matrix
+        run: |
+          if [ "$RUN_ON_WINDOWS" == "true" ] && [ "$RUN_ON_LINUX" == "true" ]; then
+            echo "matrix={${{ env.MATRIX_VERSION_SUFFIX }},\"os\":[\"self-hosted-standard\",\"windows-latest\"],\"include\":[{\"os\":\"windows-latest\"},{\"os\":\"self-hosted-standard\",\"dotnet-version\":\"${{ env.LINUX_DOTNET_VERSION }}\"}]}" >> $GITHUB_OUTPUT
+          elif [ "$RUN_ON_WINDOWS" == "true" ] && [ "$RUN_ON_LINUX" == "false" ]; then
+            echo "matrix={${{ env.MATRIX_VERSION_SUFFIX }},\"os\":[\"windows-latest\"],\"include\":[{\"os\":\"windows-latest\"}]}" >> $GITHUB_OUTPUT
+          elif [ "$RUN_ON_WINDOWS" == "false" ] && [ "$RUN_ON_LINUX" == "true" ]; then
+            echo "matrix={${{ env.MATRIX_VERSION_SUFFIX }},\"os\":[\"self-hosted-standard\"],\"include\":[{\"os\":\"self-hosted-standard\",\"dotnet-version\":\"${{ env.LINUX_DOTNET_VERSION }}\"}]}" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    name: 'build application and artifacts'
+    needs: prepareMatrix
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix: ${{ fromJSON(needs.prepareMatrix.outputs.matrix) }}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v4
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Set env 'REAL_COMPONENT_NAME' if not split
+        shell: bash
+        run: echo REAL_COMPONENT_NAME="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'REAL_COMPONENT_NAME' if split for linux
+        if: env.SPLITTED_COMPONENT_NAME == 'true' && matrix.os == 'self-hosted-standard'
+        shell: bash
+        run: echo REAL_COMPONENT_NAME="${{ env.COMPONENT_NAME_LINUX }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'REAL_COMPONENT_NAME' if split for windows
+        if: env.SPLITTED_COMPONENT_NAME == 'true' && matrix.os == 'windows-latest'
+        shell: bash
+        run: echo REAL_COMPONENT_NAME="${{ env.COMPONENT_NAME_WINDOWS }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'ARTIFACT_DEST' (linux)
+        if: matrix.os == 'self-hosted-standard'
+        shell: bash
+        run: echo ARTIFACT_DEST="linux" >> ${GITHUB_ENV}
+
+      - name: Set env 'ARTIFACT_DEST' (windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: echo ARTIFACT_DEST="win" >> ${GITHUB_ENV}
+
+      - name: Set env 'ARTIFACT_NAME'
+        shell: bash
+        run: echo ARTIFACT_NAME="${GITHUB_REPOSITORY#*/}_${ARTIFACT_DEST}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SHA'
+        shell: bash
+        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
+
+      - name: Set env 'TAG' (for tagged deployment)
+        shell: bash
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo TAG="${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'MY_VERSION' to SHA (for untagged deployments)
+        shell: bash
+        if: startsWith(github.ref, 'refs/tags/') == false
+        run: echo MY_VERSION="${{ env.SHA }}${{ matrix.version-suffix }}" >> ${GITHUB_ENV}
+
+      - name: Set 'MY_VERSION' (for tagged deployment)
+        shell: bash
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          echo MY_VERSION="${TAG#v}${{ matrix.version-suffix }}" >> ${GITHUB_ENV}
+          echo VERSION="${TAG#v}${{ matrix.version-suffix }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME'
+        shell: bash
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Determine latest (pre-)release
+        id: latest_release
+        uses: InsonusK/get-latest-release@v1.1.0
+        with:
+          myToken: ${{ github.token }}
+          view_top: 1
+
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - tag based)
+        shell: bash
+        if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+        run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on manual release - tag based)
+        shell: bash
+        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+        run: echo IS_PRERELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'true' }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on manual release - tag based)
+        shell: bash
+        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+        run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'false' }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - release based)
+        shell: bash
+        if: github.event_name == 'release'
+        run: echo IS_MANUAL_RELEASE=true >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on manual release - release based)
+        shell: bash
+        if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
+        run: echo IS_PRERELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == true }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on manual release - release based)
+        shell: bash
+        if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
+        run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
+
+      - name: Get action system info
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+        uses: kenchan0130/actions-system-info@v1.3.0
+
+      - name: Set env 'INFORMATIONAL_VERSION' alpha
+        shell: bash
+        if: env.IS_PRERELEASE == 'true' && contains(env.TAG, '-alpha')
+        run: echo INFORMATIONAL_VERSION="alpha" >> ${GITHUB_ENV}
+
+      - name: Set env 'INFORMATIONAL_VERSION' beta
+        shell: bash
+        if: env.IS_PRERELEASE == 'true' && contains(env.TAG, '-beta')
+        run: echo INFORMATIONAL_VERSION="beta" >> ${GITHUB_ENV}
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        shell: bash
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - name: Find Version Infos (BRANCH_TAG incl. pre-check)
+        shell: bash
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        run: |
+          branchTag=$(git describe --tags)
+          [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
+          echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
+
+      - name: Find Version Infos (LAST_RELEASE_TAG)
+        shell: bash
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        run: echo LAST_RELEASE_TAG=$(git tag -l --sort=v:refname | grep -v "${{ env.BRANCH_TAG }}" | grep -v ".*-.*" | tail -n 1) >> ${GITHUB_ENV}
+
+      - name: Find Version Infos (BUILD_FROM_TAG)
+        shell: bash
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_PRERELEASE == 'true'
+        run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
+
+      - name: Find Version Infos (BUID_FROM_TAG)
+        shell: bash
+        if: env.IS_MANUAL_RELEASE == 'true' && env.IS_RELEASE == 'true'
+        run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
+
+      - name: Build changelog on manual release
+        if: env.IS_MANUAL_RELEASE == 'true' && (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          configurationJson: |
+            { "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})",
+              "categories": [
+                {
+                  "title": "## 🚀 Features",
+                  "labels": [
+                    "feat",
+                    "feature"
+                  ]
+                },
+                {
+                  "title": "## 🐛 Fixes",
+                  "labels": [
+                    "fix",
+                    "hotfix",
+                    "bug"
+                  ]
+                },
+                {
+                  "title": "## 🛠️ Chores",
+                  "labels": [
+                    "chore"
+                  ]
+                },
+                {
+                  "title": "## 🛠️ Dependencies",
+                  "labels": [
+                    "deps",
+                    "dep"
+                  ]
+                },
+                {
+                  "title": "## 🌀 Miscellaneous",
+                  "labels": []
+                }
+              ],
+              "label_extractor": [
+                {
+                  "method": "match",
+                  "pattern": "^([\\w\\-]+)",
+                  "target": "$1",
+                  "on_property": "branch"
+                }
+              ]
+            }
+          outputFile: release_changelog.md
+          fromTag: ${{ env.BUILD_FROM_TAG }}
+          toTag: ${{ env.BRANCH_TAG }}
+
+      - name: Check release changelog existence
+        id: check_release_changelog
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'release_changelog.md'
+
+      - name: Enhance changelog
+        shell: bash
+        if: steps.check_release_changelog.outputs.files_exists == 'true'
+        run: sed -i "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g" release_changelog.md
+
+      - name: Update Release
+        if: steps.check_release_changelog.outputs.files_exists == 'true'
+        uses: tubone24/update_release@v1.3.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ env.TAG }}
+        with:
+          body_path: release_changelog.md
+
+      - name: Prepare dotnet environment
+        if: matrix.os == 'self-hosted-standard'
+        uses: actions/setup-dotnet@v4
+        env:
+          DOTNET_INSTALL_DIR: './.dotnet'
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+
+      - name: Download preemptive dotfuscator nuget package
+        shell: bash
+        run: |
+          curl \
+          --user 'myplant-publisher:${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' \
+          -o dotfuscator.nupkg \
+          https://nexus-dev.myplant.io/repository/myplant-nuget/PreEmptive.Protection.Dotfuscator.Pro.Eval/7.2.3
+
+      - name: Unzip dotfuscator nuget package
+        shell: bash
+        run: |
+          mv dotfuscator.nupkg dotfuscator.zip
+          unzip dotfuscator.zip -d ./dotfuscator/
+
+      - name: Set PREEMPTIVE_TELEMETRY_OPT_OUT
+        shell: bash
+        run: echo PREEMPTIVE_TELEMETRY_OPT_OUT="true" >> ${GITHUB_ENV}
+
+      - name: Install dependencies
+        run: dotnet restore /p:VersionSuffix=${{ env.MY_VERSION }}
+
+      - name: Build application (linux)
+        shell: bash
+        if: matrix.os == 'self-hosted-standard'
+        run: |
+          dotnet publish "${{ env.REAL_COMPONENT_NAME }}/${{ env.REAL_COMPONENT_NAME }}.csproj" \
+            --no-restore \
+            -c Release \
+            -f ${{ env.TARGET_FRAMEWORK_LINUX }}  \
+            -o "build/" \
+            -p:Version=${{ env.MY_VERSION }} \
+            -p:DotfuscatorMSBuildDir="../dotfuscator/tools/msbuilddir" \
+            -p:IncludeDotfuscatorImport=true
+
+      - name: Build application (windows)
+        shell: bash
+        if: matrix.os == 'windows-latest'
+        run: |
+          dotnet publish "${{ env.REAL_COMPONENT_NAME }}/${{ env.REAL_COMPONENT_NAME }}.csproj" \
+          --no-restore \
+          -c Release \
+          -f ${{ env.TARGET_FRAMEWORK_WINDOWS }} \
+          -o "build/" \
+          -p:Version=${{ env.MY_VERSION }} \
+          -p:DotfuscatorMSBuildDir="../dotfuscator/tools/msbuilddir" \
+          -p:IncludeDotfuscatorImport=true
+
+      # prepare deployment folder
+
+      - name: Copy deployment to artifact
+        shell: bash
+        continue-on-error: true
+        run: cp -Rv "deployment${{ matrix.version-suffix }}/${{ env.ARTIFACT_DEST }}/" artifact/
+
+      - name: Set SUBFOLDER_ON_ASSET (linux)
+        if: matrix.os == 'self-hosted-standard'
+        shell: bash
+        run: echo SUBFOLDER_ON_ASSET=${{ env.SUBFOLDER_ON_ASSET_LINUX }} >> ${GITHUB_ENV}
+
+      - name: Set SUBFOLDER_ON_ASSET (windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: echo SUBFOLDER_ON_ASSET=${{ env.SUBFOLDER_ON_ASSET_WINDOWS }} >> ${GITHUB_ENV}
+
+      - name: Copy app to artifact (linux)
+        if: matrix.os == 'self-hosted-standard'
+        shell: bash
+        run: |
+          mkdir -p "artifact/opt/myplant-edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET}}/"
+          cp -Rv build/* "artifact/opt/myplant-edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET}}/"
+
+      - name: Create version.txt file (linux)
+        if: matrix.os == 'self-hosted-standard'
+        shell: bash
+        run: |
+          echo "${{ env.MY_VERSION }}" > "artifact/opt/myplant-edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET}}/version.txt"
+
+      - name: Copy app to artifact (windows)
+        shell: bash
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir -p "artifact/Edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET }}/"
+          cp -Rv build/* "artifact/Edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET }}/"
+
+      - name: Create version.txt file (windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          echo "${{ env.MY_VERSION }}" > "artifact/Edge${{ matrix.version-suffix }}/${{ env.SUBFOLDER_ON_ASSET }}/version.txt"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: error
+          name: ${{ env.ARTIFACT_NAME }}_${{ env.MY_VERSION }}
+          path: 'artifact/'
+
+      - name: Create release artifact archive (Windows)
+        if: (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true') && matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          cd artifact/
+          Compress-Archive -Path ".\*" -DestinationPath "..\${{ env.ARTIFACT_NAME }}_${{ env.MY_VERSION }}.zip"
+
+      - name: Create release artifact archive (Linux)
+        if: (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true') && matrix.os == 'self-hosted-standard'
+        shell: bash
+        run: |
+          cd artifact/
+          zip -r "../${{ env.ARTIFACT_NAME }}_${{ env.MY_VERSION }}.zip" .
+
+      - name: Upload release artifact to nexus
+        if: (env.IS_RELEASE == 'true' || env.IS_PRERELEASE == 'true')
+        shell: bash
+        run: |
+          http_code=$(curl \
+          -o /dev/null \
+          -s \
+          -w "%{http_code}" \
+          --user 'myplant-publisher:${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' \
+          --upload-file ./${{ env.ARTIFACT_NAME }}_${{ env.MY_VERSION }}.zip \
+          https://nexus-dev.myplant.io/repository/myplant-edge-releases/${GITHUB_REPOSITORY#*/}/${{ env.ARTIFACT_DEST }}/${{ env.MY_VERSION }}/${{ env.ARTIFACT_NAME }}_${{ env.MY_VERSION }}.zip)
+
+          if [ "$http_code" -ne 201 ]; then
+            echo "Error: Upload failed with HTTP status code $http_code"
+            exit 1
+          fi
+
+      - name: Merging release changes to master
+        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish != 'develop'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "commitish": "${{ github.event.release.target_commitish }}",
+            "source_branch": "${{ env.BRANCH_NAME }}",
+            "target_branch": "master",
+            "tag": "${{ env.TAG }}"}'
+
+      # target_commitish can be "develop" for releases that are solely based on tags
+      - name: Merging release changes to master (not using develop commitish, but tag ref)
+        if: env.IS_RELEASE == 'true' && github.event.release.target_commitish == 'develop'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "source_branch": "${{ env.BRANCH_NAME }}",
+            "target_branch": "master",
+            "tag": "${{ env.TAG }}"}'
