@@ -259,10 +259,12 @@ jobs:
           source .venv/bin/activate
           SKIP=no-commit-to-branch pre-commit run --show-diff-on-failure --color=always --all-files
 
-  test:
-    name: 'Job: Test'
+  testPrecheck:
+    name: 'Job: Test precheck'
     needs: ['setup', 'validate']
     runs-on: [self-hosted-standard]
+    outputs:
+      test-count: ${{ env.TEST_COUNT }}
 
     steps:
       - name: Set git to use LF
@@ -421,35 +423,183 @@ jobs:
           uv sync --frozen --group dev
           uv add pytest --group dev
 
+      - name: Check for test availability (setup default)
+        run: echo TEST_COUNT=0 >> ${GITHUB_ENV}
+
       - name: Check for test availability (with pip)
         id: check_test_pip
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
-        run: echo testCount=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_OUTPUT}
+        run: echo TEST_COUNT=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_ENV}
 
       - name: Check for test availability
         id: check_test_poetry
         if: steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true'
         run: |
           source .venv/bin/activate
-          echo testCount=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_OUTPUT}
+          echo TEST_COUNT=$(pytest --collect-only -q | head -n -2 | wc -l) >> ${GITHUB_ENV}
 
-      - name: Skip tests (no test found with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount == 0
-        run: |
-          echo "No test(s) found. Skipping..."
-          gh run cancel ${{ github.run_id }}
-          gh run watch ${{ github.run_id }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  test:
+    name: 'Job: Test'
+    needs: ['testPrecheck']
+    runs-on: [self-hosted-standard]
+    if: needs.testPrecheck.outputs.test-count != '0'
 
-      - name: Skip tests (no test found)
-        if: (steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true') && steps.check_test_poetry.outputs.testCount == 0
+    steps:
+      - name: Set git to use LF
         run: |
-          echo "No test(s) found. Skipping..."
-          gh run cancel ${{ github.run_id }}
-          gh run watch ${{ github.run_id }}
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v5
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Get action system info
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+        uses: kenchan0130/actions-system-info@v1.4.0
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - name: Check poetry file existence
+        id: check_poetry
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'poetry.lock'
+
+      - name: Prepare poetry
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ needs.setup.outputs.poetry-version }}
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      - name: Load cached venv
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Check uv file existence
+        id: check_uv
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'uv.lock'
+
+      - name: Prepare uv
+        if: steps.check_uv.outputs.files_exists == 'true'
+        uses: astral-sh/setup-uv@v7
+        with:
+          activate-environment: true
+
+      - name: Prepare python (with pip)
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
+        uses: actions/setup-python@v6
+        with:
+          cache: 'pip'
+          python-version-file: ${{ needs.setup.outputs.python-version-file }}
+
+      - name: Prepare python (with poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        uses: actions/setup-python@v6
+        with:
+          cache: 'poetry'
+          python-version-file: ${{ needs.setup.outputs.python-version-file }}
+
+      - name: Prepare python (with uv)
+        if: steps.check_uv.outputs.files_exists == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ${{ needs.setup.outputs.python-version-file }}
+
+      - name: Prepare PATH (Unix)
+        if: runner.os != 'Windows'
+        run: echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Prepare PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "${HOME}/.local/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Configure poetry
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: |
+          echo POETRY_REPOSITORIES_MYPLANT_NEXUS='https://nexus-dev.myplant.io/repository/myplantpy/' >> ${GITHUB_ENV}
+          echo POETRY_REPOSITORIES_MYPLANT_NEXUS_EXTERNAL='https://nexus-dev.myplant.io/repository/myplantpyexternal/' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo POETRY_HTTP_BASIC_MYPLANT_NEXUS_EXTERNAL_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+
+      - name: Configure uv
+        if: steps.check_uv.outputs.files_exists == 'true'
+        run: |
+          echo UV_INDEX_MYPLANT_NEXUS_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_EXTERNAL_USERNAME='myplant-publisher' >> ${GITHUB_ENV}
+          echo UV_INDEX_MYPLANT_NEXUS_EXTERNAL_PASSWORD='${{ secrets.NEXUS_MYPLANT_PUBLISHER }}' >> ${GITHUB_ENV}
+
+      - name: Install dependencies (including pytest; with pip)
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
+        run: |
+          pip install -r requirements.txt \
+               --index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpy/simple" \
+               --extra-index-url "https://myplant-publisher:${{secrets.NEXUS_MYPLANT_PUBLISHER}}@nexus-dev.myplant.io/repository/myplantpyexternal/simple" \
+               --extra-index-url "https://pypi.org/simple"
+          pip install pytest
+
+      - name: Install dependencies (including pytest; with poetry)
+        if: steps.check_poetry.outputs.files_exists == 'true'
+        run: |
+          poetry install --no-interaction --no-root --sync
+          poetry add pytest --group dev
+
+      - name: Install dependencies (including pytest; with uv)
+        if: steps.check_uv.outputs.files_exists == 'true'
+        run: |
+          uv sync --frozen --group dev
+          uv add pytest --group dev
 
       - name: Test with pytest (with pip)
         if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount != 0
