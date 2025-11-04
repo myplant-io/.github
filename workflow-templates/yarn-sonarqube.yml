@@ -185,6 +185,13 @@ jobs:
       - name: Run tests
         run: yarn test --coverage --ci --no-cache --silent
 
+      - name: Remove NPM registry auth from .npmrc
+        run: |
+          # Remove the line(s) matching the auth entry
+          grep -v "${NPM_REGISTRY_AUTH}" .npmrc > .npmrc.tmp && mv .npmrc.tmp .npmrc
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
       - name: Setup sonarqube
         uses: warchant/setup-sonar-scanner@v9
 
