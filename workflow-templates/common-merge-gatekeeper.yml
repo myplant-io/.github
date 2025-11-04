@@ -2,8 +2,6 @@ name: Merge gatekeeper
 
 on:
   pull_request:
-    paths-ignore:
-      - '.github/workflows/*auto-update*'
   push:
     branches: [master, main]
   workflow_dispatch:
