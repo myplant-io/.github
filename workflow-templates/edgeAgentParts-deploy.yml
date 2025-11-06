@@ -18,8 +18,8 @@ env:
   DOTFUSCATOR_LICENSE: ${{ secrets.DOTFUSCATOR_LICENSE }}
 
 jobs:
-  prepareMatrix:
-    name: 'prepare matrix'
+  setup:
+    name: 'Job: Setup'
     runs-on: self-hosted-standard
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -75,12 +75,12 @@ jobs:
           fi
 
   build:
-    name: 'build application and artifacts'
-    needs: prepareMatrix
+    name: 'Job: Build application and artifacts'
+    needs: ['setup']
     runs-on: ${{ matrix.os }}
 
     strategy:
-      matrix: ${{ fromJSON(needs.prepareMatrix.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
 
     steps:
       - name: Set git to use LF
