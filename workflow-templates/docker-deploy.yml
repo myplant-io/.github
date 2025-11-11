@@ -169,7 +169,7 @@ jobs:
         run: echo DOCKER_BASE_IMAGE="" >> ${GITHUB_ENV}
 
       - name: Extract docker base image
-        if: steps.outputs.check_file_dockerfile.files_exists == 'true'
+        if: steps.check_file_dockerfile.outputs.files_exists == 'true'
         run: echo DOCKER_BASE_IMAGE="$(grep -m 1 '^FROM ' Dockerfile | awk '{print $2}')") >> ${GITHUB_ENV}
 
   build:
