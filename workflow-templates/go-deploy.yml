@@ -165,7 +165,7 @@ jobs:
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
       - name: Check Dockerfile file existence
-        id: check_file_dockerfile
+        id: check_dockerfile
         uses: andstor/file-existence-action@v3
         with:
           fail: false
@@ -175,7 +175,7 @@ jobs:
         run: echo DOCKER_BASE_IMAGE="" >> ${GITHUB_ENV}
 
       - name: Extract docker base image
-        if: steps.check_file_dockerfile.outputs.files_exists == 'true'
+        if: steps.check_dockerfile.outputs.files_exists == 'true'
         run: echo DOCKER_BASE_IMAGE="$(grep -m 1 '^FROM ' Dockerfile | awk '{print $2}')") >> ${GITHUB_ENV}
 
   build:
