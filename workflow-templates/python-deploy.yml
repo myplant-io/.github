@@ -543,7 +543,7 @@ jobs:
       - name: Validate base image (golden image check)
         if: needs.setup.outputs.docker-base-image != '' && !startsWith(needs.setup.outputs.docker-base-image, steps.aws-login-ecr.outputs.registry)
         run: |
-          echo "Base image not located in INNIO AWS ECR."
+          echo "Base image not located in INNIO ECR."
           exit 1
 
       - name: Build and push docker image
