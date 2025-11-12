@@ -145,11 +145,11 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: 'docker-java.properties'
+          files: 'src/test/resources/docker-java.properties'
 
       - name: Fix docker api version (workaround for testcontainers)
         if: steps.check_docker_properties.outputs.files_exists == 'false'
-        run: echo 'api.version=1.44' > docker-java.properties
+        run: echo 'api.version=1.44' > 'src/test/resources/docker-java.properties'
 
       - name: Test with gradle
         run: ./gradlew ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}
