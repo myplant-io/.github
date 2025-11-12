@@ -149,7 +149,7 @@ jobs:
 
       - name: Fix docker api version (workaround for testcontainers)
         if: steps.check_docker_properties.outputs.files_exists == 'false'
-        run: echo 'api.version=1.44' > ./docker-java.properties 
+        run: echo 'api.version=1.44' > docker-java.properties
 
       - name: Test with gradle
         run: ./gradlew ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}
