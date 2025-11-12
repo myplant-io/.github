@@ -63,7 +63,7 @@ jobs:
         run: echo PYTHON_VERSION_FILE=".python-version" >> ${GITHUB_ENV}
 
       - name: Check python version determination
-        if: steps.check_file_pyproject.outputs.files_exists == 'false' &&  steps.check_file_python_version.outputs.files_exists == 'false'
+        if: steps.check_file_pyproject.outputs.files_exists == 'false' && steps.check_file_python_version.outputs.files_exists == 'false'
         run: |
           echo "::error Either pyproject.toml or .python-version must exists (and contain a python version number)"
           exit 1
