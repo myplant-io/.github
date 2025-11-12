@@ -140,6 +140,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check docker-java properties
+        id: check_docker_properties
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'src/test/resources/docker-java.properties'
+
+      - name: Fix docker api version (workaround for testcontainers)
+        if: steps.check_docker_properties.outputs.files_exists == 'false'
+        run: echo 'api.version=1.44' > 'src/test/resources/docker-java.properties'
+
       - name: Test with gradle
         run: ./gradlew ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}
 
