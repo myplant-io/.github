@@ -15,7 +15,7 @@ on:
 jobs:
   merge:
     name: 'Job: Merging branches'
-    runs-on: [ubuntu-latest]
+    runs-on: [self-hosted-standard]
 
     steps:
       - name: Set git to use LF
@@ -140,27 +140,18 @@ jobs:
             --label "automatically created" \
             --reviewer ${{ fromJSON(steps.getLatestVersion.outputs.author).login }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.CI_PAT }}
 
       - name: Checkout git repository
         if: env.IS_DETACHED_HEAD == 'true' && env.AUTO_MERGE == 'true'
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: '${{ env.SOURCE_BRANCH }}'
-
-      - name: Checkout github actions repo
-        if: env.AUTO_MERGE == 'true'
-        uses: actions/checkout@v5
-        with:
-          repository: myplant-io/github-actions
-          ref: v1
-          token: ${{ secrets.CI_PAT }}
-          path: .github/actions
+          ref: ${{ env.SOURCE_BRANCH }}
 
       - name: Merging release changes into target branch
         if: env.AUTO_MERGE == 'true'
-        uses: ./.github/actions/merge-branch
+        uses: myplant-io/github-actions/merge-branch@v1
         with:
           source-branch: ${{ env.SOURCE_BRANCH }}
           target-branch: ${{ env.TARGET_BRANCH }}
