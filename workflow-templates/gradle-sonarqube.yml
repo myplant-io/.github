@@ -252,7 +252,7 @@ jobs:
 
       - name: Get project path (single project)
         if: matrix.project-name == 'ROOT_PROJECT'
-        run: echo PROJECT_DIR="." >> ${GITHUB_ENV}
+        run: echo PROJECT_DIR='.' >> ${GITHUB_ENV}
 
       - name: Set git to use LF
         run: |

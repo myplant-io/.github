@@ -25,6 +25,7 @@ jobs:
       deploy-targets: ${{ env.DEPLOY_TARGETS }}
       deployment-method: ${{ env.DEPLOYMENT_METHOD }}
       deployment-repo: ${{ env.DEPLOYMENT_REPO }}
+      docker-base-image: ${{ env.DOCKER_BASE_IMAGE }}
       docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
       docker-repository: ${{ env.DOCKER_REPOSITORY }}
       docker-tag-prefix: ${{ env.DOCKER_TAG_PREFIX }}
@@ -162,6 +163,20 @@ jobs:
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
         run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
+
+      - name: Check Dockerfile file existence
+        id: check_dockerfile
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'Dockerfile'
+
+      - name: Extract docker base image
+        run: echo DOCKER_BASE_IMAGE="" >> ${GITHUB_ENV}
+
+      - name: Extract docker base image
+        if: steps.check_dockerfile.outputs.files_exists == 'true'
+        run: echo DOCKER_BASE_IMAGE="$(grep -m 1 '^FROM ' Dockerfile | awk '{print $2}')" >> ${GITHUB_ENV}
 
   build:
     name: 'Job: Build'
@@ -397,6 +412,12 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           endpoint: buildx-context
+
+      - name: Validate base image (golden image check)
+        if: needs.setup.outputs.docker-base-image != '' && !startsWith(needs.setup.outputs.docker-base-image, steps.aws-login-ecr.outputs.registry)
+        uses: actions/github-script@v8
+        with:
+          script: core.setFailed('Base image not located in INNIO ECR.')
 
       - name: Build and push docker image
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && needs.setup.outputs.docker-repository != 'none'
