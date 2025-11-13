@@ -144,7 +144,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Determine test resources folder
-        run: echo PROJECT_TEST_RESOURCES=$(find ${{ env.PROJECT_DIR }} -path '*/src/test/resources' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+        run: echo PROJECT_TEST_RESOURCES=$(find ${{ env.PROJECT_DIR }} -path '*/src/test/resources' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs) >> ${GITHUB_ENV}
 
       - name: Fallback to default test resource folder
         if: env.PROJECT_TEST_RESOURCES == ''
@@ -161,7 +161,13 @@ jobs:
 
       - name: Fix docker api version (workaround for testcontainers)
         if: steps.check_docker_properties.outputs.files_exists == 'false'
-        run: echo 'api.version=1.44' > "${{ env.PROJECT_TEST_RESOURCES }}/docker-java.properties"
+        run: |
+          IFS=' ' read -ra test_resources <<< "${{ env.PROJECT_TEST_RESOURCES }}"
+          for r in ${test_resources[@]}; do
+            if [ ! -f "${r}/docker-java.properties" ]; then
+              echo 'api.version=1.44' > "${r}/docker-java.properties"
+            fi
+          done
 
       - name: Test with gradle
         run: ./gradlew ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}
