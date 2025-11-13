@@ -408,7 +408,7 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: "${{ env.PROJECT_TEST_SOURCES }}/docker-java.properties"
+          files: '${{ env.PROJECT_TEST_SOURCES }}/docker-java.properties'
 
       - name: Fix docker api version (workaround for testcontainers)
         if: steps.check_docker_properties.outputs.files_exists == 'false'
