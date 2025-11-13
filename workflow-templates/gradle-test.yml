@@ -127,9 +127,12 @@ jobs:
         id: aws-login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Set default project dir
+        if: env.PROJECT_DIR == ''
+        run: echo PROJECT_DIR='.' >> ${GITHUB_ENV}
+
       - name: Determine test source folders
-        run: |
-          echo PROJECT_TEST_SOURCES=$(find ${{ env.PROJECT_DIR }} -path '*/src/test/java' -o -path '*/src/test/kotlin' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+        run: echo PROJECT_TEST_SOURCES=$(find ${{ env.PROJECT_DIR }} -path '*/src/test/java' -o -path '*/src/test/kotlin' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
 
       - name: Skip tests (no test found)
         if: env.PROJECT_TEST_SOURCES == ''
@@ -145,11 +148,11 @@ jobs:
         uses: andstor/file-existence-action@v3
         with:
           fail: false
-          files: 'src/test/resources/docker-java.properties'
+          files: ${{ env.PROJECT_TEST_SOURCES }}/docker-java.properties
 
       - name: Fix docker api version (workaround for testcontainers)
         if: steps.check_docker_properties.outputs.files_exists == 'false'
-        run: echo 'api.version=1.44' > 'src/test/resources/docker-java.properties'
+        run: echo 'api.version=1.44' > "${{ env.PROJECT_TEST_SOURCES }}/docker-java.properties"
 
       - name: Test with gradle
         run: ./gradlew ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}

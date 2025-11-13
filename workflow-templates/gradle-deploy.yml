@@ -396,6 +396,24 @@ jobs:
           sha: ${{ needs.setup.outputs.sha }}
           version: ${{ needs.setup.outputs.version }}
 
+      - name: Set default project dir
+        if: env.PROJECT_DIR == ''
+        run: echo PROJECT_DIR='.' >> ${GITHUB_ENV}
+
+      - name: Determine test source folders
+        run: echo PROJECT_TEST_SOURCES=$(find ${{ env.PROJECT_DIR }} -path '*/src/test/java' -o -path '*/src/test/kotlin' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
+
+      - name: Check docker-java properties
+        id: check_docker_properties
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: ${{ env.PROJECT_TEST_SOURCES }}/docker-java.properties
+
+      - name: Fix docker api version (workaround for testcontainers)
+        if: steps.check_docker_properties.outputs.files_exists == 'false'
+        run: echo 'api.version=1.44' > "${{ env.PROJECT_TEST_SOURCES }}/docker-java.properties"
+
       - name: Build with gradle (incl. test)
         if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') || needs.setup.outputs.gradle-deploy-task == 'none'
         run: ./gradlew ${{ needs.setup.outputs.gradle-build-task }} -Pversion=${{ needs.setup.outputs.version }}
