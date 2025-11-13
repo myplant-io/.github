@@ -129,7 +129,7 @@ jobs:
 
       - name: Set default project dir
         if: env.PROJECT_DIR == ''
-        run: echo PROJECT_DIR='.'' >> ${GITHUB_ENV}
+        run: echo PROJECT_DIR='.' >> ${GITHUB_ENV}
 
       - name: Determine test source folders
         run: echo PROJECT_TEST_SOURCES=$(find ${{ env.PROJECT_DIR }} -path '*/src/test/java' -o -path '*/src/test/kotlin' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
