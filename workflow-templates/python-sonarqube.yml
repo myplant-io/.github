@@ -64,9 +64,9 @@ jobs:
 
       - name: Check python version determination
         if: steps.check_file_pyproject.outputs.files_exists == 'false' && steps.check_file_python_version.outputs.files_exists == 'false'
-        run: |
-          echo "::error Either pyproject.toml or .python-version must exists (and contain a python version number)"
-          exit 1
+        uses: actions/github-script@v8
+        with:
+          script: core.setFailed('Either pyproject.toml or .python-version must exists (and contain a python version number).')
 
       - name: Determine poetry version from pyproject.toml
         id: determine_poetry_version

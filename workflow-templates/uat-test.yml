@@ -390,11 +390,16 @@ jobs:
           JOB_ID=$(echo "$job_info" | jq -r '.jobs[1].id')
           if [ -z "$JOB_ID" ]; then
             echo "Build job ID not found"
-            exit 1
           fi
 
           echo job_id="$JOB_ID" >> $GITHUB_OUTPUT
           echo job_status="$JOB_STATUS" >> $GITHUB_OUTPUT
+
+      - name: Check for valid Job ID
+        if: steps.get_job_id_and_status.outputs.job_id == ''
+        uses: actions/github-script@v8
+        with:
+          script: core.setFailed('Failed to retrieve Job ID for UAT job.')
 
   notify:
     if: always()
