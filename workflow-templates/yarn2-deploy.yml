@@ -174,7 +174,7 @@ jobs:
 
       - name: Extract docker base image
         if: steps.check_dockerfile.outputs.files_exists == 'true'
-        run: echo DOCKER_BASE_IMAGE="$(grep -m 1 '^FROM ' Dockerfile | awk '{print $2}')" >> ${GITHUB_ENV}
+        run: echo DOCKER_BASE_IMAGE="$(grep '^FROM ' Dockerfile | tail -n 1 | awk '{print $2}')" >> ${GITHUB_ENV}
 
   build:
     name: 'Job: Build'
