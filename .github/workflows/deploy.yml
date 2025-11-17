@@ -7,7 +7,7 @@ on:
 jobs:
   setup:
     name: 'Job: Setup'
-    runs-on: [self-hosted-standard]
+    runs-on: [ubuntu-latest]
     concurrency:
       group: setup_${{ github.ref }}
       cancel-in-progress: false
@@ -32,7 +32,7 @@ jobs:
     name: 'Job: Merging release changes'
     if: always() && needs.setup.outputs.is-release == 'true'
     needs: ['setup']
-    runs-on: [self-hosted-standard]
+    runs-on: [ubuntu-latest]
 
     steps:
       - name: Merging release changes to master
