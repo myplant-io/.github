@@ -58,4 +58,3 @@ jobs:
             "source_branch": "${{ needs.setup.outputs.branch-name }}",
             "target_branch": "master",
             "tag": "${{ needs.setup.outputs.tag }}"}'
-
