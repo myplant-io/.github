@@ -405,7 +405,9 @@ jobs:
 
       - name: Fallback to default test resource folder
         if: env.PROJECT_TEST_RESOURCES == ''
-        run: echo PROJECT_TEST_RESOURCES="src/test/resources" >> ${GITHUB_ENV}
+        run: |
+          mkdir -p "${{ env.PROJECT_DIR }}/src/test/resources"
+          echo PROJECT_TEST_RESOURCES="src/test/resources" >> ${GITHUB_ENV}
 
       - name: Check docker-java properties
         id: check_docker_properties
