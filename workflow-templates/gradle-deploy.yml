@@ -403,6 +403,10 @@ jobs:
       - name: Determine test resources folder
         run: echo PROJECT_TEST_RESOURCES=$(find ${{ env.PROJECT_DIR }} -path '*/src/test/resources' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs | tr ' ' ',') >> ${GITHUB_ENV}
 
+      - name: Fallback to default test resource folder
+        if: env.PROJECT_TEST_RESOURCES = ''
+        run: echo PROJECT_TEST_RESOURCES="src/test/resources"
+
       - name: Check docker-java properties
         id: check_docker_properties
         uses: andstor/file-existence-action@v3
