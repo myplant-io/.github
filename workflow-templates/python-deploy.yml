@@ -35,6 +35,7 @@ jobs:
       poetry-version: ${{ env.POETRY_VERSION }}
       publish-sha: ${{ env.PUBLISH_SHA }}
       publish-target: ${{ env.PUBLISH_TARGET }}
+      pyproject-exists: ${{ env.PYPROJECT_EXISTS }}
       python-version-file: ${{ env.PYTHON_VERSION_FILE }}
       sha: ${{ env.SHA }}
       tag: ${{ env.TAG }}
@@ -174,6 +175,9 @@ jobs:
         with:
           fail: false
           files: 'pyproject.toml'
+
+      - name: Export 'PYPROJECT_EXISTS'
+        run: echo PYPROJECT_EXISTS="${{ steps.check_file_pyproject.outputs.files_exists }}" >> ${GITHUB_ENV}
 
       - name: Use pyproject.toml as python version file
         if: steps.check_file_pyproject.outputs.files_exists == 'true'
@@ -537,8 +541,8 @@ jobs:
           endpoint: buildx-context
 
       - name: Update version in pyproject file
-        if: steps.check_file_pyproject.outputs.files_exists == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
-        run: sed -i 's/^version\s=\s.*[0-9]\?/version = "${{ needs.setup.outputs.version }}"/g' pyproject.toml
+        if: needs.setup.outputs.pyproject-exists == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
+        run: sed -i 's/^version\s\{0,1\}=\s\{0,1\}.*/version = "${{ needs.setup.outputs.version }}"/g' pyproject.toml 
 
       - name: Validate base image (golden image check)
         if: needs.setup.outputs.docker-base-image != '' && !startsWith(needs.setup.outputs.docker-base-image, steps.aws-login-ecr.outputs.registry)
