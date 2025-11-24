@@ -64,7 +64,7 @@ jobs:
         run: echo TITLE="merge ${{ env.TAG }} into ${{ env.TARGET_BRANCH }}" >> ${GITHUB_ENV}
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ env.SOURCE_BRANCH }}
@@ -144,7 +144,7 @@ jobs:
 
       - name: Checkout git repository
         if: env.IS_DETACHED_HEAD == 'true' && env.AUTO_MERGE == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ env.SOURCE_BRANCH }}
