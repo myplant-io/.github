@@ -27,7 +27,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           sparse-checkout: .
 
@@ -79,7 +79,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
@@ -273,7 +273,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3
@@ -451,7 +451,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Check workflow config file existence
         uses: andstor/file-existence-action@v3

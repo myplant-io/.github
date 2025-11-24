@@ -35,7 +35,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout GitHub actions repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: myplant-io/.github
           token: ${{ secrets.CI_PAT }}
@@ -44,7 +44,7 @@ jobs:
 
       - name: Checkout git repository
         if: startsWith(github.event_name , 'pull_request') == false
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           path: target
@@ -52,7 +52,7 @@ jobs:
 
       - name: Checkout git repository (on PR)
         if: startsWith(github.event_name , 'pull_request')
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           path: target
