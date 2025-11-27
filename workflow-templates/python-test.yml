@@ -602,11 +602,11 @@ jobs:
           uv add pytest --group dev
 
       - name: Test with pytest (with pip)
-        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false' && steps.check_test_pip.outputs.testCount != 0
+        if: steps.check_poetry.outputs.files_exists == 'false' && steps.check_uv.outputs.files_exists == 'false'
         run: pytest
 
       - name: Test with pytest
-        if: (steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true') && steps.check_test_poetry.outputs.testCount != 0
+        if: steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true'
         run: |
           source .venv/bin/activate
           pytest
