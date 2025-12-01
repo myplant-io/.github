@@ -48,7 +48,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -193,9 +193,9 @@ jobs:
 
       - name: Check python version determination
         if: steps.check_file_pyproject.outputs.files_exists == 'false' && steps.check_file_python_version.outputs.files_exists == 'false'
-        run: |
-          echo "::error Either pyproject.toml or .python-version must exists (and contain a python version number)"
-          exit 1
+        uses: actions/github-script@v8
+        with:
+          script: core.setFailed('Either pyproject.toml or .python-version must exists (and contain a python version number).')
 
       - name: Determine poetry version from pyproject.toml
         id: determine_poetry_version
@@ -233,7 +233,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -542,9 +542,9 @@ jobs:
 
       - name: Validate base image (golden image check)
         if: needs.setup.outputs.docker-base-image != '' && !startsWith(needs.setup.outputs.docker-base-image, steps.aws-login-ecr.outputs.registry)
-        run: |
-          echo "Base image not located in INNIO ECR."
-          exit 1
+        uses: actions/github-script@v8
+        with:
+          script: core.setFailed('Base image not located in INNIO ECR.')
 
       - name: Build and push docker image
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && needs.setup.outputs.docker-repository != 'none'
@@ -640,7 +640,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -656,7 +656,7 @@ jobs:
           envFile: '.github/workflow-config.env'
 
       - name: Checkout deployment repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           path: deployment-repo

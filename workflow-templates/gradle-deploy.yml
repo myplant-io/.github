@@ -51,7 +51,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -183,7 +183,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -396,6 +396,36 @@ jobs:
           sha: ${{ needs.setup.outputs.sha }}
           version: ${{ needs.setup.outputs.version }}
 
+      - name: Set default project dir
+        if: env.PROJECT_DIR == ''
+        run: echo PROJECT_DIR='.' >> ${GITHUB_ENV}
+
+      - name: Determine test resources folder
+        run: echo PROJECT_TEST_RESOURCES=$(find ${{ env.PROJECT_DIR }} -path '*/src/test/resources' | sed "s/^${{ env.PROJECT_DIR }}\///" | xargs) >> ${GITHUB_ENV}
+
+      - name: Fallback to default test resource folder
+        if: env.PROJECT_TEST_RESOURCES == ''
+        run: |
+          mkdir -p "${{ env.PROJECT_DIR }}/src/test/resources"
+          echo PROJECT_TEST_RESOURCES="src/test/resources" >> ${GITHUB_ENV}
+
+      - name: Check docker-java properties
+        id: check_docker_properties
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: ${{ env.PROJECT_TEST_RESOURCES }}/docker-java.properties
+
+      - name: Fix docker api version (workaround for testcontainers)
+        if: steps.check_docker_properties.outputs.files_exists == 'false'
+        run: |
+          IFS=' ' read -ra test_resources <<< "${{ env.PROJECT_TEST_RESOURCES }}"
+          for r in ${test_resources[@]}; do
+            if [ ! -f "${r}/docker-java.properties" ]; then
+              echo 'api.version=1.44' > "${r}/docker-java.properties"
+            fi
+          done
+
       - name: Build with gradle (incl. test)
         if: (env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false') || needs.setup.outputs.gradle-deploy-task == 'none'
         run: ./gradlew ${{ needs.setup.outputs.gradle-build-task }} -Pversion=${{ needs.setup.outputs.version }}
@@ -486,7 +516,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -502,7 +532,7 @@ jobs:
           envFile: '.github/workflow-config.env'
 
       - name: Checkout deployment repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           path: deployment-repo

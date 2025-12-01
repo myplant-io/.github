@@ -35,7 +35,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           sparse-checkout: .
 
@@ -64,9 +64,9 @@ jobs:
 
       - name: Check python version determination
         if: steps.check_file_pyproject.outputs.files_exists == 'false' && steps.check_file_python_version.outputs.files_exists == 'false'
-        run: |
-          echo "::error Either pyproject.toml or .python-version must exists (and contain a python version number)"
-          exit 1
+        uses: actions/github-script@v8
+        with:
+          script: core.setFailed('Either pyproject.toml or .python-version must exists (and contain a python version number).')
 
       - name: Determine poetry version from pyproject.toml
         id: determine_poetry_version
@@ -91,14 +91,14 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
