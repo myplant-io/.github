@@ -1,4 +1,5 @@
 name: UAT Scenarios
+run-name: UAT run on ${{ github.event.inputs.environment || 'beta' }} using ${{ github.event.inputs.browser || 'chrome-for-testing' }}
 
 on:
   push:
