@@ -384,7 +384,7 @@ jobs:
           version: ${{ needs.setup.outputs.version }}
 
       - name: Create/restore cache for node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: node_modules-cache
         if: env.RETAG == 'false'
         with:
