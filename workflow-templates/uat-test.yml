@@ -97,7 +97,7 @@ jobs:
       job_id: ${{ steps.get_job_id_and_status.outputs.job_id }}
       job_status: ${{ steps.get_job_id_and_status.outputs.job_status }}
       notification_color: ${{ env.NOTIFICATION_COLOR }}
-      test_plan_id: ${{ env.TEST_PLAN_ID }}
+      testplan_id: ${{ env.TESTPLAN_ID }}
       last_success_run_timestamp: ${{ env.LAST_SUCCESS_RUN_TIMESTAMP }}
 
     concurrency:
@@ -201,15 +201,15 @@ jobs:
         run: echo ARTIFACT_IDENTIFIER=${{ matrix.environment }}-${{ runner.os }}-${{ matrix.browser }}-${{ matrix.browser-version }} >> ${GITHUB_ENV}
 
       - name: Set default test plan jira id
-        run: echo TEST_PLAN_ID='DD-20026' >> ${GITHUB_ENV}
+        run: echo TESTPLAN_ID='DD-20026' >> ${GITHUB_ENV}
 
       - name: Set custom test plan jira id (from user input)
         if: inputs.testPlanId != '' && inputs.testPlanId != 'auto'
-        run: echo TEST_PLAN_ID=${{ inputs.testPlanId }} >> ${GITHUB_ENV}
+        run: echo TESTPLAN_ID=${{ inputs.testPlanId }} >> ${GITHUB_ENV}
 
       - name: Set custom test plan jira id (auto)
-        if: inputs.testPlanId == 'auto' && env.DEFAULT_TEST_PLAN_ID != ''
-        run: echo TEST_PLAN_ID=${{ env.DEFAULT_TEST_PLAN_ID }} >> ${GITHUB_ENV}
+        if: inputs.testPlanId == 'auto' && env.DEFAULT_TESTPLAN_ID != ''
+        run: echo TESTPLAN_ID=${{ env.DEFAULT_TESTPLAN_ID }} >> ${GITHUB_ENV}
 
       - name: Publish HAR file variable to cypress
         if: env.RECORD_HAR == 'true'
@@ -310,7 +310,7 @@ jobs:
           config: video=${{ env.RECORD_VIDEO }}
           install: false
         env:
-          TEST_PLAN_ID: ${{ env.TEST_PLAN_ID }}
+          TESTPLAN_ID: ${{ env.TESTPLAN_ID }}
           XRAY_CLIENT_ID: ${{ secrets.XRAY_CLIENT_ID }}
           XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
           XRAY_REST_URL: https://xray.cloud.getxray.app/api/v2
@@ -325,7 +325,7 @@ jobs:
         if: always() && env.EXPORT_XRAY_RESULTS == 'true'
         run: yarn xray:export-results
         env:
-          TEST_PLAN_ID: ${{ env.TEST_PLAN_ID }}
+          TESTPLAN_ID: ${{ env.TESTPLAN_ID }}
           TEST_ENVIRONMENT: ${{ github.event.inputs.environment || matrix.environment }}
           XRAY_CLIENT_ID: ${{ secrets.XRAY_CLIENT_ID }}
           XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
@@ -457,7 +457,7 @@ jobs:
               "name": "View Test Plan",
               "targets": [{
                 "os": "default",
-                "uri": "https://innio.atlassian.net/browse/${{needs.uat.outputs.test_plan_id}}"
+                "uri": "https://innio.atlassian.net/browse/${{needs.uat.outputs.testplan_id}}"
               }]
             }]
           }' $MSTEAMS_WEBHOOK
