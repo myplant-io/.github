@@ -437,7 +437,7 @@ jobs:
 
       - name: Compress and upload test report folders
         if: failure() && steps.gradle-project-stats.outputs.subproject-count == '0'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-result
           path: 'build/reports/tests'
@@ -455,7 +455,7 @@ jobs:
 
       - name: Upload test results (for multirepo)
         if: failure() && steps.gradle-project-stats.outputs.subproject-count != '0'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-result
           path: test-results.zip
