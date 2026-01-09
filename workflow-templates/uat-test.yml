@@ -9,10 +9,10 @@ on:
     inputs:
       browser:
         type: choice
-        default: chrome
+        default: chrome-for-testing
         description: 'Browser to be used for UAT testing (latest stable versions are used)'
         options:
-          - chrome
+          - chrome-for-testing
           - edge
           - firefox
         required: true
@@ -71,8 +71,8 @@ jobs:
     name: 'Job: Determine environments to run on'
     runs-on: [self-hosted-standard]
     outputs:
-      browsers: ${{steps.list_envs.outputs.browsers}}
-      environment: ${{steps.list_envs.outputs.environment}}
+      browsers: ${{ steps.list_envs.outputs.browsers }}
+      environments: ${{ steps.list_envs.outputs.environment }}
 
     steps:
       - name: Use user input
@@ -84,14 +84,14 @@ jobs:
       - name: Use default value
         if: github.event_name != 'workflow_dispatch'
         run: |
-          echo BROWSER="['chrome']" >> ${GITHUB_ENV}
+          echo BROWSER="['chrome-for-testing']" >> ${GITHUB_ENV}
           echo ENVIRONMENTS="['beta']" >> ${GITHUB_ENV}
 
       - id: list_envs
         name: List environments
         run: |
           echo browsers="${{ env.BROWSER }}" >> ${GITHUB_OUTPUT}
-          echo environment="${{ env.ENVIRONMENTS }}" >> ${GITHUB_OUTPUT}
+          echo environments="${{ env.ENVIRONMENTS }}" >> ${GITHUB_OUTPUT}
 
   uat:
     name: 'Job: Test ${{ matrix.environment }} with ${{ matrix.browser }} '
@@ -111,9 +111,9 @@ jobs:
 
     strategy:
       matrix:
-        browser: ${{fromJSON(needs.setup.outputs.browsers)}}
+        browser: ${{ fromJSON(needs.setup.outputs.browsers) }}
         browser-version: [stable]
-        environment: ${{fromJSON(needs.setup.outputs.environment)}}
+        environment: ${{ fromJSON(needs.setup.outputs.environments) }}
 
     steps:
       - name: Set git to use LF
@@ -291,6 +291,15 @@ jobs:
             ~/.cache/Cypress
             **/node_modules
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Prepare node environment
+        if: ${{ hashFiles('.env') == '' }}
+        run: touch .env
+
+      - name: Add registry credentials
+        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Install dependencies (if not previously cached)
         if: steps.node_modules-cache.outputs.cache-hit != 'true'

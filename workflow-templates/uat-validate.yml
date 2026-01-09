@@ -109,6 +109,15 @@ jobs:
           path: '**/node_modules'
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
+      - name: Prepare node environment
+        if: ${{ hashFiles('.env') == '' }}
+        run: touch .env
+
+      - name: Add registry credentials
+        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
       - name: Install dependencies (if not previously cached)
         if: steps.node_modules-cache.outputs.cache-hit != 'true'
         run: yarn install --frozen-lockfile
