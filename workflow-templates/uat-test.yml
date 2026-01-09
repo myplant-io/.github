@@ -71,8 +71,8 @@ jobs:
     name: 'Job: Determine environments to run on'
     runs-on: [self-hosted-standard]
     outputs:
-      browsers: ${{ steps.list_envs.outputs.browsers }}
-      environments: ${{ steps.list_envs.outputs.environment }}
+      browsers: ${{ env.BROWSERS }}
+      environments: ${{ env.ENVIRONMENTS }}
 
     steps:
       - name: Use user input
@@ -86,12 +86,6 @@ jobs:
         run: |
           echo BROWSER="['chrome-for-testing']" >> ${GITHUB_ENV}
           echo ENVIRONMENTS="['beta']" >> ${GITHUB_ENV}
-
-      - id: list_envs
-        name: List environments
-        run: |
-          echo browsers="${{ env.BROWSER }}" >> ${GITHUB_OUTPUT}
-          echo environments="${{ env.ENVIRONMENTS }}" >> ${GITHUB_OUTPUT}
 
   uat:
     name: 'Job: Test ${{ matrix.environment }} with ${{ matrix.browser }} '
