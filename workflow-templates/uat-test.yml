@@ -78,13 +78,13 @@ jobs:
       - name: Use user input
         if: github.event_name == 'workflow_dispatch'
         run: |
-          echo BROWSER="['${{ github.event.inputs.browser }}']" >> ${GITHUB_ENV}
+          echo BROWSERS="['${{ github.event.inputs.browser }}']" >> ${GITHUB_ENV}
           echo ENVIRONMENTS="['${{ github.event.inputs.environment }}']" >> ${GITHUB_ENV}
 
       - name: Use default value
         if: github.event_name != 'workflow_dispatch'
         run: |
-          echo BROWSER="['chrome-for-testing']" >> ${GITHUB_ENV}
+          echo BROWSERS="['chrome-for-testing']" >> ${GITHUB_ENV}
           echo ENVIRONMENTS="['beta']" >> ${GITHUB_ENV}
 
   uat:
