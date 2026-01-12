@@ -278,14 +278,18 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+<<<<<<< Updated upstream
       - name: Create/restore cache
         uses: actions/cache@v5
         id: node_modules-cache
+=======
+      - name: Create/restore cache for yarn
+        uses: actions/cache@v4
+>>>>>>> Stashed changes
         with:
-          path: |
-            ~/.cache/Cypress
-            **/node_modules
+          path: .yarn
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: ${{ runner.os }}-yarn-
 
       - name: Prepare node environment
         if: ${{ hashFiles('.env') == '' }}
@@ -297,8 +301,7 @@ jobs:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Install dependencies (if not previously cached)
-        if: steps.node_modules-cache.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
 
       - name: Run tests
         uses: cypress-io/github-action@v6
