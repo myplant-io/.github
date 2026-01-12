@@ -92,6 +92,11 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
+      - name: Add registry credentials
+        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> ${GITHUB_ENV}
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
       - name: Prepare node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v6
         with:
@@ -102,14 +107,8 @@ jobs:
         env:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
-<<<<<<< Updated upstream
-      - name: Create/restore cache for node_modules
-        uses: actions/cache@v5
-        id: node_modules-cache
-=======
       - name: Create/restore cache for yarn
-        uses: actions/cache@v4
->>>>>>> Stashed changes
+        uses: actions/cache@v5
         with:
           path: .yarn
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
@@ -118,11 +117,6 @@ jobs:
       - name: Prepare node environment
         if: ${{ hashFiles('.env') == '' }}
         run: touch .env
-
-      - name: Add registry credentials
-        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
-        env:
-          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Install dependencies (if not previously cached)
         run: yarn install --immutable
