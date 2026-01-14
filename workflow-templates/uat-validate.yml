@@ -6,7 +6,7 @@
 #
 # Created by: Nikolaus Krismer
 ###
-name: Validate and test
+name: Validate
 
 on:
   pull_request:
