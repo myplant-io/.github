@@ -300,7 +300,7 @@ jobs:
       - name: Run tests
         uses: cypress-io/github-action@v6
         with:
-          build: yarn xray:load ${{ matrix.browser }} && npx browserslist@latest --update-db
+          build: yarn xray:load ${{ matrix.browser }} && yarn browserslist@latest --update-db
           browser: ${{ matrix.browser }}
           command: yarn cypress run --config video=${{ env.RECORD_VIDEO }} --browser ${{ matrix.browser }}
           config: video=${{ env.RECORD_VIDEO }}
