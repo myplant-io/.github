@@ -294,7 +294,7 @@ jobs:
         if: ${{ hashFiles('.env') == '' }}
         run: touch .env
 
-      - name: Install dependencies (if not previously cached)
+      - name: Install dependencies
         run: yarn install --immutable
 
       - name: Run tests
@@ -302,8 +302,7 @@ jobs:
         with:
           build: yarn xray:load ${{ matrix.browser }} && npx browserslist@latest --update-db
           browser: ${{ matrix.browser }}
-          # see https://github.com/cypress-io/github-action/issues/489#issuecomment-1021379037 why this command-prefix is here
-          command-prefix: '--'
+          command: yarn cypress run --config video=${{ env.RECORD_VIDEO }} --browser ${{ matrix.browser }}
           config: video=${{ env.RECORD_VIDEO }}
           install: false
         env:
