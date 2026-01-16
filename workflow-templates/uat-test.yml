@@ -297,13 +297,14 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Install cypress
+        run: yarn run cypress install
+
       - name: Run tests
         uses: cypress-io/github-action@v6
         with:
           build: yarn xray:load ${{ matrix.browser }} && yarn browserslist@latest --update-db
-          browser: ${{ matrix.browser }}
-          command: yarn cypress run --config video=${{ env.RECORD_VIDEO }} --browser ${{ matrix.browser }}
-          config: video=${{ env.RECORD_VIDEO }}
+          command: yarn run cypress run --browser ${{ matrix.browser }} --config video=${{ env.RECORD_VIDEO }}
           install: false
         env:
           TESTPLAN_ID: ${{ env.TESTPLAN_ID }}
