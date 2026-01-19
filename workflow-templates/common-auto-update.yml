@@ -120,11 +120,19 @@ jobs:
 
       - name: Test project-type (for python)
         id: determine-type-python
-        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'PYTHON_VERSION_FILE' | wc -l) >> ${GITHUB_OUTPUT}
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'actions/setup-python' | wc -l) >> ${GITHUB_OUTPUT}
 
       - name: Set project type to python
         if: steps.determine-type-python.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=python >> ${GITHUB_ENV}
+
+      - name: Test project-type (for go)
+        id: determine-type-go
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'actions/setup-go' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Set project type to go
+        if: steps.determine-type-go.outputs.cnt_validations != '0'
+        run: echo PROJECT_TYPE=go >> ${GITHUB_ENV}
 
       - name: Test project-type (for UAT)
         id: determine-type-uat
