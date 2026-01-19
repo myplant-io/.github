@@ -149,8 +149,6 @@ jobs:
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - uses: actions/setup-go@v6
-        with:
-          go-version: '${{ env.GO_VERSION }}'
 
       - uses: extractions/netrc@v2
         with:
@@ -164,7 +162,7 @@ jobs:
           username: ${{ env.GITHUB_ACTION_USERNAME }}
           password: ${{ secrets.CI_PAT }}
 
-      - name: Tests
+      - name: Run tests
         run: |
           go mod tidy
           go build .
