@@ -105,6 +105,8 @@ jobs:
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
 
       - uses: extractions/netrc@v2
         with:
