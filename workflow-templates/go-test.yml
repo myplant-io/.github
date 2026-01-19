@@ -102,13 +102,13 @@ jobs:
       - uses: extractions/netrc@v2
         with:
           machine: github.com
-          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          username: CI_PAT
           password: ${{ secrets.CI_PAT }}
 
       - uses: extractions/netrc@v2
         with:
           machine: api.github.com
-          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          username: CI_PAT
           password: ${{ secrets.CI_PAT }}
 
       - name: Configure AWS credentials (to enable test to download containers)
