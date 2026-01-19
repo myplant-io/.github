@@ -26,6 +26,7 @@ jobs:
     outputs:
       branch-name: ${{ env.BRANCH_NAME }}
       component-name: ${{ env.COMPONENT_NAME }}
+      deploy-environment: ${{ env.DEPLOY_ENVIRONMENT }}
       deploy-targets: ${{ env.DEPLOY_TARGETS }}
       deployment-method: ${{ env.DEPLOYMENT_METHOD }}
       deployment-repo: ${{ env.DEPLOYMENT_REPO }}
@@ -152,19 +153,27 @@ jobs:
 
       - name: Set deploy information' for push (to alpha/staging)
         if: (env.BRANCH_NAME == 'develop' || github.event_name == 'workflow_dispatch') && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: |
+          echo DEPLOY_ENVIRONMENT="alpha" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for pre-release
         if: env.IS_PRERELEASE == 'true' && (env.PRE_RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run:  |
+          echo DEPLOY_ENVIRONMENT="beta" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for release
         if: env.IS_RELEASE == 'true' && (env.RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: |
+          echo DEPLOY_ENVIRONMENT="production" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
-        run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
+        run: |
+          echo DEPLOY_ENVIRONMENT="none" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
   build:
     name: 'Job: Build'
@@ -493,6 +502,29 @@ jobs:
             "version": "${{ needs.setup.outputs.version }}",
             "component_name": "${{ needs.setup.outputs.component-name }}",
             "deployment_files": ${{ needs.setup.outputs.deploy-targets }},
+            "git_sha": "${{ needs.setup.outputs.sha }}"}'
+
+  deployHelmLegacy:
+    name: 'Job: Deploy (legacy helm)'
+    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets == 'use-helm' && needs.setup.gradle-deploy-task != 'none'
+    needs: ['setup', 'build']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: deployLegacy_${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Deploy Service (legacy helm deployment)
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.CI_PAT }}
+          repository: myplant-io/myplant-helm-environment
+          event-type: update-docker-image
+          client-payload: '{
+            "image": "${{ needs.setup.outputs.docker-repository }}",
+            "image_tag": "${{ needs.setup.outputs.docker-tag-prefix }}${{ needs.setup.outputs.version }}",
+            "source_repo": "${{ github.repository }}",
+            "target_environment": "${{ needs.setup.outputs.deploy-environment }}",
             "git_sha": "${{ needs.setup.outputs.sha }}"}'
 
   deployHelm:
