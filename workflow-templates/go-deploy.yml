@@ -431,6 +431,12 @@ jobs:
           push: true
           secrets: nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
           tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ needs.setup.outputs.docker-repository }}:${{ needs.setup.outputs.docker-identifier }}
+          build-args: |
+            ACCESS_TOKEN_USR=${{ env.GITHUB_ACTION_USERNAME }}
+            ACCESS_TOKEN_PWD=${{ secrets.CI_PAT }}
+            BUILD_COMMIT=${{ env.SHA_SHORT }}
+            BUILD_VERSION=${{ env.BUILD_VERSION }}
+            BUILD_TIME=${{ env.TIME }}
 
   deployLegacy:
     name: 'Job: Deploy (legacy)'
