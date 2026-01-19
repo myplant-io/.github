@@ -1,0 +1,7 @@
+{
+  "name": "Test on PR",
+  "description": "Test pull requests for Go projects",
+  "iconName": "icon-go",
+  "categories": ["Go"],
+  "filePatterns": ["go.mod"]
+}

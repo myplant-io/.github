@@ -1,0 +1,144 @@
+###
+# GitHub action that runs tests on the code.
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Daniel Hons, Nikolaus Krismer
+###
+name: Validate and test
+
+on:
+  pull_request:
+    branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
+    paths-ignore:
+      - '.github/workflows/*auto-update*'
+  workflow_dispatch:
+
+permissions: write-all # allows dependabot to upload with dorny/test-reporter
+
+jobs:
+  validateAndTest:
+    name: 'Job: Validate and test'
+    runs-on: [self-hosted-standard]
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        if: startsWith(github.event_name , 'pull_request') == false
+        uses: actions/checkout@v6
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout git repository (on PR)
+        if: startsWith(github.event_name , 'pull_request')
+        uses: actions/checkout@v6
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Set env 'SHA'
+        if: startsWith(github.event_name , 'pull_request') == false
+        run: echo SHA=$(echo ${GITHUB_SHA} | cut -c1-7) >> ${GITHUB_ENV}
+
+      - name: Set env 'SHA' (on PR)
+        if: startsWith(github.event_name , 'pull_request')
+        run: echo SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7) >> ${GITHUB_ENV}
+
+      - name: Set env 'VERSION' to SHA
+        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
+
+      - name: Get action system info
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+        uses: kenchan0130/actions-system-info@v1.4.0
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - uses: actions/setup-go@v6
+
+      - uses: extractions/netrc@v2
+        with:
+          machine: github.com
+          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          password: ${{ secrets.CI_PAT }}
+
+      - uses: extractions/netrc@v2
+        with:
+          machine: api.github.com
+          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          password: ${{ secrets.CI_PAT }}
+
+      - name: Configure AWS credentials (to enable test to download containers)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: aws-login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Run tests
+        run: |
+          go mod tidy
+          go build .
+          go test -coverprofile=coverage.out -json ./... > test-result.json
+
+      - name: Test reporting
+        uses: dorny/test-reporter@v2
+        if: success() || failure()
+        with:
+          fail-on-empty: false
+          fail-on-error: true
+          name: Test Report
+          path: 'test-result.json'
+          reporter: 'golang-json'
+
+      - name: Upload test results (for multirepo)
+        if: failure() && steps.gradle-project-stats.outputs.subproject-count != '0'
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-result
+          path: test-result.json
