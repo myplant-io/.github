@@ -1,0 +1,7 @@
+{
+  "name": "Build and deploy",
+  "description": "Build and deploy for .NET edge agent projects",
+  "iconName": "icon-csharp",
+  "categories": ["csharp"],
+  "filePatterns": ["*.sln", "*.csproj"]
+}
