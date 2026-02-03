@@ -119,7 +119,7 @@ jobs:
         if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
         run:
           echo "Determining Java version from Gradle..."
-          gradle_version_normalized=$(echo "${{ env.GRADLE_VERSION }}" | awk -F. '{printf "%02d%02d%02d\n", $1, $2, $3}')
+          gradle_version_normalized="$(echo "${{ env.GRADLE_VERSION }}" | awk -F. '{printf "%02d%02d%02d\n", $1, $2, $3}')"
 
           jdk="unsupported"
           if [ "${gradle_version_normalized}" -ge "080500" ]; then
