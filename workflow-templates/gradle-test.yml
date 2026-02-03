@@ -104,11 +104,34 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
+        id: setup-gradle
         uses: gradle/actions/setup-gradle@v5
+
+      - name: Prepare java version determination
+        if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
+        run:
+          echo "Determining Java version from Gradle..."
+          gradle_version_normalized=$(echo "${{ steps.setup-gradle.outputs.gradle-version }}" | awk -F. '{printf "%02d%02d%02d\n", $1, $2, $3}')
+
+          jdk="unsupported"
+          if [ "${gradle_version_normalized}" -ge "080500" ]; then
+            jdk=$JAVA_HOME_21_X64 >> ${GITHUB_OUTPUT}
+          elif [ "${gradle_version_normalized}" -ge "070300" ]; then
+            jdk=$JAVA_HOME_17_X64 >> ${GITHUB_OUTPUT}
+          elif [ "${gradle_version_normalized}" -ge "070000" ]; then
+            jdk=$JAVA_HOME_11_X64 >> ${GITHUB_OUTPUT}
+          fi
+          echo JDK_GRADLE=$jdk >> ${GITHUB_ENV}
+
+      - name: Check that source branch is not develop
+        if: env.JDK_GRADLE == 'unsupported'
+        uses: actions/github-script@v8
+        with:
+          script: core.setFailed("Unsupported version \"${{ steps.setup-gradle.outputs.gradle-version }}\" of gradle wrapper detected. Please update your gradle wrapper!")
 
       - name: Get java version from gradle
         if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
-        run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home=$JAVA_HOME_21_X64 | tail -n 1)" >> ${GITHUB_ENV}
+        run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home="${{ env.JDK_GRADLE }}" | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
