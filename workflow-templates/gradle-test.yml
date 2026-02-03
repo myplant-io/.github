@@ -117,7 +117,7 @@ jobs:
 
       - name: Prepare java version determination (using gradle version ${{ env.GRADLE_VERSION }})
         if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
-        run:
+        run: |
           echo "Determining Java version from Gradle..."
           gradle_version_normalized="$(echo "${{ env.GRADLE_VERSION }}" | awk -F. '{printf "%02d%02d%02d\n", $1, $2, $3}')"
 
