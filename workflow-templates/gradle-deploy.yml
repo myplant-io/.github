@@ -387,7 +387,7 @@ jobs:
           elif [ "${gradle_version_normalized}" -ge "070000" ]; then
             jdk="$JAVA_HOME_11_X64"
           fi
-          echo JDK_GRADLE=$jdk >> ${GITHUB_ENV}
+          echo JDK_GRADLE="$jdk" >> ${GITHUB_ENV}
 
       - name: Check that source branch is not develop
         if: env.JDK_GRADLE == 'unsupported' || env.JDK_GRADLE == ''
