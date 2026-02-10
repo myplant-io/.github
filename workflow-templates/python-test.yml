@@ -440,7 +440,7 @@ jobs:
 
   test:
     name: 'Job: Test'
-    needs: ['testPrecheck']
+    needs: ['setup', 'testPrecheck']
     runs-on: [self-hosted-standard]
     if: needs.testPrecheck.outputs.test-count != '0'
 
