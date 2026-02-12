@@ -384,7 +384,7 @@ jobs:
           version: ${{ needs.setup.outputs.version }}
 
       - name: Create/restore cache for webpack
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: webpack-cache
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         with:
@@ -393,7 +393,7 @@ jobs:
           restore-keys: ${{ runner.os }}-webpack-
 
       - name: Create/restore cache for yarn
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: yarn-cache
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         with:

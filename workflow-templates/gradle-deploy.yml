@@ -26,6 +26,7 @@ jobs:
     outputs:
       branch-name: ${{ env.BRANCH_NAME }}
       component-name: ${{ env.COMPONENT_NAME }}
+      deploy-environment: ${{ env.DEPLOY_ENVIRONMENT }}
       deploy-targets: ${{ env.DEPLOY_TARGETS }}
       deployment-method: ${{ env.DEPLOYMENT_METHOD }}
       deployment-repo: ${{ env.DEPLOYMENT_REPO }}
@@ -152,19 +153,27 @@ jobs:
 
       - name: Set deploy information' for push (to alpha/staging)
         if: (env.BRANCH_NAME == 'develop' || github.event_name == 'workflow_dispatch') && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: |
+          echo DEPLOY_ENVIRONMENT="alpha" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for pre-release
         if: env.IS_PRERELEASE == 'true' && (env.PRE_RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: |
+          echo DEPLOY_ENVIRONMENT="beta" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set deploy information for release
         if: env.IS_RELEASE == 'true' && (env.RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
-        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+        run: |
+          echo DEPLOY_ENVIRONMENT="production" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
 
       - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
         if: env.BRANCH_NAME == 'master'
-        run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
+        run: |
+          echo DEPLOY_ENVIRONMENT="none" >> ${GITHUB_ENV}
+          echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
 
   build:
     name: 'Job: Build'
@@ -353,11 +362,42 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
+        id: setup-gradle
         uses: gradle/actions/setup-gradle@v5
+
+      - name: Set gradle version (after setup)
+        if: steps.setup-gradle.outputs.gradle-version != ''
+        run: echo GRADLE_VERSION="${{ steps.setup-gradle.outputs.gradle-version }}" >> ${GITHUB_ENV}
+
+      - name: Set gradle version (when version not set by setup - e.g. when using wrapper)
+        if: steps.setup-gradle.outputs.gradle-version == ''
+        run: echo GRADLE_VERSION="$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed -E 's/.*gradle-([^-]+)-(bin|all)\.zip.*/\1/')" >> ${GITHUB_ENV}
+
+      - name: Prepare java version determination (using gradle version ${{ env.GRADLE_VERSION }})
+        if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
+        run: |
+          echo "Determining Java version from Gradle..."
+          gradle_version_normalized="$(echo "${{ env.GRADLE_VERSION }}" | awk -F. '{printf "%02d%02d%02d\n", $1, $2, $3}')"
+
+          jdk="unsupported"
+          if [ "${gradle_version_normalized}" -ge "080500" ]; then
+            jdk="$JAVA_HOME_21_X64"
+          elif [ "${gradle_version_normalized}" -ge "070300" ]; then
+            jdk="$JAVA_HOME_17_X64"
+          elif [ "${gradle_version_normalized}" -ge "070000" ]; then
+            jdk="$JAVA_HOME_11_X64"
+          fi
+          echo JDK_GRADLE="$jdk" >> ${GITHUB_ENV}
+
+      - name: Check that source branch is not develop
+        if: env.JDK_GRADLE == 'unsupported' || env.JDK_GRADLE == ''
+        uses: actions/github-script@v8
+        with:
+          script: core.setFailed("Unsupported gradle version \"${{ steps.setup-gradle.outputs.gradle-version }}\" of gradle wrapper detected. Please update your gradle wrapper!")
 
       - name: Get java version from gradle
         if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
-        run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home=$JAVA_HOME_21_X64 | tail -n 1)" >> ${GITHUB_ENV}
+        run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home="${{ env.JDK_GRADLE }}" | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
@@ -437,7 +477,7 @@ jobs:
 
       - name: Compress and upload test report folders
         if: failure() && steps.gradle-project-stats.outputs.subproject-count == '0'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-result
           path: 'build/reports/tests'
@@ -455,7 +495,7 @@ jobs:
 
       - name: Upload test results (for multirepo)
         if: failure() && steps.gradle-project-stats.outputs.subproject-count != '0'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-result
           path: test-results.zip
@@ -472,7 +512,7 @@ jobs:
 
   deployLegacy:
     name: 'Job: Deploy (legacy)'
-    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets != 'none' && needs.setup.gradle-deploy-task != 'none'
+    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets != 'use-helm' && needs.setup.outputs.deploy-targets != 'none' && needs.setup.gradle-deploy-task != 'none'
     needs: ['setup', 'build']
     runs-on: [self-hosted-standard]
     concurrency:
@@ -495,9 +535,32 @@ jobs:
             "deployment_files": ${{ needs.setup.outputs.deploy-targets }},
             "git_sha": "${{ needs.setup.outputs.sha }}"}'
 
+  deployHelmLegacy:
+    name: 'Job: Deploy (legacy helm)'
+    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets == 'use-helm' && needs.setup.gradle-deploy-task != 'none'
+    needs: ['setup', 'build']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: deployLegacy_${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Deploy Service (legacy helm deployment)
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.CI_PAT }}
+          repository: myplant-io/myplant-helm-environment
+          event-type: update-docker-image
+          client-payload: '{
+            "image": "${{ needs.setup.outputs.docker-repository }}",
+            "image_tag": "${{ needs.setup.outputs.docker-tag-prefix }}${{ needs.setup.outputs.version }}",
+            "source_repo": "${{ github.repository }}",
+            "target_environment": "${{ needs.setup.outputs.deploy-environment }}",
+            "git_sha": "${{ needs.setup.outputs.sha }}"}'
+
   deployHelm:
     name: 'Job: Deploy'
-    if: needs.setup.outputs.deployment-method == 'helm'
+    if: needs.setup.outputs.deployment-method == 'helm' && needs.setup.gradle-deploy-task != 'none'
     needs: ['setup', 'build']
     runs-on: [self-hosted-standard]
     concurrency:
