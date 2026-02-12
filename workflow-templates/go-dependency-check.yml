@@ -31,7 +31,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
@@ -49,7 +49,7 @@ jobs:
           envFile: '.github/workflow-config.env'
 
       - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
@@ -106,18 +106,18 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - uses: extractions/netrc@v2
         with:
           machine: github.com
-          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          username: CI_PAT
           password: ${{ secrets.CI_PAT }}
 
       - uses: extractions/netrc@v2
         with:
           machine: api.github.com
-          username: ${{ env.GITHUB_ACTION_USERNAME }}
+          username: CI_PAT
           password: ${{ secrets.CI_PAT }}
 
       - name: Generate SBOM
@@ -127,7 +127,7 @@ jobs:
           args: mod -licenses -output bom.xml
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           if-no-files-found: error
           name: SBOM

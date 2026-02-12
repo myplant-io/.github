@@ -1,4 +1,5 @@
 name: UAT Scenarios
+run-name: UAT run on ${{ github.event.inputs.environment || 'beta' }} using ${{ github.event.inputs.browser || 'chrome-for-testing' }}
 
 on:
   push:
@@ -9,10 +10,10 @@ on:
     inputs:
       browser:
         type: choice
-        default: chrome
+        default: chrome-for-testing
         description: 'Browser to be used for UAT testing (latest stable versions are used)'
         options:
-          - chrome
+          - chrome-for-testing
           - edge
           - firefox
         required: true
@@ -71,27 +72,21 @@ jobs:
     name: 'Job: Determine environments to run on'
     runs-on: [self-hosted-standard]
     outputs:
-      browsers: ${{steps.list_envs.outputs.browsers}}
-      environment: ${{steps.list_envs.outputs.environment}}
+      browsers: ${{ env.BROWSERS }}
+      environments: ${{ env.ENVIRONMENTS }}
 
     steps:
       - name: Use user input
         if: github.event_name == 'workflow_dispatch'
         run: |
-          echo BROWSER="['${{ github.event.inputs.browser }}']" >> ${GITHUB_ENV}
+          echo BROWSERS="['${{ github.event.inputs.browser }}']" >> ${GITHUB_ENV}
           echo ENVIRONMENTS="['${{ github.event.inputs.environment }}']" >> ${GITHUB_ENV}
 
       - name: Use default value
         if: github.event_name != 'workflow_dispatch'
         run: |
-          echo BROWSER="['chrome']" >> ${GITHUB_ENV}
+          echo BROWSERS="['chrome-for-testing']" >> ${GITHUB_ENV}
           echo ENVIRONMENTS="['beta']" >> ${GITHUB_ENV}
-
-      - id: list_envs
-        name: List environments
-        run: |
-          echo browsers="${{ env.BROWSER }}" >> ${GITHUB_OUTPUT}
-          echo environment="${{ env.ENVIRONMENTS }}" >> ${GITHUB_OUTPUT}
 
   uat:
     name: 'Job: Test ${{ matrix.environment }} with ${{ matrix.browser }} '
@@ -102,7 +97,7 @@ jobs:
       job_id: ${{ steps.get_job_id_and_status.outputs.job_id }}
       job_status: ${{ steps.get_job_id_and_status.outputs.job_status }}
       notification_color: ${{ env.NOTIFICATION_COLOR }}
-      test_plan_id: ${{ env.TEST_PLAN_ID }}
+      testplan_id: ${{ env.TESTPLAN_ID }}
       last_success_run_timestamp: ${{ env.LAST_SUCCESS_RUN_TIMESTAMP }}
 
     concurrency:
@@ -111,9 +106,9 @@ jobs:
 
     strategy:
       matrix:
-        browser: ${{fromJSON(needs.setup.outputs.browsers)}}
+        browser: ${{ fromJSON(needs.setup.outputs.browsers) }}
         browser-version: [stable]
-        environment: ${{fromJSON(needs.setup.outputs.environment)}}
+        environment: ${{ fromJSON(needs.setup.outputs.environments) }}
 
     steps:
       - name: Set git to use LF
@@ -123,14 +118,14 @@ jobs:
 
       - name: Checkout git repository
         if: startsWith(github.event_name , 'pull_request') == false
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (on PR)
         if: startsWith(github.event_name , 'pull_request')
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -206,15 +201,15 @@ jobs:
         run: echo ARTIFACT_IDENTIFIER=${{ matrix.environment }}-${{ runner.os }}-${{ matrix.browser }}-${{ matrix.browser-version }} >> ${GITHUB_ENV}
 
       - name: Set default test plan jira id
-        run: echo TEST_PLAN_ID='DD-20026' >> ${GITHUB_ENV}
+        run: echo TESTPLAN_ID='DD-20026' >> ${GITHUB_ENV}
 
       - name: Set custom test plan jira id (from user input)
         if: inputs.testPlanId != '' && inputs.testPlanId != 'auto'
-        run: echo TEST_PLAN_ID=${{ inputs.testPlanId }} >> ${GITHUB_ENV}
+        run: echo TESTPLAN_ID=${{ inputs.testPlanId }} >> ${GITHUB_ENV}
 
       - name: Set custom test plan jira id (auto)
-        if: inputs.testPlanId == 'auto' && env.DEFAULT_TEST_PLAN_ID != ''
-        run: echo TEST_PLAN_ID=${{ env.DEFAULT_TEST_PLAN_ID }} >> ${GITHUB_ENV}
+        if: inputs.testPlanId == 'auto' && env.DEFAULT_TESTPLAN_ID != ''
+        run: echo TESTPLAN_ID=${{ env.DEFAULT_TESTPLAN_ID }} >> ${GITHUB_ENV}
 
       - name: Publish HAR file variable to cypress
         if: env.RECORD_HAR == 'true'
@@ -278,35 +273,41 @@ jobs:
         with:
           firefox-version: ${{ matrix.browser-version }}
 
+      - name: Add registry credentials
+        run: echo YARN_NPM_AUTH_TOKEN=${NPM_REGISTRY_AUTH#"//npm.pkg.github.com/:_authToken="} >> ${GITHUB_ENV}
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
       - name: Prepare node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Create/restore cache
-        uses: actions/cache@v4
-        id: node_modules-cache
+      - name: Create/restore cache for yarn
+        uses: actions/cache@v5
         with:
-          path: |
-            ~/.cache/Cypress
-            **/node_modules
+          path: .yarn
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: ${{ runner.os }}-yarn-
 
-      - name: Install dependencies (if not previously cached)
-        if: steps.node_modules-cache.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile
+      - name: Prepare node environment
+        if: ${{ hashFiles('.env') == '' }}
+        run: touch .env
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Install cypress
+        run: yarn run cypress install
 
       - name: Run tests
         uses: cypress-io/github-action@v6
         with:
-          build: yarn xray:load ${{ matrix.browser }} && npx browserslist@latest --update-db
-          browser: ${{ matrix.browser }}
-          # see https://github.com/cypress-io/github-action/issues/489#issuecomment-1021379037 why this command-prefix is here
-          command-prefix: '--'
-          config: video=${{ env.RECORD_VIDEO }}
+          build: yarn xray:load ${{ matrix.browser }} && yarn browserslist@latest --update-db
+          command: yarn run cypress run --browser ${{ matrix.browser }} --config video=${{ env.RECORD_VIDEO }}
           install: false
         env:
-          TEST_PLAN_ID: ${{ env.TEST_PLAN_ID }}
+          TESTPLAN_ID: ${{ env.TESTPLAN_ID }}
           XRAY_CLIENT_ID: ${{ secrets.XRAY_CLIENT_ID }}
           XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
           XRAY_REST_URL: https://xray.cloud.getxray.app/api/v2
@@ -321,35 +322,35 @@ jobs:
         if: always() && env.EXPORT_XRAY_RESULTS == 'true'
         run: yarn xray:export-results
         env:
-          TEST_PLAN_ID: ${{ env.TEST_PLAN_ID }}
+          TESTPLAN_ID: ${{ env.TESTPLAN_ID }}
           TEST_ENVIRONMENT: ${{ github.event.inputs.environment || matrix.environment }}
           XRAY_CLIENT_ID: ${{ secrets.XRAY_CLIENT_ID }}
           XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
           XRAY_REST_URL: https://xray.cloud.getxray.app/api/v2
 
       - name: Publish cucumber report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always() && env.RECORD_REPORT == 'true'
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-cucumber-report
           path: cypress/reports/cucumber.html
 
       - name: Publish HAR file
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always() && env.RECORD_HAR == 'true'
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-hars
           path: cypress/reports/hars
 
       - name: Publish tested feature specs
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always() && env.RECORD_FEATURE_SPEC == 'true'
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-features
           path: cypress/specs/xray
 
       - name: Publish data results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always() && env.RECORD_RESULT_DATA == 'true' && failure()
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-test-data
@@ -357,13 +358,13 @@ jobs:
 
       - name: Upload test results (screenshots)
         if: always() && env.RECORD_SCREENSHOTS == 'true' && failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-screenshots
           path: cypress/reports/screenshots
 
       - name: Publish videos results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always() && env.RECORD_VIDEO == 'true'
         with:
           name: ${{ env.ARTIFACT_IDENTIFIER }}-videos
@@ -453,7 +454,7 @@ jobs:
               "name": "View Test Plan",
               "targets": [{
                 "os": "default",
-                "uri": "https://innio.atlassian.net/browse/${{needs.uat.outputs.test_plan_id}}"
+                "uri": "https://innio.atlassian.net/browse/${{needs.uat.outputs.testplan_id}}"
               }]
             }]
           }' $MSTEAMS_WEBHOOK

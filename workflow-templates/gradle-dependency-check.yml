@@ -41,14 +41,14 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
@@ -149,11 +149,42 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
+        id: setup-gradle
         uses: gradle/actions/setup-gradle@v5
+
+      - name: Set gradle version (after setup)
+        if: steps.setup-gradle.outputs.gradle-version != ''
+        run: echo GRADLE_VERSION="${{ steps.setup-gradle.outputs.gradle-version }}" >> ${GITHUB_ENV}
+
+      - name: Set gradle version (when version not set by setup - e.g. when using wrapper)
+        if: steps.setup-gradle.outputs.gradle-version == ''
+        run: echo GRADLE_VERSION="$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed -E 's/.*gradle-([^-]+)-(bin|all)\.zip.*/\1/')" >> ${GITHUB_ENV}
+
+      - name: Prepare java version determination (using gradle version ${{ env.GRADLE_VERSION }})
+        if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
+        run: |
+          echo "Determining Java version from Gradle..."
+          gradle_version_normalized="$(echo "${{ env.GRADLE_VERSION }}" | awk -F. '{printf "%02d%02d%02d\n", $1, $2, $3}')"
+
+          jdk="unsupported"
+          if [ "${gradle_version_normalized}" -ge "080500" ]; then
+            jdk="$JAVA_HOME_21_X64"
+          elif [ "${gradle_version_normalized}" -ge "070300" ]; then
+            jdk="$JAVA_HOME_17_X64"
+          elif [ "${gradle_version_normalized}" -ge "070000" ]; then
+            jdk="$JAVA_HOME_11_X64"
+          fi
+          echo JDK_GRADLE="$jdk" >> ${GITHUB_ENV}
+
+      - name: Check that source branch is not develop
+        if: env.JDK_GRADLE == 'unsupported' || env.JDK_GRADLE == ''
+        uses: actions/github-script@v8
+        with:
+          script: core.setFailed("Unsupported gradle version \"${{ steps.setup-gradle.outputs.gradle-version }}\" of gradle wrapper detected. Please update your gradle wrapper!")
 
       - name: Get java version from gradle
         if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
-        run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home=$JAVA_HOME_21_X64 | tail -n 1)" >> ${GITHUB_ENV}
+        run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home="${{ env.JDK_GRADLE }}" | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
@@ -248,14 +279,14 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: github.event_name != 'repository_dispatch'
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (for dispatched runs)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: github.event_name == 'repository_dispatch'
         with:
           fetch-depth: 0
@@ -317,7 +348,7 @@ jobs:
 
       - name: Upload SBOM artifact
         if: needs.setup.outputs.verbose-artifact-upload == 'true'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           if-no-files-found: error
           name: SBOM

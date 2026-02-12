@@ -48,7 +48,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -191,7 +191,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -384,7 +384,7 @@ jobs:
           version: ${{ needs.setup.outputs.version }}
 
       - name: Create/restore cache for webpack
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: webpack-cache
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         with:
@@ -393,7 +393,7 @@ jobs:
           restore-keys: ${{ runner.os }}-webpack-
 
       - name: Create/restore cache for yarn
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: yarn-cache
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         with:
@@ -514,7 +514,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -530,7 +530,7 @@ jobs:
           envFile: '.github/workflow-config.env'
 
       - name: Checkout deployment repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           path: deployment-repo
