@@ -181,7 +181,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: core.setFailed("Unsupported gradle version \"${{ steps.setup-gradle.outputs.gradle-version }}\" of gradle wrapper detected. Please update your gradle wrapper!")
-      
+
       - name: Get java version from gradle
         if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
         run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home="${{ env.JDK_GRADLE }}" | tail -n 1)" >> ${GITHUB_ENV}
@@ -238,7 +238,6 @@ jobs:
 
   dependencyCheck:
     name: 'Job: Dependency check (${{ matrix.project-name }})'
-    if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     needs: ['setup']
     runs-on: [self-hosted-standard]
 
