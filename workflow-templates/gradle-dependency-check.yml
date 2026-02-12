@@ -11,6 +11,10 @@
 name: Dependency check
 
 on:
+  pull_request:
+    branches: [develop]
+    paths-ignore:
+      - '.github/workflows/*auto-update*'
   schedule:
     # at 00:00 every sunday (on the default branch - develop)
     - cron: '0 0 * * SUN'
@@ -22,6 +26,7 @@ on:
 
 jobs:
   setup:
+    if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     name: 'Job: Setup'
     runs-on: [self-hosted-standard]
     outputs:
@@ -149,42 +154,11 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Prepare gradle
-        id: setup-gradle
         uses: gradle/actions/setup-gradle@v5
-
-      - name: Set gradle version (after setup)
-        if: steps.setup-gradle.outputs.gradle-version != ''
-        run: echo GRADLE_VERSION="${{ steps.setup-gradle.outputs.gradle-version }}" >> ${GITHUB_ENV}
-
-      - name: Set gradle version (when version not set by setup - e.g. when using wrapper)
-        if: steps.setup-gradle.outputs.gradle-version == ''
-        run: echo GRADLE_VERSION="$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed -E 's/.*gradle-([^-]+)-(bin|all)\.zip.*/\1/')" >> ${GITHUB_ENV}
-
-      - name: Prepare java version determination (using gradle version ${{ env.GRADLE_VERSION }})
-        if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
-        run: |
-          echo "Determining Java version from Gradle..."
-          gradle_version_normalized="$(echo "${{ env.GRADLE_VERSION }}" | awk -F. '{printf "%02d%02d%02d\n", $1, $2, $3}')"
-
-          jdk="unsupported"
-          if [ "${gradle_version_normalized}" -ge "080500" ]; then
-            jdk="$JAVA_HOME_21_X64"
-          elif [ "${gradle_version_normalized}" -ge "070300" ]; then
-            jdk="$JAVA_HOME_17_X64"
-          elif [ "${gradle_version_normalized}" -ge "070000" ]; then
-            jdk="$JAVA_HOME_11_X64"
-          fi
-          echo JDK_GRADLE="$jdk" >> ${GITHUB_ENV}
-
-      - name: Check that source branch is not develop
-        if: env.JDK_GRADLE == 'unsupported' || env.JDK_GRADLE == ''
-        uses: actions/github-script@v8
-        with:
-          script: core.setFailed("Unsupported gradle version \"${{ steps.setup-gradle.outputs.gradle-version }}\" of gradle wrapper detected. Please update your gradle wrapper!")
 
       - name: Get java version from gradle
         if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
-        run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home="${{ env.JDK_GRADLE }}" | tail -n 1)" >> ${GITHUB_ENV}
+        run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home=$JAVA_HOME_21_X64 | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
@@ -238,6 +212,7 @@ jobs:
 
   dependencyCheck:
     name: 'Job: Dependency check (${{ matrix.project-name }})'
+    if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
     needs: ['setup']
     runs-on: [self-hosted-standard]
 
@@ -373,3 +348,190 @@ jobs:
           projectversion: ${{ needs.setup.outputs.branch-name }}
           projecttags: '${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
           serverhostname: ${{ secrets.DEPENDENCYTRACK_URL }}
+
+      - name: Wait for Dependency Track analysis and check policy violations
+        id: check-violations
+        run: |
+          echo "Retrieving project UUID from Dependency Track..."
+          API_KEY="${{ secrets.DEPENDENCYTRACK_APIKEY }}"
+          DT_URL="${{ secrets.DEPENDENCYTRACK_URL }}"
+          PROJECT_NAME="${{ env.PROJECT_NAME }}"
+          PROJECT_VERSION="${{ needs.setup.outputs.branch-name }}"
+          
+          # Get project UUID by name and version
+          PROJECT_LOOKUP=$(curl -s -X GET "${DT_URL}/api/v1/project/lookup?name=${PROJECT_NAME}&version=${PROJECT_VERSION}" \
+            -H "X-Api-Key: ${API_KEY}" \
+            -H "accept: application/json")
+          
+          PROJECT_UUID=$(echo "$PROJECT_LOOKUP" | jq -r '.uuid // empty')
+          
+          if [ -z "$PROJECT_UUID" ]; then
+            echo "❌ Failed to retrieve project UUID. Project may not exist yet."
+            exit 1
+          fi
+          
+          echo "Project UUID: $PROJECT_UUID"
+          echo "Waiting for Dependency Track to analyze the SBOM..."
+          
+          # Wait for analysis to complete (max 1 hour)
+          MAX_ATTEMPTS=100
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            sleep 60
+            ATTEMPT=$((ATTEMPT + 1))
+            
+            # Check if analysis is complete by checking if we can get metrics
+            METRICS=$(curl -s -X GET "${DT_URL}/api/v1/metrics/project/${PROJECT_UUID}/current" \
+              -H "X-Api-Key: ${API_KEY}" \
+              -H "accept: application/json")
+            
+            if echo "$METRICS" | jq -e '.vulnerabilities' > /dev/null 2>&1; then
+              echo "Analysis complete. Metrics received."
+              break
+            fi
+            
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Analysis still in progress..."
+          done
+          
+          if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+            echo "⚠️  Warning: Analysis did not complete within timeout. Proceeding with policy check..."
+          fi
+          
+          # Get policy violations
+          echo "Checking for policy violations..."
+          VIOLATIONS=$(curl -s -X GET "${DT_URL}/api/v1/violation/project/${PROJECT_UUID}" \
+            -H "X-Api-Key: ${API_KEY}" \
+            -H "accept: application/json")
+          
+          # Get metrics for summary
+          METRICS=$(curl -s -X GET "${DT_URL}/api/v1/metrics/project/${PROJECT_UUID}/current" \
+            -H "X-Api-Key: ${API_KEY}" \
+            -H "accept: application/json")
+          
+          # Count violations by type (default to 0 if empty/null)
+          TOTAL=$(echo "$VIOLATIONS" | jq '. | length // 0')
+          CRITICAL=$(echo "$VIOLATIONS" | jq '[.[] | select(.policyViolation.violationState == "FAIL")] | length // 0')
+          
+          # Get vulnerability counts (default to 0 if not available)
+          VULN_CRITICAL=$(echo "$METRICS" | jq -r '.critical // 0')
+          VULN_HIGH=$(echo "$METRICS" | jq -r '.high // 0')
+          VULN_MEDIUM=$(echo "$METRICS" | jq -r '.medium // 0')
+          VULN_LOW=$(echo "$METRICS" | jq -r '.low // 0')
+          
+          # Store results for comment
+          echo "total-violations=${TOTAL}" >> ${GITHUB_OUTPUT}
+          echo "critical-violations=${CRITICAL}" >> ${GITHUB_OUTPUT}
+          echo "vuln-critical=${VULN_CRITICAL}" >> ${GITHUB_OUTPUT}
+          echo "vuln-high=${VULN_HIGH}" >> ${GITHUB_OUTPUT}
+          echo "vuln-medium=${VULN_MEDIUM}" >> ${GITHUB_OUTPUT}
+          echo "vuln-low=${VULN_LOW}" >> ${GITHUB_OUTPUT}
+          echo "project-uuid=${PROJECT_UUID}" >> ${GITHUB_OUTPUT}
+          
+          # Save violations for comment (only if violations exist)
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "$VIOLATIONS" | jq -r '.[] | 
+              "- **[\(.type)]** " + 
+              (if .policyViolation.name then .policyViolation.name else "Policy Violation" end) + 
+              ": `\(.component.name)@\(.component.version)`" + 
+              (if .text then " - \(.text)" else "" end)' > /tmp/violations.txt
+            
+            echo "❌ Policy violations found: $TOTAL"
+            echo ""
+            cat /tmp/violations.txt
+            echo ""
+            echo "View full report at: ${DT_URL}/projects/$PROJECT_UUID"
+            exit 1
+          else
+            echo "✅ No policy violations found. Quality gate passed!"
+          fi
+
+      - name: Comment on PR with violation details
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const projectUuid = '${{ steps.check-violations.outputs.project-uuid }}';
+            let dtUrl = '${{ secrets.DEPENDENCYTRACK_URL }}';
+            
+            // Ensure URL has protocol
+            if (!dtUrl.startsWith('http://') && !dtUrl.startsWith('https://')) {
+              dtUrl = 'https://' + dtUrl;
+            }
+            
+            const totalViolations = '${{ steps.check-violations.outputs.total-violations }}';
+            const criticalViolations = '${{ steps.check-violations.outputs.critical-violations }}';
+            const vulnCritical = '${{ steps.check-violations.outputs.vuln-critical }}';
+            const vulnHigh = '${{ steps.check-violations.outputs.vuln-high }}';
+            const vulnMedium = '${{ steps.check-violations.outputs.vuln-medium }}';
+            const vulnLow = '${{ steps.check-violations.outputs.vuln-low }}';
+            
+            let violations = '';
+            try {
+              violations = fs.readFileSync('/tmp/violations.txt', 'utf8');
+            } catch (e) {
+              violations = 'Details not available';
+            }
+            
+            const body = `## ❌ Dependency Check failed
+            
+            **Failed conditions**
+            ✖ ${totalViolations} Policy violation${totalViolations > 1 ? 's' : ''}
+            
+            **Vulnerabilities**
+            - 🔴 Critical: ${vulnCritical}
+            - 🟠 High: ${vulnHigh}
+            - 🟡 Medium: ${vulnMedium}
+            - 🔵 Low: ${vulnLow}
+            
+            **Policy Violations:**
+            ${violations}
+            
+            [See analysis details on Dependency Track](${dtUrl}/projects/${projectUuid})
+            
+            💡 Catch issues before they fail your Quality Gate with our IDE extension [Dependency Track for IDE](${dtUrl})`;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Comment on PR with success
+        if: success() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const projectUuid = '${{ steps.check-violations.outputs.project-uuid }}';
+            let dtUrl = '${{ secrets.DEPENDENCYTRACK_URL }}';
+            
+            // Ensure URL has protocol
+            if (!dtUrl.startsWith('http://') && !dtUrl.startsWith('https://')) {
+              dtUrl = 'https://' + dtUrl;
+            }
+            
+            const vulnCritical = '${{ steps.check-violations.outputs.vuln-critical }}';
+            const vulnHigh = '${{ steps.check-violations.outputs.vuln-high }}';
+            const vulnMedium = '${{ steps.check-violations.outputs.vuln-medium }}';
+            const vulnLow = '${{ steps.check-violations.outputs.vuln-low }}';
+            
+            const body = `## ✅ Dependency Check passed
+            
+            **Vulnerabilities**
+            - 🔴 Critical: ${vulnCritical}
+            - 🟠 High: ${vulnHigh}
+            - 🟡 Medium: ${vulnMedium}
+            - 🔵 Low: ${vulnLow}
+            
+            [See analysis details on Dependency Track](${dtUrl}/projects/${projectUuid})`;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+

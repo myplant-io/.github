@@ -1,34 +1,29 @@
 ###
-# GitHub action that creates a Software-Bill-of-Material (SBOM) and pushes the
-# result to the myplant dependency tracker (dependency-dev.myplant.io).
+# GitHub action for Dependency Track policy violation checking
+# Monitors SBOM analysis and reports violations on PRs
 #
 # Prerequisites:
-#  - ".github/workflow-config.env" exists
+#  - DEPENDENCYTRACK_APIKEY secret
+#  - DEPENDENCYTRACK_URL secret
+#  - Project must already exist in Dependency Track with SBOM uploaded
 #
-# Created by: Nikolaus Krismer and Nikolaus Brunner
 ###
-name: Dependency check
+name: Dependency Track Policy Check
 
 on:
-  schedule:
-    # at 00:00 every sunday (on the default branch - develop)
-    - cron: '0 0 * * SUN'
+  pull_request:
+    branches: [develop, main, master]
   push:
     branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
-  repository_dispatch:
-    types: [dependencyCheck]
   workflow_dispatch:
 
 jobs:
   setup:
-    name: 'Job: Python setup'
-    runs-on: [self-hosted-standard]
+    name: 'Setup'
+    runs-on: ubuntu-latest
     outputs:
-      branch-name: ${{ env.BRANCH_NAME }}
-      component-name: ${{ env.COMPONENT_NAME }}
-      poetry-version: ${{ env.POETRY_VERSION }}
-      python-version-file: ${{ env.PYTHON_VERSION_FILE }}
-      version: ${{ env.VERSION }}
+      branch-name: ${{ steps.branch-info.outputs.branch-name }}
+      project-name: ${{ steps.project-info.outputs.project-name }}
 
     steps:
       - name: Set git to use LF
