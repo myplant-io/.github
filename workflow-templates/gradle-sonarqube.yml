@@ -185,7 +185,9 @@ jobs:
           gradle_version_normalized="$(echo "${{ env.GRADLE_VERSION }}" | awk -F. '{printf "%02d%02d%02d\n", $1, $2, $3}')"
 
           jdk="unsupported"
-          if [ "${gradle_version_normalized}" -ge "080500" ]; then
+          if [ "${gradle_version_normalized}" -ge "090000" ]; then
+            jdk="$JAVA_HOME_25_X64"
+          elif [ "${gradle_version_normalized}" -ge "080500" ]; then
             jdk="$JAVA_HOME_21_X64"
           elif [ "${gradle_version_normalized}" -ge "070300" ]; then
             jdk="$JAVA_HOME_17_X64"
