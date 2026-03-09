@@ -122,7 +122,9 @@ jobs:
           gradle_version_normalized="$(echo "${{ env.GRADLE_VERSION }}" | awk -F. '{printf "%02d%02d%02d\n", $1, $2, $3}')"
 
           jdk="unsupported"
-          if [ "${gradle_version_normalized}" -ge "080500" ]; then
+          if [ "${gradle_version_normalized}" -ge "090000" ]; then
+            jdk="$JAVA_HOME_25_X64"
+          elif [ "${gradle_version_normalized}" -ge "080500" ]; then
             jdk="$JAVA_HOME_21_X64"
           elif [ "${gradle_version_normalized}" -ge "070300" ]; then
             jdk="$JAVA_HOME_17_X64"
@@ -148,7 +150,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Configure AWS credentials (to enable test to download containers)
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}

@@ -185,7 +185,9 @@ jobs:
           gradle_version_normalized="$(echo "${{ env.GRADLE_VERSION }}" | awk -F. '{printf "%02d%02d%02d\n", $1, $2, $3}')"
 
           jdk="unsupported"
-          if [ "${gradle_version_normalized}" -ge "080500" ]; then
+          if [ "${gradle_version_normalized}" -ge "090000" ]; then
+            jdk="$JAVA_HOME_25_X64"
+          elif [ "${gradle_version_normalized}" -ge "080500" ]; then
             jdk="$JAVA_HOME_21_X64"
           elif [ "${gradle_version_normalized}" -ge "070300" ]; then
             jdk="$JAVA_HOME_17_X64"
@@ -352,7 +354,7 @@ jobs:
           java-version: ${{ needs.setup.outputs.java-version }}
 
       - name: Configure AWS credentials (to enable test to download containers)
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
@@ -361,6 +363,23 @@ jobs:
       - name: Login to Amazon ECR
         id: aws-login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Check docker-java properties
+        id: check_docker_properties
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: ${{ env.PROJECT_TEST_RESOURCES }}/docker-java.properties
+
+      - name: Fix docker api version (workaround for testcontainers)
+        if: steps.check_docker_properties.outputs.files_exists == 'false'
+        run: |
+          IFS=' ' read -ra test_resources <<< "${{ env.PROJECT_TEST_RESOURCES }}"
+          for r in ${test_resources[@]}; do
+            if [ ! -f "${r}/docker-java.properties" ]; then
+              echo 'api.version=1.44' > "${r}/docker-java.properties"
+            fi
+          done
 
       - name: Create class files with gradle (single project)
         if: matrix.project-name == 'ROOT_PROJECT'
