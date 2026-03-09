@@ -127,7 +127,7 @@ jobs:
           args: mod -licenses -output bom.xml
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
           name: SBOM
