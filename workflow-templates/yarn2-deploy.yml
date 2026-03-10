@@ -440,7 +440,7 @@ jobs:
 
       - name: Set up Docker Buildx
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && needs.setup.outputs.docker-repository != 'none'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
         with:
           endpoint: buildx-context
 
