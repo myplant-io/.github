@@ -377,7 +377,7 @@ jobs:
           serverhostname: ${{ secrets.DEPENDENCYTRACK_URL }}
 
       - name: Wait for Dependency Track analysis and check policy violations
-        uses: myplant-io/github-actions/report-dependency-track@DD-156436
+        uses: myplant-io/github-actions/report-dependency-track@v1
         with:
           api-key: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           url: ${{ secrets.DEPENDENCYTRACK_URL }}
