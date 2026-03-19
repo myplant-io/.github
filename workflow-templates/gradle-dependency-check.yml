@@ -371,7 +371,16 @@ jobs:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           autocreate: true
           bomfilename: '${{ env.BUILD_DIR }}/reports/bom.xml'
-          projectname: ${{ env.PROJECT_NAME }}
-          projectversion: ${{ needs.setup.outputs.branch-name }}
+          projectname: '${{ env.PROJECT_NAME }}'
+          projectversion: '${{ needs.setup.outputs.branch-name }}'
           projecttags: '${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
           serverhostname: ${{ secrets.DEPENDENCYTRACK_URL }}
+
+      - name: Wait for Dependency Track analysis and check policy violations
+        uses: myplant-io/github-actions/report-dependency-track@v1
+        with:
+          api-key: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          url: ${{ secrets.DEPENDENCYTRACK_URL }}
+          project-name: '${{ env.PROJECT_NAME }}'
+          project-version: '${{ needs.setup.outputs.branch-name }}'
+          allow-failure: true
