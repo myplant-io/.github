@@ -226,6 +226,6 @@ jobs:
         with:
           api-key: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           url: ${{ secrets.DEPENDENCYTRACK_URL }}
-          project-name: '${{ env.COMPONENT_NAME }}'
+          project-name: '${{ needs.setup.outputs.component-name }}'
           project-version: '${{ needs.setup.outputs.branch-name }}'
           allow-failure: true
