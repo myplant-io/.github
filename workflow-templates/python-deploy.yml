@@ -537,7 +537,7 @@ jobs:
           endpoint: buildx-context
 
       - name: Update version in pyproject file
-        if: needs.setup.outpu.python-version-file == 'pyproject.toml' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
+        if: needs.setup.outputs.python-version-file == 'pyproject.toml' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
         run: sed -i 's/^version\s=\s.*[0-9]\?/version = "${{ needs.setup.outputs.version }}"/g' pyproject.toml
 
       - name: Validate base image (golden image check)
