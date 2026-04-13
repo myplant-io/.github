@@ -393,7 +393,7 @@ jobs:
 
       - name: Check that source branch is not develop
         if: env.JDK_GRADLE == 'unsupported' || env.JDK_GRADLE == ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: core.setFailed("Unsupported gradle version \"${{ steps.setup-gradle.outputs.gradle-version }}\" of gradle wrapper detected. Please update your gradle wrapper!")
 

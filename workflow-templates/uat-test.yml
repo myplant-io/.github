@@ -398,7 +398,7 @@ jobs:
 
       - name: Check for valid Job ID
         if: steps.get_job_id_and_status.outputs.job_id == ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: core.setFailed('Failed to retrieve Job ID for UAT job.')
 

@@ -29,7 +29,7 @@ jobs:
     runs-on: [self-hosted-standard]
 
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         id: create-combined-pr
         name: Create Combined PR
         with:
