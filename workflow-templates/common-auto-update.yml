@@ -165,6 +165,7 @@ jobs:
           mv ${{ env.SOURCE_DIR}}/common-gitleaks.yml ${{ env.TARGET_DIR }}/gitleaks.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-merge.yml ${{ env.TARGET_DIR }}/merge.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/common-merge-gatekeeper.yml ${{ env.TARGET_DIR }}/merge-gatekeeper.${{ env.FILE_TYPE }}
+          mv ${{ env.SOURCE_DIR}}/common-security-check.yml ${{ env.TARGET_DIR }}/security-check.${{ env.FILE_TYPE }}
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependency-check.yml ${{ env.TARGET_DIR }}/dependency-check.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-deploy.yml ${{ env.TARGET_DIR }}/deploy.${{ env.FILE_TYPE }} 2>/dev/null || :
           mv ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-sonarqube.yml ${{ env.TARGET_DIR }}/sonarqube.${{ env.FILE_TYPE }} 2>/dev/null || :
