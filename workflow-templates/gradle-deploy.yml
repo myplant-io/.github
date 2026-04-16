@@ -392,10 +392,10 @@ jobs:
           echo JDK_GRADLE="$jdk" >> ${GITHUB_ENV}
 
       - name: Check that source branch is not develop
-        if: env.JDK_GRADLE == 'unsupported' || env.JDK_GRADLE == ''
-        uses: actions/github-script@v9
+        if: (env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto') && (env.JDK_GRADLE == 'unsupported' || env.JDK_GRADLE == '')
+        uses: actions/github-script@v8
         with:
-          script: core.setFailed("Unsupported gradle version \"${{ steps.setup-gradle.outputs.gradle-version }}\" of gradle wrapper detected. Please update your gradle wrapper!")
+          script: core.setFailed("Unsupported gradle version \"${{ env.GRADLE_VERSION }}\" of gradle wrapper detected. Please update your gradle wrapper!")
 
       - name: Get java version from gradle
         if: env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto'
