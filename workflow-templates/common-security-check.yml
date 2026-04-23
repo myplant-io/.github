@@ -117,7 +117,7 @@ jobs:
 
     steps:
       - name: Run security pre-checks
-        uses: myplant-io/github-actions/security-check@DD-158323
+        uses: myplant-io/github-actions/security-check@v1
         with:
           component-name: ${{ needs.setup.outputs.component-name }}
           branch-name: ${{ needs.setup.outputs.branch-name }}
