@@ -56,7 +56,7 @@ jobs:
 
       - name: Check python version determination
         if: steps.check_file_pyproject.outputs.files_exists == 'false' && steps.check_file_python_version.outputs.files_exists == 'false'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: core.setFailed('Either pyproject.toml or .python-version must exists (and contain a python version number).')
 
