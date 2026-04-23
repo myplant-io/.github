@@ -67,7 +67,7 @@ jobs:
 
       - name: Check python version determination
         if: steps.check_file_pyproject.outputs.files_exists == 'false' && steps.check_file_python_version.outputs.files_exists == 'false'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: core.setFailed('Either pyproject.toml or .python-version must exists (and contain a python version number).')
 
@@ -282,7 +282,7 @@ jobs:
           type: 'environment'
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
           name: SBOM
@@ -307,3 +307,12 @@ jobs:
           projectversion: ${{ needs.setup.outputs.branch-name }}
           projecttags: '${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
           serverhostname: ${{ secrets.DEPENDENCYTRACK_URL }}
+
+      - name: Wait for Dependency Track analysis and check policy violations
+        uses: myplant-io/github-actions/report-dependency-track@v1
+        with:
+          api-key: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          url: ${{ secrets.DEPENDENCYTRACK_URL }}
+          project-name: '${{ needs.setup.outputs.component-name }}'
+          project-version: '${{ needs.setup.outputs.branch-name }}'
+          allow-failure: true

@@ -193,7 +193,7 @@ jobs:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
       - name: Setup sonarqube
-        uses: warchant/setup-sonar-scanner@v9
+        uses: warchant/setup-sonar-scanner@v10
 
       - name: Fetch repository topics
         id: repository_topics

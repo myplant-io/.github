@@ -1,0 +1,128 @@
+name: Security pre-check
+on:
+  release:
+    types: [prereleased, released]
+  workflow_dispatch:
+    inputs:
+      verbose:
+        description: 'Show detailed output (true/false)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  setup:
+    name: 'Job: setup'
+    runs-on: [self-hosted-standard]
+    outputs:
+      branch-name: ${{ env.BRANCH_NAME }}
+      component-name: ${{ env.COMPONENT_NAME }}
+      sonar-key: ${{ env.SONAR_KEY }}
+      verbose: ${{ env.VERBOSE }}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - name: Checkout git repository
+        uses: actions/checkout@v6
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Set env 'BRANCH_NAME'
+        run: |
+          CURRENT_BRANCH=$(git branch --show-current)
+          if [ -z "${CURRENT_BRANCH}" ]; then
+            # detached HEAD (tag-based release) - find the source branch the tag was created from
+            CURRENT_BRANCH=$(git branch -r --contains HEAD | grep -v '\->' | grep -v HEAD | sed 's|.*origin/||' | head -1 | xargs)
+            echo "Resolved source branch (from tag): ${CURRENT_BRANCH}"
+          else
+            echo "Resolved source branch (from current branch): ${CURRENT_BRANCH}"
+          fi
+          echo BRANCH_NAME="${CURRENT_BRANCH}" >> ${GITHUB_ENV}
+      - name: Set env 'COMPONENT_NAME' (no settings found)
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env SONAR_KEY
+        run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
+
+      - name: Default SONAR_PREFIX to io.myplant
+        if: env.SONAR_PREFIX == ''
+        run: echo SONAR_PREFIX="io.myplant" >> ${GITHUB_ENV}
+
+      - name: Apply SONAR_PREFIX to SONAR_KEY
+        if: env.SONAR_PREFIX != ''
+        run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
+
+      - name: Use user input
+        if: github.event_name == 'workflow_dispatch'
+        run: echo VERBOSE="${{ github.event.inputs.verbose }}" >> ${GITHUB_ENV}
+
+      - name: Use default value
+        if: github.event_name != 'workflow_dispatch'
+        run: echo VERBOSE="false" >> ${GITHUB_ENV}
+
+  wait-for-workflows:
+    name: 'Job: Wait for analysis workflows'
+    needs: [setup]
+    runs-on: [self-hosted-standard]
+    steps:
+      - name: Wait for Sonarqube and Dependency check workflows
+        env:
+          GH_TOKEN: ${{ secrets.CI_PAT }}
+        run: |
+          set -euo pipefail
+          # Capture current time as trigger boundary (github.run_started_at is not reliably available)
+          TRIGGER_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          wait_for_workflow() {
+            local workflow=$1
+            local max_attempts=60
+            local wait_seconds=30
+            echo "Waiting for ${workflow} to complete on ${{ needs.setup.outputs.branch-name }} (started before ${TRIGGER_TIME})..."
+            for i in $(seq 1 $max_attempts); do
+              IN_PROGRESS=$(gh run list --repo "${{ github.repository }}" --workflow="${workflow}" --branch "${{ needs.setup.outputs.branch-name }}" --status=in_progress --json databaseId,createdAt --jq "[.[] | select(.createdAt < \"${TRIGGER_TIME}\")] | length")
+              QUEUED=$(gh run list --repo "${{ github.repository }}" --workflow="${workflow}" --branch "${{ needs.setup.outputs.branch-name }}" --status=queued --json databaseId,createdAt --jq "[.[] | select(.createdAt < \"${TRIGGER_TIME}\")] | length")
+              WAITING=$(gh run list --repo "${{ github.repository }}" --workflow="${workflow}" --branch "${{ needs.setup.outputs.branch-name }}" --status=waiting --json databaseId,createdAt --jq "[.[] | select(.createdAt < \"${TRIGGER_TIME}\")] | length")
+              PENDING_STATUS=$(gh run list --repo "${{ github.repository }}" --workflow="${workflow}" --branch "${{ needs.setup.outputs.branch-name }}" --status=pending --json databaseId,createdAt --jq "[.[] | select(.createdAt < \"${TRIGGER_TIME}\")] | length")
+              PENDING=$((IN_PROGRESS + QUEUED + WAITING + PENDING_STATUS))
+              if [ "$PENDING" -eq 0 ]; then
+                echo "✓ No pending ${workflow} runs"
+                return 0
+              fi
+              echo "  ${workflow}: ${PENDING} run(s) pending. Waiting ${wait_seconds}s... (${i}/${max_attempts})"
+              sleep $wait_seconds
+            done
+            echo "::error::Timed out waiting for ${workflow}"
+            return 1
+          }
+          wait_for_workflow "sonarqube.yaml"
+          wait_for_workflow "dependency-check.yaml"
+  security-check:
+    name: 'Job: Pre-check security'
+    needs: [setup, wait-for-workflows]
+    runs-on: [self-hosted-standard]
+
+    steps:
+      - name: Run security pre-checks
+        uses: myplant-io/github-actions/security-check@v1
+        with:
+          component-name: ${{ needs.setup.outputs.component-name }}
+          branch-name: ${{ needs.setup.outputs.branch-name }}
+          sonar-key: ${{ needs.setup.outputs.sonar-key }}
+          verbose: ${{ needs.setup.outputs.verbose }}
+          ci-pat: ${{ secrets.CI_PAT }}
+          dt-api-key: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          sonar-token: ${{ secrets.SONAR_LOGIN }}
