@@ -363,7 +363,7 @@ jobs:
 
       - name: Prepare gradle
         id: setup-gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Set gradle version (after setup)
         if: steps.setup-gradle.outputs.gradle-version != ''
@@ -393,7 +393,7 @@ jobs:
 
       - name: Check that source branch is not develop
         if: (env.JAVA_VERSION == '' || env.JAVA_VERSION == 'auto') && (env.JDK_GRADLE == 'unsupported' || env.JDK_GRADLE == '')
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: core.setFailed("Unsupported gradle version \"${{ env.GRADLE_VERSION }}\" of gradle wrapper detected. Please update your gradle wrapper!")
 
