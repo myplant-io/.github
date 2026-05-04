@@ -14,6 +14,8 @@ updates:
       interval: 'daily'
     open-pull-requests-limit: 5
   - package-ecosystem: 'github-actions'
+    allow:
+      - dependency-name: 'myplant-io/.github'
     directory: '/'
     schedule:
       interval: 'daily'
