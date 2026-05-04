@@ -296,7 +296,7 @@ jobs:
 
       - name: Upload release artifact (as assets)
         if: needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true'
-        uses: AButler/upload-release-assets@v3.0
+        uses: AButler/upload-release-assets@v4.0
         with:
           files: '${{ needs.setup.outputs.component-name }}_${{ needs.setup.outputs.my-version }}_${{ matrix.dotnet-version }}_${{ matrix.dotnet-rid }}.zip'
           TAG_NAME: ${{ needs.setup.outputs.tag }}
