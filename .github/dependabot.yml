@@ -1,16 +1,21 @@
-version: 2
 updates:
   - package-ecosystem: 'github-actions'
     directory: 'workflow-templates/'
+    # can not check private repo's from this public one... therefore ignoring it
+    ignore: 'myplant-io/github-actions/*'
     schedule:
       interval: 'daily'
     open-pull-requests-limit: 5
   - package-ecosystem: 'github-actions'
     directory: 'optional-workflows/'
+    # can not check private repo's from this public one... therefore ignoring it
+    ignore: 'myplant-io/github-actions/*'
     schedule:
       interval: 'daily'
     open-pull-requests-limit: 5
   - package-ecosystem: 'github-actions'
     directory: '/'
+    # can not check private repo's from this public one... therefore ignoring it
+    ignore: 'myplant-io/github-actions/*'
     schedule:
       interval: 'daily'
