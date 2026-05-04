@@ -158,6 +158,18 @@ jobs:
       - name: List target contents
         run: ls ${{ env.TARGET_DIR }}
 
+      - name: Check dependabot config existence
+        id: check_dependabot_config
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'target/.github/dependabot.${{ env.FILE_TYPE }}'
+
+      - name: Update dependabot config
+        if: steps.check_dependabot_config.outputs.files_exists == 'true'
+        run: |
+          mv -f ${{ env.SOURCE_DIR}}/${{ env.PROJECT_TYPE }}-dependabot.yml target/.github/dependabot.${{ env.FILE_TYPE }} 2>/dev/null || :
+
       - name: Move relevant GitHub actions in place
         if: env.PROJECT_TYPE != 'unknown' && env.PROJECT_TYPE != 'uat'
         run: |
