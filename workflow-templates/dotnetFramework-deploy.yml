@@ -84,7 +84,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
+        uses: NuGet/setup-nuget@v4
 
       - name: Run create-image-windows-XT4 script
         run: sh deployment/create-image-windows-XT4.sh
