@@ -129,7 +129,7 @@ jobs:
           go test -coverprofile=coverage.out -json ./... > test-result.json
 
       - name: Test reporting
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@v3
         if: success() || failure()
         with:
           fail-on-empty: false
