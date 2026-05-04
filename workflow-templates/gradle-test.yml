@@ -206,7 +206,7 @@ jobs:
         run: ./gradlew ${{ env.GRADLE_TEST_TASK }} -Pversion=${{ env.VERSION }}
 
       - name: Test reporting
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@v3
         if: success() || failure()
         with:
           fail-on-empty: false
