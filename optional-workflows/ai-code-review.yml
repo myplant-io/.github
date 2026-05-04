@@ -25,7 +25,7 @@ jobs:
           fetch-depth: 0
 
       - name: Determine changes
-        uses: GrantBirki/git-diff-action@v2
+        uses: GrantBirki/git-diff-action@v3
         id: git_diff_action
         with:
           raw_diff_file_output: diff.txt
