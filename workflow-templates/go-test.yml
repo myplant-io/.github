@@ -99,13 +99,13 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - uses: extractions/netrc@v2
+      - uses: extractions/netrc@v3
         with:
           machine: github.com
           username: CI_PAT
           password: ${{ secrets.CI_PAT }}
 
-      - uses: extractions/netrc@v2
+      - uses: extractions/netrc@v3
         with:
           machine: api.github.com
           username: CI_PAT
@@ -129,7 +129,7 @@ jobs:
           go test -coverprofile=coverage.out -json ./... > test-result.json
 
       - name: Test reporting
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@v3
         if: success() || failure()
         with:
           fail-on-empty: false

@@ -10,5 +10,7 @@ updates:
       interval: 'daily'
   - package-ecosystem: 'github-actions'
     directory: '/'
+    allow:
+      - dependency-name: 'myplant-io/.github'
     schedule:
       interval: 'daily'

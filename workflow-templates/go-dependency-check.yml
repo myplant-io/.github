@@ -108,13 +108,13 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - uses: extractions/netrc@v2
+      - uses: extractions/netrc@v3
         with:
           machine: github.com
           username: CI_PAT
           password: ${{ secrets.CI_PAT }}
 
-      - uses: extractions/netrc@v2
+      - uses: extractions/netrc@v3
         with:
           machine: api.github.com
           username: CI_PAT

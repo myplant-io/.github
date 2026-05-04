@@ -16,5 +16,7 @@ updates:
     insecure-external-code-execution: allow
   - package-ecosystem: 'github-actions'
     directory: '/'
+    allow:
+      - dependency-name: 'myplant-io/.github'
     schedule:
       interval: 'daily'
