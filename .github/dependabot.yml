@@ -4,7 +4,7 @@ updates:
     directory: 'workflow-templates/'
     ignore:
       # can not check private repo's from this public one... therefore ignoring it
-      dependency-name: 'myplant-io/github-actions/*'
+      - dependency-name: 'myplant-io/github-actions/*'
     schedule:
       interval: 'daily'
     open-pull-requests-limit: 5
@@ -13,7 +13,7 @@ updates:
     # can not check private repo's from this public one... therefore ignoring it
     ignore:
       # can not check private repo's from this public one... therefore ignoring it
-      dependency-name: 'myplant-io/github-actions/*'
+      - dependency-name: 'myplant-io/github-actions/*'
     schedule:
       interval: 'daily'
     open-pull-requests-limit: 5
@@ -21,6 +21,6 @@ updates:
     directory: '/'
     ignore:
       # can not check private repo's from this public one... therefore ignoring it
-      dependency-name: 'myplant-io/github-actions/*'
+      - dependency-name: 'myplant-io/github-actions/*'
     schedule:
       interval: 'daily'
