@@ -184,7 +184,7 @@ jobs:
       - name: Get action system info
         if: env.VERBOSE_LOGGING == 'true'
         id: system-info
-        uses: kenchan0130/actions-system-info@v1.3.0
+        uses: kenchan0130/actions-system-info@v1.4.0
 
       - name: Set env 'INFORMATIONAL_VERSION' alpha
         if: env.IS_PRERELEASE == 'true' && contains(env.TAG, '-alpha')
@@ -314,7 +314,7 @@ jobs:
 
       - name: Prepare dotnet environment
         if: matrix.os == 'self-hosted-standard'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         env:
           DOTNET_INSTALL_DIR: './.dotnet'
         with:
