@@ -81,7 +81,7 @@ jobs:
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
 
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v4
