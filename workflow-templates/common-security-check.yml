@@ -12,11 +12,12 @@ on:
 
 jobs:
   setup:
-    name: 'Job: setup'
+    name: 'Job: Setup'
     runs-on: [self-hosted-standard]
     outputs:
       branch-name: ${{ env.BRANCH_NAME }}
       component-name: ${{ env.COMPONENT_NAME }}
+      file-type: ${{ env.FILE_TYPE }}
       sonar-key: ${{ env.SONAR_KEY }}
       verbose: ${{ env.VERBOSE }}
 
@@ -25,6 +26,7 @@ jobs:
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
+
       - name: Checkout git repository
         uses: actions/checkout@v6
         with:
@@ -53,8 +55,12 @@ jobs:
             echo "Resolved source branch (from current branch): ${CURRENT_BRANCH}"
           fi
           echo BRANCH_NAME="${CURRENT_BRANCH}" >> ${GITHUB_ENV}
+
       - name: Set env 'COMPONENT_NAME' (no settings found)
         run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Determine file extensions
+        run: echo FILE_TYPE=$(ls .github/workflows/sonarqube* |  tr . \\n | tail -n1) >> ${GITHUB_ENV}
 
       - name: Set env SONAR_KEY
         run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
@@ -76,9 +82,10 @@ jobs:
         run: echo VERBOSE="false" >> ${GITHUB_ENV}
 
   wait-for-workflows:
-    name: 'Job: Wait for analysis workflows'
+    name: 'Job: Wait for analyses'
     needs: [setup]
     runs-on: [self-hosted-standard]
+
     steps:
       - name: Wait for Sonarqube and Dependency check workflows
         env:
@@ -108,8 +115,9 @@ jobs:
             echo "::error::Timed out waiting for ${workflow}"
             return 1
           }
-          wait_for_workflow "sonarqube.yaml"
-          wait_for_workflow "dependency-check.yaml"
+          wait_for_workflow "sonarqube.${{ needs.setup.outputs.file-type }}"
+          wait_for_workflow "dependency-check.${{ needs.setup.outputs.file-type }}"
+
   security-check:
     name: 'Job: Pre-check security'
     needs: [setup, wait-for-workflows]

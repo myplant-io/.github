@@ -393,6 +393,7 @@ jobs:
           -Dsonar.sources=${{ env.PROJECT_SOURCES }}
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.coverage.exclusions=${{ env.PROJECT_TEST_SOURCES }}/**
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
           -Dsonar.python.coverage.reportPaths=./coverage.xml
           -Dsonar.python.version=${{ env.PYTHON_VERSION }}
           -Dsonar.qualitygate.wait=true
@@ -414,6 +415,7 @@ jobs:
           -Dsonar.sources=${{ env.PROJECT_SOURCES }}
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.coverage.exclusions=${{ env.PROJECT_TEST_SOURCES }}/**
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
           -Dsonar.python.coverage.reportPaths=./coverage.xml
           -Dsonar.python.version=${{ env.PYTHON_VERSION }}
           -Dsonar.qualitygate.wait=true

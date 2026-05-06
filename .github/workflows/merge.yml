@@ -23,6 +23,15 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
 
+      # Since this is not a private repo, we can not directly access myplant-io/github-actions -> cloning it here first
+      - name: Checkout github actions repository
+        uses: actions/checkout@v6
+        with:
+          repository: myplant-io/github-actions
+          ref: v1
+          token: ${{ secrets.CI_PAT }}
+          path: .github/actions
+
       # AUTO_MERGE decides if changes are merged directly (auto_merge == true) or if a PR is opened for merging changes (auto_merge == false)
       - name: Initialize 'AUTO_MERGE'
         run: echo AUTO_MERGE="false" >> ${GITHUB_ENV}
@@ -151,7 +160,7 @@ jobs:
 
       - name: Merging release changes into target branch
         if: env.AUTO_MERGE == 'true'
-        uses: myplant-io/github-actions/merge-branch@v1
+        uses: ./.github/actions/merge-branch@v1
         with:
           source-branch: ${{ env.SOURCE_BRANCH }}
           target-branch: ${{ env.TARGET_BRANCH }}
