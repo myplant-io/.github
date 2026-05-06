@@ -81,7 +81,7 @@ PRE_RELEASE_DEPLOY_TARGET=none
 RELEASE_DEPLOY_TARGET=["production-io/${COMPONENT_NAME}.yaml"]
 SONAR_PREFIX=io.myplant
 IGNORE_DUPLICATE_CODE_SOURCES=**/lists.py
-IGNORE_SOURCES=**/dto/**
+IGNORE_SOURCES=**/__generated__/**, **/__mocks__/**, **/__tests__/**
 VERBOSE_LOGGING=false
 ```
 
