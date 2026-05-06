@@ -464,6 +464,8 @@ jobs:
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.SONAR_PROJECT_NAME }}
           -Dsonar.projectVersion=${{ needs.setup.outputs.sonar-base-version }}
+          -Dsonar.coverage.exclusions=${{ env.PROJECT_TEST_SOURCES }}/**
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
           -Dsonar.sources=${{ env.PROJECT_SOURCES }}
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.junit.reportPaths=${{ env.PROJECT_TEST_RESULTS }}
@@ -483,6 +485,8 @@ jobs:
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.SONAR_PROJECT_NAME }}
           -Dsonar.projectVersion=${{ needs.setup.outputs.sonar-base-version }}
+          -Dsonar.coverage.exclusions=${{ env.PROJECT_TEST_SOURCES }}/**
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
           -Dsonar.sources=${{ env.PROJECT_SOURCES }}
           -Dsonar.tests=${{ env.PROJECT_TEST_SOURCES }}
           -Dsonar.junit.reportPaths=${{ env.PROJECT_TEST_RESULTS }}

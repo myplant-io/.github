@@ -197,7 +197,7 @@ jobs:
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
-          -Dsonar.exclusions=**/*_test.go
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
           -Dsonar.go.coverage.reportPaths=coverage.out
           -Dsonar.go.tests.reportPaths=testresults.out
           -Dsonar.qualitygate.wait=true
@@ -216,7 +216,7 @@ jobs:
           -Dsonar.pullrequest.base=${{ github.base_ref }}
           -Dsonar.pullrequest.branch=${{ github.head_ref }}
           -Dsonar.pullrequest.key=${{ github.event.number }}
-          -Dsonar.exclusions=**/*_test.go
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
           -Dsonar.go.coverage.reportPaths=coverage.out
           -Dsonar.go.tests.reportPaths=testresults.out
           -Dsonar.qualitygate.wait=true

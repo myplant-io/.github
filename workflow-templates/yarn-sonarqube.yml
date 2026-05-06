@@ -216,11 +216,11 @@ jobs:
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
           -Dsonar.token=${{ secrets.SONAR_LOGIN }}
           -Dsonar.branch.name=${{ env.BRANCH_NAME }}
-          -Dsonar.exclusions="**/__generated__/**, **/__mocks__/**, **/__tests__/**"
           -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
           -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
           -Dsonar.qualitygate.wait=true
           -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}
 
@@ -229,7 +229,6 @@ jobs:
         run: sonar-scanner
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
           -Dsonar.token=${{ secrets.SONAR_LOGIN }}
-          -Dsonar.exclusions="**/__generated__/**, **/__mocks__/**, **/__tests__/**"
           -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
@@ -239,5 +238,6 @@ jobs:
           -Dsonar.pullrequest.base=${{ github.base_ref }}
           -Dsonar.pullrequest.branch=${{ github.head_ref }}
           -Dsonar.pullrequest.key=${{ github.event.number }}
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
           -Dsonar.qualitygate.wait=true
           -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}
