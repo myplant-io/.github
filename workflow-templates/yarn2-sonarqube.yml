@@ -217,7 +217,7 @@ jobs:
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
           -Dsonar.token=${{ secrets.SONAR_LOGIN }}
           -Dsonar.branch.name=${{ env.BRANCH_NAME }}
-          -Dsonar.exclusions="**/__generated__/**, **/__mocks__/**, **/__tests__/**"
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
           -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
@@ -230,7 +230,7 @@ jobs:
         run: sonar-scanner
           -Dsonar.host.url=${{ secrets.SONAR_URL }}
           -Dsonar.token=${{ secrets.SONAR_LOGIN }}
-          -Dsonar.exclusions="**/__generated__/**, **/__mocks__/**, **/__tests__/**"
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
           -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
           -Dsonar.projectKey=${{ env.SONAR_KEY }}
           -Dsonar.projectName=${{ env.COMPONENT_NAME }}
