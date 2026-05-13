@@ -49,7 +49,29 @@ jobs:
           CURRENT_BRANCH=$(git branch --show-current)
           if [ -z "${CURRENT_BRANCH}" ]; then
             # detached HEAD (tag-based release) - find the source branch the tag was created from
-            CURRENT_BRANCH=$(git branch -r --contains HEAD | grep -v '\->' | grep -v HEAD | sed 's|.*origin/||' | head -1 | xargs)
+            # Priority: release/* > hotfix/* > bugfix/* > any other branch (except develop)
+            CURRENT_BRANCH=$(git branch -r --contains HEAD \
+              | grep -v '\->' | grep -v HEAD \
+              | sed 's|.*origin/||' \
+              | grep -E '^(release|hotfix|bugfix)/' | head -1)
+            
+            # Fallback: any branch except develop/master/main
+            if [ -z "${CURRENT_BRANCH}" ]; then
+              CURRENT_BRANCH=$(git branch -r --contains HEAD \
+                | grep -v '\->' | grep -v HEAD \
+                | sed 's|.*origin/||' \
+                | grep -v '^master$' \
+                | grep -v '^main$' \
+                | grep -v '^develop$' | head -1)
+            fi
+            
+            # Final fallback: any branch
+            if [ -z "${CURRENT_BRANCH}" ]; then
+              CURRENT_BRANCH=$(git branch -r --contains HEAD \
+                | grep -v '\->' | grep -v HEAD \
+                | sed 's|.*origin/||' | head -1 | xargs)
+            fi
+            
             echo "Resolved source branch (from tag): ${CURRENT_BRANCH}"
           else
             echo "Resolved source branch (from current branch): ${CURRENT_BRANCH}"
@@ -80,6 +102,16 @@ jobs:
       - name: Use default value
         if: github.event_name != 'workflow_dispatch'
         run: echo VERBOSE="false" >> ${GITHUB_ENV}
+
+      - name: Validate release branch
+        run: |
+          BRANCH="${BRANCH_NAME}"
+          echo "Validating source branch: ${BRANCH}"
+          if [[ "${BRANCH}" =~ ^(develop|master|main)$ ]]; then
+            echo "::error::Release was created from '${BRANCH}'. Releases must be created from a release/*, hotfix/*, or bugfix/* branch, not from ${BRANCH}."
+            exit 1
+          fi
+          echo "✓ Source branch '${BRANCH}' is a valid release branch"
 
   wait-for-workflows:
     name: 'Job: Wait for analyses'
