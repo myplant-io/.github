@@ -366,7 +366,7 @@ jobs:
           echo topics="$topics" >> ${GITHUB_OUTPUT}
 
       - name: Publish dependency check result to tracker
-        uses: DependencyTrack/gh-upload-sbom@v3
+        uses: DependencyTrack/gh-upload-sbom@v4
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           autocreate: true
