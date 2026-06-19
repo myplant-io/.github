@@ -25,7 +25,7 @@ jobs:
 
       # Since this is not a private repo, we can not directly access myplant-io/github-actions -> cloning it here first
       - name: Checkout github actions repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: myplant-io/github-actions
           ref: v1
@@ -73,7 +73,7 @@ jobs:
         run: echo TITLE="merge ${{ env.TAG }} into ${{ env.TARGET_BRANCH }}" >> ${GITHUB_ENV}
 
       - name: Checkout git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ env.SOURCE_BRANCH }}
@@ -153,7 +153,7 @@ jobs:
 
       - name: Checkout git repository
         if: env.IS_DETACHED_HEAD == 'true' && env.AUTO_MERGE == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ env.SOURCE_BRANCH }}
