@@ -30,14 +30,14 @@ jobs:
 
       - name: Checkout git repository
         if: startsWith(github.event_name , 'pull_request') == false
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
 
       - name: Checkout git repository (on PR)
         if: startsWith(github.event_name , 'pull_request')
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -146,7 +146,7 @@ jobs:
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Configure AWS credentials (to enable test to download containers)

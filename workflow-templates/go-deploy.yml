@@ -45,7 +45,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -202,7 +202,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
@@ -332,12 +332,14 @@ jobs:
 
       - name: Update Release
         if: steps.check_release_changelog.outputs.files_exists == 'true'
-        uses: tubone24/update_release@v1.3.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ needs.setup.outputs.tag }}
+        uses: ncipollo/release-action@v1.21.0
         with:
-          body_path: release_changelog.md
+          tag: ${{ needs.setup.outputs.tag }}
+          allowUpdates: true
+          omitNameDuringUpdate: true
+          omitDraftDuringUpdate: true
+          prerelease: ${{ needs.setup.outputs.is-prerelease == 'true' }}
+          bodyFile: release_changelog.md
 
       - name: Find last version (default)
         run: echo LAST_VERSION="" >> ${GITHUB_ENV}
@@ -516,7 +518,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Checkout git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -532,7 +534,7 @@ jobs:
           envFile: '.github/workflow-config.env'
 
       - name: Checkout deployment repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           path: deployment-repo
