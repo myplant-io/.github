@@ -326,8 +326,10 @@ jobs:
         with:
           tag: ${{ needs.setup.outputs.tag }}
           allowUpdates: true
+          omitNameDuringUpdate: true
+          omitDraftDuringUpdate: true
+          prerelease: ${{ needs.setup.outputs.is-prerelease == 'true' }}
           bodyFile: release_changelog.md
-
       - name: Find last version (default)
         run: echo LAST_VERSION="" >> ${GITHUB_ENV}
 
