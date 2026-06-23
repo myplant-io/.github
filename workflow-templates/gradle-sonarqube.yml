@@ -209,7 +209,7 @@ jobs:
       - name: Prepare java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Determine number of gradle (sub)projects
@@ -350,7 +350,7 @@ jobs:
       - name: Prepare java ${{ needs.setup.outputs.java-version }}
         uses: actions/setup-java@v5
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: ${{ needs.setup.outputs.java-version }}
 
       - name: Configure AWS credentials (to enable test to download containers)
@@ -432,7 +432,7 @@ jobs:
         if: needs.setup.outputs.java-version == '8' || needs.setup.outputs.java-version == '11'
         uses: actions/setup-java@v5
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: 17
 
       - name: Fetch repository topics
