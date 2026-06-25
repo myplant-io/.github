@@ -429,9 +429,13 @@ jobs:
           sha: ${{ env.LAST_VERSION }}
           version: ${{ needs.setup.outputs.version }}
 
+      - name: Mark retag as failed
+        if: steps.check-docker-registry-retag.outputs.imageExists == 'false'
+        run: echo RETAG=false >> ${GITHUB_ENV}
+
       - name: Check docker registry
         id: check-docker-registry
-        if: needs.setup.outputs.deploy-targets != 'none' && needs.setup.outputs.gradle-deploy-task != 'none' && needs.setup.outputs.docker-repository != 'none'
+        if: RETAG == 'false' && needs.setup.outputs.deploy-targets != 'none' && needs.setup.outputs.gradle-deploy-task != 'none' && needs.setup.outputs.docker-repository != 'none'
         uses: myplant-io/github-actions/check-docker-registry@v1
         with:
           imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
