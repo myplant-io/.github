@@ -609,4 +609,4 @@ jobs:
         if: steps.check_poetry.outputs.files_exists == 'true' || steps.check_uv.outputs.files_exists == 'true'
         run: |
           source .venv/bin/activate
-          pytest
+          poetry run pytest
