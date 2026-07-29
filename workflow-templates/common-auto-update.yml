@@ -235,7 +235,7 @@ jobs:
         run: mv ${{ env.SOURCE_DIR_OPTIONAL }}/create-release-branch.yml ${{ env.TARGET_DIR }}/create-release-branch.${{ env.FILE_TYPE }}
 
       - name: Commit and push changes
-        uses: actions-js/push@v1.5
+        uses: actions-js/push@v1.6
         with:
           branch: ${{ env.BRANCH_NAME }}
           directory: ${{ env.TARGET_DIR }}
