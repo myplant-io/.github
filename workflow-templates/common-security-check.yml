@@ -54,7 +54,7 @@ jobs:
               | grep -v '\->' | grep -v HEAD \
               | sed 's|.*origin/||' \
               | grep -E '^(release|hotfix|bugfix)/' | head -1)
-            
+
             # Fallback: any branch except develop/master/main
             if [ -z "${CURRENT_BRANCH}" ]; then
               CURRENT_BRANCH=$(git branch -r --contains HEAD \
@@ -64,14 +64,14 @@ jobs:
                 | grep -v '^main$' \
                 | grep -v '^develop$' | head -1)
             fi
-            
+
             # Final fallback: any branch
             if [ -z "${CURRENT_BRANCH}" ]; then
               CURRENT_BRANCH=$(git branch -r --contains HEAD \
                 | grep -v '\->' | grep -v HEAD \
                 | sed 's|.*origin/||' | head -1 | xargs)
             fi
-            
+
             echo "Resolved source branch (from tag): ${CURRENT_BRANCH}"
           else
             echo "Resolved source branch (from current branch): ${CURRENT_BRANCH}"
