@@ -41,6 +41,7 @@ jobs:
 
       - name: Review changes with AI
         id: perform_ai_review
+        if: length(steps.read_diff_file.outputs.file_content) > 0
         uses: myplant-io/github-actions/ai-code-review@v1
         with:
           aws_access_key_id: ${{ secrets.AWS_STG_USER_AI }}
@@ -53,6 +54,7 @@ jobs:
 
       - name: Add PR review comment thollander
         uses: thollander/actions-comment-pull-request@v3
+        if: length(steps.read_diff_file.outputs.file_content) > 0
         with:
           message: ${{ steps.perform_ai_review.outputs.message }}
           comment-tag: ai_code_review
