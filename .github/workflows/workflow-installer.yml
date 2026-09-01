@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - 'auto-detection'
+          - 'agentcore'
           - 'dotnetCore'
           - 'dotnetFramework'
           - 'go'
@@ -102,6 +103,9 @@ jobs:
           elif [[ -f "Program.cs" || $(ls -1 *.sln 2>/dev/null | wc -l) != 0 ]]; then
             echo "DotnetCore project detected"
             echo INPUT_TYPE=dotnetCore >> ${GITHUB_ENV}
+          elif [[ -n "$(find . -path '*/agentcore/agentcore.json' -print -quit)" ]]; then
+            echo "AgentCore project detected"
+            echo INPUT_TYPE=agentcore >> ${GITHUB_ENV}
           elif [[ -f "requirements.txt" || -f "pyproject.toml" ]]; then
             echo "Python project detected"
             echo INPUT_TYPE=python >> ${GITHUB_ENV}

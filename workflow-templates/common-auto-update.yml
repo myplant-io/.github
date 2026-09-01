@@ -126,6 +126,14 @@ jobs:
         if: steps.determine-type-python.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=python >> ${GITHUB_ENV}
 
+      - name: Test project-type (for AgentCore)
+        id: determine-type-agentcore
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -F 'agentcore deploy --target' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Set project type to AgentCore
+        if: steps.determine-type-agentcore.outputs.cnt_validations != '0'
+        run: echo PROJECT_TYPE=agentcore >> ${GITHUB_ENV}
+
       - name: Test project-type (for go)
         id: determine-type-go
         run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'actions/setup-go' | wc -l) >> ${GITHUB_OUTPUT}
