@@ -35,7 +35,7 @@ jobs:
     runs-on: ${{ vars.AGENTCORE_RUNNER || 'ubuntu-24.04-arm' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -76,7 +76,7 @@ jobs:
       DEPLOY_ENV: ${{ github.event_name == 'release' && github.event.release.prerelease == false && 'production' || 'staging' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Determine deployment metadata
         id: deployment
