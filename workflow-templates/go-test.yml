@@ -112,7 +112,7 @@ jobs:
           password: ${{ secrets.CI_PAT }}
 
       - name: Configure AWS credentials (to enable test to download containers)
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
