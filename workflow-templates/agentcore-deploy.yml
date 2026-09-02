@@ -1,0 +1,235 @@
+name: AgentCore Deploy
+
+on:
+  release:
+    types:
+      - published
+      - prereleased
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+
+permissions:
+  contents: read
+
+env:
+  AGENTCORE_CLI_VERSION: ${{ vars.AGENTCORE_CLI_VERSION || '0.26.0' }}
+  AGENTCORE_DIRECTORY: ${{ vars.AGENTCORE_DIRECTORY || 'MyAgent' }}
+  AGENTCORE_NAME: ${{ vars.AGENTCORE_NAME || 'MyAgent' }}
+  AGENTCORE_TARGET: ${{ vars.AGENTCORE_TARGET || 'default' }}
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  NODE_VERSION: ${{ vars.NODE_VERSION || '20' }}
+  PYTHON_VERSION: ${{ vars.PYTHON_VERSION || '3.14' }}
+  STACK_NAME: AgentCore-${{ vars.AGENTCORE_NAME || 'MyAgent' }}-${{ vars.AGENTCORE_TARGET || 'default' }}
+
+jobs:
+  validate:
+    name: Validate AgentCore project
+    runs-on: ${{ vars.AGENTCORE_RUNNER || 'ubuntu-24.04-arm' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install AgentCore CLI
+        run: npm install --global "@aws/agentcore@${AGENTCORE_CLI_VERSION}"
+
+      - name: Validate AgentCore configuration
+        working-directory: ${{ env.AGENTCORE_DIRECTORY }}
+        run: agentcore validate
+
+      - name: Verify Python deployment dependencies
+        working-directory: ${{ env.AGENTCORE_DIRECTORY }}/app/${{ env.AGENTCORE_NAME }}
+        run: |
+          uv sync --locked
+          uv run opentelemetry-instrument --version
+
+  deploy:
+    name: Deploy to AWS
+    runs-on: ${{ vars.AGENTCORE_RUNNER || 'ubuntu-24.04-arm' }}
+    needs: validate
+    environment:
+      name: ${{ github.event_name == 'release' && github.event.release.prerelease == false && 'production' || 'staging' }}
+    concurrency:
+      group: agentcore-${{ vars.AGENTCORE_NAME || 'MyAgent' }}-${{ github.event_name == 'release' && github.event.release.prerelease == false && 'production' || 'staging' }}
+      cancel-in-progress: false
+    env:
+      DEPLOY_ENV: ${{ github.event_name == 'release' && github.event.release.prerelease == false && 'production' || 'staging' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Determine deployment metadata
+        id: deployment
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "type=manual" >> "${GITHUB_OUTPUT}"
+            echo "tag=manual-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_OUTPUT}"
+          elif [[ "${DEPLOY_ENV}" == "staging" ]]; then
+            echo "type=prerelease" >> "${GITHUB_OUTPUT}"
+            echo "tag=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "type=release" >> "${GITHUB_OUTPUT}"
+            echo "tag=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install AgentCore CLI
+        run: npm install --global "@aws/agentcore@${AGENTCORE_CLI_VERSION}"
+
+      - name: Configure AWS credentials for staging
+        if: env.DEPLOY_ENV == 'staging'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER_STG }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET_STG }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials for production
+        if: env.DEPLOY_ENV == 'production'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER_PRD }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET_PRD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure deployment target
+        working-directory: ${{ env.AGENTCORE_DIRECTORY }}
+        run: |
+          aws_account_id="$(aws sts get-caller-identity --query Account --output text)"
+          jq \
+            --arg account "${aws_account_id}" \
+            --arg region "${AWS_REGION}" \
+            --arg target "${AGENTCORE_TARGET}" \
+            'map(if .name == $target then .account = $account | .region = $region else . end)' \
+            agentcore/aws-targets.json > agentcore/aws-targets.json.tmp
+          mv agentcore/aws-targets.json.tmp agentcore/aws-targets.json
+          echo "Deploying target ${AGENTCORE_TARGET} to AWS account ${aws_account_id}, region ${AWS_REGION}"
+
+      # Include the exact commit in the CodeZip. A new commit therefore gets a
+      # distinct asset hash and can produce a new AgentCore runtime version.
+      - name: Add deployment metadata to agent package
+        working-directory: ${{ env.AGENTCORE_DIRECTORY }}
+        env:
+          RELEASE_TAG: ${{ steps.deployment.outputs.tag }}
+        run: |
+          jq -n \
+            --arg commit "${GITHUB_SHA}" \
+            --arg release "${RELEASE_TAG}" \
+            --arg environment "${DEPLOY_ENV}" \
+            '{commit: $commit, release: $release, environment: $environment}' \
+            > "app/${AGENTCORE_NAME}/deployment-metadata.json"
+
+      - name: Validate final configuration
+        working-directory: ${{ env.AGENTCORE_DIRECTORY }}
+        run: agentcore validate
+
+      - name: Deploy with AgentCore CLI
+        working-directory: ${{ env.AGENTCORE_DIRECTORY }}
+        run: |
+          set -o pipefail
+          deploy_log="${RUNNER_TEMP}/agentcore-deploy.log"
+
+          set +e
+          agentcore deploy --target "${AGENTCORE_TARGET}" --yes --verbose 2>&1 | tee "${deploy_log}"
+          deploy_exit_code="${PIPESTATUS[0]}"
+          set -e
+
+          if [[ "${deploy_exit_code}" -eq 0 ]]; then
+            exit 0
+          fi
+
+          # A concurrent deletion can make the CLI report NoStack after its
+          # progress UI printed "Completed". Trust AWS rather than that marker:
+          # continue only when CloudFormation confirms a successful final state.
+          if grep -Fq 'CloudFormationStack object does not hold a stack' "${deploy_log}" && \
+             grep -Fq "Completed ${STACK_NAME}" "${deploy_log}"; then
+            stack_status="$(
+              aws cloudformation describe-stacks \
+                --stack-name "${STACK_NAME}" \
+                --query 'Stacks[0].StackStatus' \
+                --output text
+            )"
+
+            case "${stack_status}" in
+              CREATE_COMPLETE|UPDATE_COMPLETE|IMPORT_COMPLETE)
+                echo "::warning::AgentCore CLI returned NoStack after CloudFormation reached ${stack_status}; continuing."
+                exit 0
+                ;;
+            esac
+
+            echo "CloudFormation stack is in ${stack_status}, so the AgentCore CLI error is not safe to ignore."
+          fi
+
+          exit "${deploy_exit_code}"
+
+      - name: Verify runtime and list versions
+        run: |
+          runtime_id="$(
+            aws cloudformation describe-stack-resources \
+              --stack-name "${STACK_NAME}" \
+              --query "StackResources[?ResourceType == 'AWS::BedrockAgentCore::Runtime'] | [0].PhysicalResourceId" \
+              --output text
+          )"
+
+          if [[ -z "${runtime_id}" || "${runtime_id}" == "None" ]]; then
+            echo "No AgentCore Runtime resource was found in stack ${STACK_NAME}."
+            exit 1
+          fi
+
+          echo "AgentCore Runtime ID: ${runtime_id}"
+          aws bedrock-agentcore-control list-agent-runtime-versions \
+            --agent-runtime-id "${runtime_id}" \
+            --query 'agentRuntimes[].{Version:agentRuntimeVersion,Status:status,Updated:lastUpdatedAt,Arn:agentRuntimeArn}' \
+            --output table
+
+      - name: Deployment summary
+        env:
+          RELEASE_TAG: ${{ steps.deployment.outputs.tag }}
+          RELEASE_TYPE: ${{ steps.deployment.outputs.type }}
+        run: |
+          {
+            echo "## Deployment Summary"
+            echo "| Property | Value |"
+            echo "|----------|-------|"
+            echo "| **Release Type** | ${RELEASE_TYPE} |"
+            echo "| **Environment** | ${DEPLOY_ENV} |"
+            echo "| **Tag** | ${RELEASE_TAG} |"
+            echo "| **Commit** | ${GITHUB_SHA} |"
+            echo "| **AWS Region** | ${AWS_REGION} |"
+            echo "| **Agent** | ${AGENTCORE_NAME} |"
+            echo "| **Build Type** | CodeZip |"
+          } >> "${GITHUB_STEP_SUMMARY}"

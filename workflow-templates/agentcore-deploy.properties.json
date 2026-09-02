@@ -1,0 +1,7 @@
+{
+  "name": "Deploy AgentCore agent",
+  "description": "Validate and deploy an AWS AgentCore project",
+  "iconName": "icon-python",
+  "categories": ["Python"],
+  "filePatterns": ["agentcore/agentcore.json"]
+}

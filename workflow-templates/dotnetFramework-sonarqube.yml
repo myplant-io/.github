@@ -113,7 +113,7 @@ jobs:
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
       - name: Set up JDK 17 for sonar check
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: 17
