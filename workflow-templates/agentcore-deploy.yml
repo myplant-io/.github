@@ -35,20 +35,20 @@ jobs:
     runs-on: ${{ vars.AGENTCORE_RUNNER || 'ubuntu-24.04-arm' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
 
       - name: Install AgentCore CLI
         run: npm install --global "@aws/agentcore@${AGENTCORE_CLI_VERSION}"
@@ -76,7 +76,7 @@ jobs:
       DEPLOY_ENV: ${{ github.event_name == 'release' && github.event.release.prerelease == false && 'production' || 'staging' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Determine deployment metadata
         id: deployment
@@ -95,17 +95,17 @@ jobs:
           fi
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
 
       - name: Install AgentCore CLI
         run: npm install --global "@aws/agentcore@${AGENTCORE_CLI_VERSION}"
