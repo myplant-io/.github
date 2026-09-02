@@ -4,15 +4,21 @@ on:
   pull_request:
 
 jobs:
-  validate:
-    name: 'Job: Validate workflows'
-    runs-on: [ubuntu-latest]
+  lint:
+    name: "Job: Validate workflows"
+    runs-on: [ ubuntu-latest ]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Validate workflows with prettier
-        uses: actionsx/prettier@v3
+      - name: Setup node.js
+        uses: actions/setup-node@v7
         with:
-          args: --check .
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check workflows with prettier
+        run: npx prettier --check .
