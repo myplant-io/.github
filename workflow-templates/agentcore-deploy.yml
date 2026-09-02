@@ -112,7 +112,7 @@ jobs:
 
       - name: Configure AWS credentials for staging
         if: env.DEPLOY_ENV == 'staging'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER_STG }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET_STG }}
@@ -120,7 +120,7 @@ jobs:
 
       - name: Configure AWS credentials for production
         if: env.DEPLOY_ENV == 'production'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-access-key-id: ${{ secrets.ECR_AWS_USER_PRD }}
           aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET_PRD }}
