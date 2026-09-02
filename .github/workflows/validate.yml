@@ -5,7 +5,7 @@ on:
 
 jobs:
   lint:
-    name: "Job: Validate workflows"
+    name: 'Job: Validate workflows'
     runs-on: [ubuntu-latest]
 
     steps:
