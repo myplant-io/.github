@@ -189,7 +189,7 @@ jobs:
         run: echo JAVA_VERSION="$(./gradlew -q javaVersion -Dorg.gradle.java.home="${{ env.JDK_GRADLE }}" | tail -n 1)" >> ${GITHUB_ENV}
 
       - name: Prepare java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -317,7 +317,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Prepare java ${{ needs.setup.outputs.java-version }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: ${{ needs.setup.outputs.java-version }}
