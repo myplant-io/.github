@@ -1,0 +1,7 @@
+{
+  "name": "Build and deploy",
+  "description": "Build and deploy for JavaScript/pnpm projects (using a deployment repo)",
+  "iconName": "icon-pnpm",
+  "categories": ["Deployment", "JavaScript"],
+  "filePatterns": ["pnpm-lock.yaml"]
+}
