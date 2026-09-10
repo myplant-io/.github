@@ -1,0 +1,611 @@
+###
+# GitHub action that builds a docker container and deploys it to AWS ECR.
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Daniel Hons, Nikolaus Krismer
+###
+name: Build and deploy
+
+on:
+  push:
+    branches: [develop]
+  release:
+    types: [prereleased, released]
+  workflow_dispatch:
+
+jobs:
+  setup:
+    name: 'Job: Setup'
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: setup_${{ github.ref }}
+      cancel-in-progress: false
+    outputs:
+      branch-name: ${{ env.BRANCH_NAME }}
+      component-name: ${{ env.COMPONENT_NAME }}
+      deploy-targets: ${{ env.DEPLOY_TARGETS }}
+      deployment-method: ${{ env.DEPLOYMENT_METHOD }}
+      deployment-repo: ${{ env.DEPLOYMENT_REPO }}
+      docker-base-image: ${{ env.DOCKER_BASE_IMAGE }}
+      docker-identifier: ${{ env.DOCKER_IDENTIFIER }}
+      docker-repository: ${{ env.DOCKER_REPOSITORY }}
+      docker-tag-prefix: ${{ env.DOCKER_TAG_PREFIX }}
+      node-version: ${{ env.NODE_VERSION }}
+      is-manual-release: ${{ env.IS_MANUAL_RELEASE }}
+      is-prerelease: ${{ env.IS_PRERELEASE }}
+      is-release: ${{ env.IS_RELEASE }}
+      sha: ${{ env.SHA }}
+      tag: ${{ env.TAG }}
+      verbose: ${{ env.VERBOSE_LOGGING }}
+      version: ${{ env.VERSION }}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v7
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Determine node version (check .nvmrc existence)
+        id: check_nvmrc_existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.nvmrc'
+
+      - name: Determine node version (read from .nvmrc)
+        if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
+        run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'DOCKER_REPOSITORY'
+        if: env.DOCKER_REPOSITORY == 'auto'
+        run: echo DOCKER_REPOSITORY=$(echo ${GITHUB_REPOSITORY} | sed 's:.*/::') >> ${GITHUB_ENV}
+
+      - name: Set env 'DOCKER_REPOSITORY' (fallback to default)
+        if: env.DOCKER_REPOSITORY == ''
+        run: echo DOCKER_REPOSITORY='myplant-io' >> ${GITHUB_ENV}
+
+      - name: Set env 'DOCKER_TAG_PREFIX'
+        if: env.DOCKER_TAG_PREFIX == 'auto'
+        run: echo DOCKER_TAG_PREFIX="${COMPONENT_NAME}_" >> ${GITHUB_ENV}
+
+      - name: Set env 'SHA'
+        run: echo SHA="$(echo ${GITHUB_SHA} | cut -c1-7)" >> ${GITHUB_ENV}
+
+      - name: Set env 'TAG' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo TAG="${GITHUB_REF#refs/tags/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'VERSION' to SHA (for untagged deployments)
+        if: startsWith(github.ref, 'refs/tags/') == false
+        run: echo VERSION="${{ env.SHA }}" >> ${GITHUB_ENV}
+
+      - name: Set 'VERSION' (for tagged deployment)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo VERSION="${TAG#v}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'DOCKER_IDENTIFIER'
+        run: echo DOCKER_IDENTIFIER="${{ env.DOCKER_TAG_PREFIX }}${{ env.VERSION }}" >> ${GITHUB_ENV}
+
+      - name: Determine latest (pre-)release
+        id: latest_release
+        uses: InsonusK/get-latest-release@v1.1.0
+        with:
+          myToken: ${{ github.token }}
+          view_top: 1
+
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - tag based)
+        if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+        run: echo IS_MANUAL_RELEASE=${{ steps.latest_release.outputs.tag_name == env.TAG }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on manual release - tag based)
+        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+        run: echo IS_PRERELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'true' }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on manual release - tag based)
+        if: env.IS_MANUAL_RELEASE == 'true' && startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+        run: echo IS_RELEASE=${{ steps.latest_release.outputs.draft == 'false' && steps.latest_release.outputs.prerelease == 'false' }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_MANUAL_RELEASE' (a.k.a release triggered by user in GitHub - release based)
+        if: github.event_name == 'release'
+        run: echo IS_MANUAL_RELEASE=true >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_PRERELEASE' (on manual release - release based)
+        if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
+        run: echo IS_PRERELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == true }} >> ${GITHUB_ENV}
+
+      - name: Set env 'IS_RELEASE' (on manual release - release based)
+        if: env.IS_MANUAL_RELEASE == 'true' && github.event_name == 'release'
+        run: echo IS_RELEASE=${{ github.event.release.draft == false && github.event.release.prerelease == false }} >> ${GITHUB_ENV}
+
+      - name: Initialize 'DEPLOY_TARGETS'
+        run: echo DEPLOY_TARGETS=none >> ${GITHUB_ENV}
+
+      - name: Set deploy information' for push (to alpha/staging)
+        if: (env.BRANCH_NAME == 'develop' || github.event_name == 'workflow_dispatch') && (env.PUSH_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
+        run: echo DEPLOY_TARGETS=$(echo ${PUSH_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+
+      - name: Set deploy information for pre-release
+        if: env.IS_PRERELEASE == 'true' && (env.PRE_RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
+        run: echo DEPLOY_TARGETS=$(echo ${PRE_RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+
+      - name: Set deploy information for release
+        if: env.IS_RELEASE == 'true' && (env.RELEASE_DEPLOY_TARGET != 'none' || env.HELM_VALUE_FILE != 'none')
+        run: echo DEPLOY_TARGETS=$(echo ${RELEASE_DEPLOY_TARGET} | sed 's|${COMPONENT_NAME}|'"${{ env.COMPONENT_NAME }}"'|g') >> ${GITHUB_ENV}
+
+      - name: Set env 'DEPLOY_TARGETS' for master branch (only run build task; never deploy)
+        if: env.BRANCH_NAME == 'master'
+        run: echo DEPLOY_TARGETS="none" >> ${GITHUB_ENV}
+
+      - name: Check Dockerfile file existence
+        id: check_dockerfile
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'Dockerfile'
+
+      - name: Extract docker base image
+        run: echo DOCKER_BASE_IMAGE="" >> ${GITHUB_ENV}
+
+      - name: Extract docker base image
+        if: steps.check_dockerfile.outputs.files_exists == 'true'
+        run: echo DOCKER_BASE_IMAGE="$(grep -m 1 '^FROM ' Dockerfile | awk '{print $2}')" >> ${GITHUB_ENV}
+
+  build:
+    name: 'Job: Build'
+    needs: ['setup']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: build_${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v7
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Initialize 'RETAG'
+        run: echo RETAG=false >> ${GITHUB_ENV}
+
+      - name: Get action system info
+        if: needs.setup.outputs.verbose == 'true'
+        id: system-info
+        uses: kenchan0130/actions-system-info@v1.4.0
+
+      - name: Log env context
+        if: needs.setup.outputs.verbose == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: needs.setup.outputs.verbose == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: needs.setup.outputs.verbose == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - name: Find Version Infos (BRANCH_TAG incl. pre-check)
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
+        run: |
+          branchTag=$(git describe --tags)
+          [[ "${branchTag#v}" =~ ^[0-9]+\.[0-9]+\.[0-9] ]] || exit 1
+          echo BRANCH_TAG=$branchTag >> ${GITHUB_ENV}
+
+      - name: Find Version Infos (LAST_RELEASE_TAG)
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
+        run: echo LAST_RELEASE_TAG=$(git tag -l --sort=v:refname | grep -v "${{ env.BRANCH_TAG }}" | grep -v ".*-.*" | tail -n 1) >> ${GITHUB_ENV}
+
+      - name: Find Version Infos (BUILD_FROM_TAG)
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-prerelease == 'true'
+        run: echo BUILD_FROM_TAG="" >> ${GITHUB_ENV}
+
+      - name: Find Version Infos (BUILD_FROM_TAG)
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true'
+        run: echo BUILD_FROM_TAG=${{ env.LAST_RELEASE_TAG }} >> ${GITHUB_ENV}
+
+      - name: Build changelog on manual release
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true')
+        uses: mikepenz/release-changelog-builder-action@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          configurationJson: |
+            { "pr_template": "- #{{TITLE}} (by @#{{AUTHOR}} in ##{{NUMBER}})",
+              "categories": [
+                {
+                  "title": "## 🚀 Features",
+                  "labels": [
+                    "feat",
+                    "feature"
+                  ]
+                },
+                {
+                  "title": "## 🐛 Fixes",
+                  "labels": [
+                    "fix",
+                    "hotfix",
+                    "bug"
+                  ]
+                },
+                {
+                  "title": "## 🛠️ Chores",
+                  "labels": [
+                    "chore"
+                  ]
+                },
+                {
+                  "title": "## 🛠️ Dependencies",
+                  "labels": [
+                    "deps",
+                    "dep"
+                  ]
+                },
+                {
+                  "title": "## 🌀 Miscellaneous",
+                  "labels": []
+                }
+              ],
+              "label_extractor": [
+                {
+                  "method": "match",
+                  "pattern": "^([\\w\\-]+)",
+                  "target": "$1",
+                  "on_property": "branch"
+                }
+              ]
+            }
+          outputFile: release_changelog.md
+          fromTag: ${{ env.BUILD_FROM_TAG }}
+          toTag: ${{ env.BRANCH_TAG }}
+
+      - name: Check release changelog existence
+        id: check_release_changelog
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: false
+          files: 'release_changelog.md'
+
+      - name: Enhance changelog
+        if: steps.check_release_changelog.outputs.files_exists == 'true'
+        run: sed -i "s/DD-\([0-9]*\)/[DD-\1](https:\/\/innio.atlassian.net\/browse\/DD-\1)/g" release_changelog.md
+
+      - name: Update Release
+        if: steps.check_release_changelog.outputs.files_exists == 'true'
+        uses: ncipollo/release-action@v1.21.0
+        with:
+          tag: ${{ needs.setup.outputs.tag }}
+          allowUpdates: true
+          omitNameDuringUpdate: true
+          omitDraftDuringUpdate: true
+          prerelease: ${{ needs.setup.outputs.is-prerelease == 'true' }}
+          bodyFile: release_changelog.md
+
+      - name: Find last version (default)
+        run: echo LAST_VERSION="" >> ${GITHUB_ENV}
+
+      - name: Find last version
+        if: needs.setup.outputs.is-manual-release == 'true' && (needs.setup.outputs.is-release == 'true' || needs.setup.outputs.is-prerelease == 'true') && env.LAST_RELEASE_TAG != ''
+        run: |
+          lastTag=$(git tag -l --sort=v:refname | grep -vx "${{ env.BRANCH_TAG }}" | tail -n 1)
+          echo LAST_VERSION=${lastTag#v} >> ${GITHUB_ENV}
+
+      - name: Check Re-Tag docker image
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true' && env.LAST_VERSION != ''
+        env:
+          releaseTag: ${{ needs.setup.outputs.version }}
+          preReleaseTag: ${{ env.LAST_VERSION }}
+        run: |
+          echo "Check if tags are on same rev"
+          prevSHA=$(git rev-list -n 1 refs/tags/v$preReleaseTag)
+          curSHA=$(git rev-list -n 1 refs/tags/v$releaseTag)
+
+          if [ $prevSHA == $curSHA ]; then
+            echo "Adding release tag $releaseTag to image with pre-relase tag $preReleaseTag"
+            echo RETAG=true >> ${GITHUB_ENV}
+          fi;
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Prepare node.js ${{ needs.setup.outputs.node-version }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ needs.setup.outputs.node-version }}
+
+      - name: Add registry credentials
+        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_USER }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET }}
+          aws-region: us-east-1
+
+      - name: Retag docker image
+        id: check-docker-registry-retag
+        if: needs.setup.outputs.is-manual-release == 'true' && needs.setup.outputs.is-release == 'true' && env.RETAG == 'true' && needs.setup.outputs.docker-repository != 'none'
+        uses: myplant-io/github-actions/check-docker-registry@v1
+        with:
+          imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
+          repository: ${{ needs.setup.outputs.docker-repository }}
+          sha: ${{ env.LAST_VERSION }}
+          version: ${{ needs.setup.outputs.version }}
+
+      - name: Check docker registry
+        id: check-docker-registry
+        if: env.RETAG == 'false' && needs.setup.outputs.docker-repository != 'none'
+        uses: myplant-io/github-actions/check-docker-registry@v1
+        with:
+          imagePrefix: ${{ needs.setup.outputs.docker-tag-prefix }}
+          repository: ${{ needs.setup.outputs.docker-repository }}
+          sha: ${{ needs.setup.outputs.sha }}
+          version: ${{ needs.setup.outputs.version }}
+
+      - name: Mark retag as failed
+        if: steps.check-docker-registry-retag.outputs.imageExists == 'false'
+        run: echo RETAG=false >> ${GITHUB_ENV}
+
+      - name: Determine pnpm store path
+        id: pnpm-store-path
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        run: echo STORE_PATH=$(pnpm store path --silent) >> ${GITHUB_ENV}
+
+      - name: Create/restore cache for webpack
+        uses: actions/cache@v6
+        id: webpack-cache
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        with:
+          path: '.cache'
+          key: ${{ runner.os }}-webpack-${{ needs.setup.output.version }}
+          restore-keys: ${{ runner.os }}-webpack-
+
+      - name: Create/restore cache for pnpm store
+        uses: actions/cache@v6
+        id: pnpm-cache
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies (if not previously cached)
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        run: pnpm build
+
+      - name: Login to Amazon ECR
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        id: aws-login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up QEMU
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        uses: docker/setup-qemu-action@v4
+        with:
+          image: ${{ steps.aws-login-ecr.outputs.registry }}/binfmt:qemu-v7.0.0-28
+
+      - name: Check for docker context
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
+        id: docker-context-check
+        run: echo contextFound=$(docker context ls | grep -w 'buildx' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Set up Docker Context for Buildx
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && steps.docker-context-check.outputs.contextFound == 0
+        run: docker context create buildx-context
+
+      - name: Set up Docker Buildx
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && needs.setup.outputs.docker-repository != 'none'
+        uses: docker/setup-buildx-action@v4
+        with:
+          endpoint: buildx-context
+
+      - name: Validate base image (golden image check)
+        if: needs.setup.outputs.docker-base-image != '' && !startsWith(needs.setup.outputs.docker-base-image, steps.aws-login-ecr.outputs.registry)
+        uses: actions/github-script@v9
+        with:
+          script: core.setFailed('Base image not located in INNIO ECR.')
+
+      - name: Build and push docker image
+        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false' && needs.setup.outputs.docker-repository != 'none'
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILDKIT: 1
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          context: .
+          provenance: false
+          push: true
+          secrets: nexus_pswd=${{ secrets.NEXUS_MYPLANT_PUBLISHER }}
+          tags: ${{ steps.aws-login-ecr.outputs.registry }}/${{ needs.setup.outputs.docker-repository }}:${{ needs.setup.outputs.docker-identifier }}
+
+  deployLegacy:
+    name: 'Job: Deploy (legacy)'
+    if: needs.setup.outputs.deployment-method != 'helm' && needs.setup.outputs.deploy-targets != 'none'
+    needs: ['setup', 'build']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: deployLegacy_${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Deploy Service (legacy deployment)
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.CI_PAT }}
+          repository: myplant-io/ci-deploy-action
+          event-type: deploy
+          client-payload: '{
+            "deployment_repo": "${{ needs.setup.outputs.deployment-repo }}",
+            "docker_repository": "${{ needs.setup.outputs.docker-repository }}",
+            "docker_tag_prefix": "${{ needs.setup.outputs.docker-tag-prefix }}",
+            "version": "${{ needs.setup.outputs.version }}",
+            "component_name": "${{ needs.setup.outputs.component-name }}",
+            "deployment_files": ${{ needs.setup.outputs.deploy-targets }},
+            "git_sha": "${{ needs.setup.outputs.sha }}"}'
+
+  deployHelm:
+    name: 'Job: Deploy'
+    if: needs.setup.outputs.deployment-method == 'helm'
+    needs: ['setup', 'build']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: deployHelm_${{ github.ref }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        deploy-target: ${{fromJSON(needs.setup.outputs.deploy-targets) }}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Checkout deployment repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          path: deployment-repo
+          repository: ${{ needs.setup.outputs.deployment-repo }}
+          token: ${{ secrets.CI_PAT }}
+
+      - name: Fetch value file contents
+        if: needs.setup.outputs.verbose == 'true'
+        run: cat deployment-repo/${{ matrix.deploy-target }}
+
+      - name: Determine value file to change
+        id: helm-value-file
+        run: echo filename='deployment-repo/${{ matrix.deploy-target }}' >> ${GITHUB_OUTPUT}
+
+      - name: Value file validation - check for workloads
+        id: workloads-exist
+        uses: mikefarah/yq@v4
+        with:
+          cmd: echo check=$(yq '. | has("workloads")' ${{ steps.helm-value-file.outputs.filename }}) >> ${GITHUB_OUTPUT}
+
+      - name: Update component image tag for Deployment and Rollout (single-service value file)
+        if: steps.workloads-exist.outputs.check == 'false'
+        uses: mikefarah/yq@v4
+        with:
+          cmd: yq -i '.image.tag = "${{ needs.setup.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
+
+      - name: Update component image tag for Deployment and Rollout (multi-service value file)
+        if: steps.workloads-exist.outputs.check == 'true'
+        uses: mikefarah/yq@v4
+        with:
+          cmd: yq -i '.workloads[] |= select( .image.tag == "${{ needs.setup.outputs.docker-tag-prefix }}*").image.tag = "${{ needs.setup.outputs.docker-identifier }}"' ${{ steps.helm-value-file.outputs.filename }}
+
+      - name: Fetch updated value file contents
+        if: needs.setup.outputs.verbose == 'true'
+        run: cat deployment-repo/${{ matrix.deploy-target }}
+
+      - name: Commit changed value file (to deployment repo)
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_PAT }}
+        run: |
+          cd deployment-repo
+          git config --global user.email "myplant-io-automation@innio.com"
+          git config --global user.name "myplant-io-automation"
+          git add ${{ matrix.deploy-target }}
+          git commit --allow-empty -m "chore(release): use ${{ needs.setup.outputs.docker-identifier }}"
+          git push
+
+  releaseMerging:
+    name: 'Job: Merging release changes'
+    if: always() && needs.setup.outputs.is-release == 'true'
+    needs: ['setup', 'build', 'deployLegacy', 'deployHelm']
+    runs-on: [self-hosted-standard]
+
+    steps:
+      - name: Merging release changes to master
+        if: github.event.release.target_commitish != 'develop'
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "commitish": "${{ github.event.release.target_commitish }}",
+            "source_branch": "${{ needs.setup.outputs.branch-name }}",
+            "target_branch": "master",
+            "tag": "${{ needs.setup.outputs.tag }}"}'
+
+      # target_commitish can be "develop" for releases that are solely based on tags
+      - name: Merging release changes to master (not using develop commitish, but tag ref)
+        if: github.event.release.target_commitish == 'develop'
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.CI_PAT }}
+          event-type: merge
+          client-payload: '{
+            "source_branch": "${{ needs.setup.outputs.branch-name }}",
+            "target_branch": "master",
+            "tag": "${{ needs.setup.outputs.tag }}"}'

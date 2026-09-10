@@ -1,0 +1,7 @@
+{
+  "name": "Test on PR",
+  "description": "Test pull requests for JavaScript/pnpm projects",
+  "iconName": "icon-pnpm",
+  "categories": ["JavaScript"],
+  "filePatterns": ["pnpm-lock.yaml"]
+}

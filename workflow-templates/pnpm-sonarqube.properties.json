@@ -1,0 +1,7 @@
+{
+  "name": "Sonarqube integration",
+  "description": "Sonarqube for JavaScript/pnpm projects",
+  "iconName": "icon-sonarqube",
+  "categories": ["JavaScript"],
+  "filePatterns": ["pnpm-lock.yaml"]
+}

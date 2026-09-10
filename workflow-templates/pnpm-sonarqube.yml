@@ -1,0 +1,245 @@
+###
+# GitHub action that analyzes the code with the sonarqube scanner and pushes
+# the result to the myplant sonarqube (sonar-dev.myplant-io).
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Nikolaus Krismer
+###
+name: Sonarqube
+
+on:
+  pull_request:
+    branches: [develop]
+    paths-ignore:
+      - '.github/workflows/*auto-update*'
+  push:
+    branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
+  repository_dispatch:
+    types: [sonarqube]
+  workflow_dispatch:
+
+jobs:
+  sonarqube:
+    name: 'Job: Sonarqube'
+    if: startsWith(github.actor, 'dependabot') == false && contains(github.event.pull_request.labels.*.name, 'dependencies') == false
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: sonarqube_${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v7
+        if: github.event_name != 'repository_dispatch'
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v7
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Determine node version (check .nvmrc existence)
+        id: check_nvmrc_existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.nvmrc'
+
+      - name: Determine node version (read from .nvmrc)
+        if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
+        run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env SONAR_KEY
+        run: echo SONAR_KEY="${{ env.COMPONENT_NAME }}" >> ${GITHUB_ENV}
+
+      - name: Apply SONAR_PREFIX to SONAR_KEY
+        if: env.SONAR_PREFIX != ''
+        run: echo SONAR_KEY="${{ env.SONAR_PREFIX }}:${{ env.SONAR_KEY }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME'
+        if: github.event_name != 'repository_dispatch'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SONAR_BASE_VERSION'
+        if: startsWith(github.event_name , 'pull_request') == false
+        run: echo SONAR_BASE_VERSION="${GITHUB_SHA}" >> ${GITHUB_ENV}
+
+      - name: Set env 'SONAR_BASE_VERSION'
+        if: startsWith(github.event_name , 'pull_request')
+        run: echo SONAR_BASE_VERSION="${{ github.event.number }}" >> ${GITHUB_ENV}
+
+      - name: git-get-release-action
+        if: env.BRANCH_NAME == 'master'
+        uses: cardinalby/git-get-release-action@v1
+        id: getLatestVersion
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          doNotFailIfNotFound: true
+          latest: true
+          prerelease: false
+
+      - name: Set env 'SONAR_BASE_VERSION'
+        if: env.BRANCH_NAME == 'master'
+        run: echo SONAR_BASE_VERSION="${{ steps.getLatestVersion.outputs.tag_name }}" >> ${GITHUB_ENV}
+
+      - name: Get action system info
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+        uses: kenchan0130/actions-system-info@v1.4.0
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log sonar context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "sonar.branch.name: ${{ env.BRANCH_NAME }}"
+          echo "sonar.projectKey: ${{ env.SONAR_KEY }}"
+          echo "sonar.projectName: ${{ env.COMPONENT_NAME }}"
+          echo "sonar.projectVersion: ${{ env.SONAR_BASE_VERSION }}"
+          echo "sonar.pullrequest.base: ${{ github.base_ref }}"
+          echo "sonar.pullrequest.branch: ${{ github.head_ref }}"
+          echo "sonar.pullrequest.key: ${{ github.event.number }}"
+          echo "sonar.pullrequest.github.repository: ${{ github.repository }}"
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Prepare node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Add registry credentials
+        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
+      - name: Determine pnpm store path
+        id: pnpm-store-path
+        run: echo STORE_PATH=$(pnpm store path --silent) >> ${GITHUB_ENV}
+
+      - name: Create/restore cache for webpack
+        uses: actions/cache@v6
+        id: webpack-cache
+        with:
+          path: '.cache'
+          key: ${{ runner.os }}-webpack-${{ env.VERSION }}
+          restore-keys: ${{ runner.os }}-webpack-
+
+      - name: Create/restore cache for pnpm store
+        uses: actions/cache@v6
+        id: pnpm-cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test --coverage
+
+      - name: Setup sonarqube
+        uses: warchant/setup-sonar-scanner@v10
+
+      - name: Fetch repository topics
+        id: repository_topics
+        run: |
+          topics=$(curl -H "Accept: application/vnd.github.mercy-preview+json" \
+                        -H "Authorization: token ${{ secrets.CI_PAT }}" \
+                        https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/topics \
+                        | jq -r '.names | join(",")')
+          echo topics="$topics" >> ${GITHUB_OUTPUT}
+
+      - name: Update sonar tags with Github topics
+        run: |
+          curl --header 'Authorization: Bearer ${{ secrets.SONAR_LOGIN }}' \
+          -X POST '${{ secrets.SONAR_URL }}/api/project_tags/set' \
+          -d 'project=${{ env.SONAR_KEY }}&tags=${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
+
+      - name: Run sonarqube
+        if: startsWith(github.event_name , 'pull_request') == false
+        run: sonar-scanner
+          -Dsonar.host.url=${{ secrets.SONAR_URL }}
+          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.branch.name=${{ env.BRANCH_NAME }}
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
+          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+          -Dsonar.projectKey=${{ env.SONAR_KEY }}
+          -Dsonar.projectName=${{ env.COMPONENT_NAME }}
+          -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+          -Dsonar.qualitygate.wait=true
+          -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}
+
+      - name: Run sonarqube (on PR)
+        if: startsWith(github.event_name , 'pull_request')
+        run: sonar-scanner
+          -Dsonar.host.url=${{ secrets.SONAR_URL }}
+          -Dsonar.token=${{ secrets.SONAR_LOGIN }}
+          -Dsonar.exclusions=${{ env.IGNORE_SOURCES }}
+          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+          -Dsonar.projectKey=${{ env.SONAR_KEY }}
+          -Dsonar.projectName=${{ env.COMPONENT_NAME }}
+          -Dsonar.projectVersion=${{ env.SONAR_BASE_VERSION }}
+          -Dsonar.pullrequest.github.endpoint=https://api.github.com
+          -Dsonar.pullrequest.github.repository=${{ github.repository }}
+          -Dsonar.pullrequest.base=${{ github.base_ref }}
+          -Dsonar.pullrequest.branch=${{ github.head_ref }}
+          -Dsonar.pullrequest.key=${{ github.event.number }}
+          -Dsonar.qualitygate.wait=true
+          -Dsonar.cpd.exclusions=${{ env.IGNORE_DUPLICATE_CODE_SOURCES }}

@@ -1,0 +1,240 @@
+###
+# GitHub action that creates a Software-Bill-of-Material (SBOM) and pushes the
+# result to the myplant dependency tracker (dependency-dev.myplant.io).
+#
+# Prerequisites:
+#  - ".github/workflow-config.env" exists
+#
+# Created by: Nikolaus Krismer
+###
+name: Dependency check
+
+on:
+  schedule:
+    # at 00:00 every sunday (on the default branch - develop)
+    - cron: '0 0 * * SUN'
+  push:
+    branches: [main, master, develop, release/**, bugfix/**, hotfix/**]
+  repository_dispatch:
+    types: [dependencyCheck]
+  workflow_dispatch:
+
+jobs:
+  setup:
+    name: 'Job: Setup'
+    runs-on: [self-hosted-standard]
+    outputs:
+      branch-name: ${{ env.BRANCH_NAME }}
+      component-name: ${{ env.COMPONENT_NAME }}
+      node-version: ${{ env.NODE_VERSION }}
+      verbose-artifact-upload: ${{ env.VERBOSE_ARTIFACT_UPLOAD }}
+      version: ${{ env.VERSION }}
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v7
+        if: github.event_name != 'repository_dispatch'
+        with:
+          fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v7
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
+
+      - name: Check workflow config file existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.github/workflow-config.env'
+
+      - name: Load workflow config (.env file)
+        uses: cardinalby/export-env-action@v2
+        with:
+          envFile: '.github/workflow-config.env'
+
+      - name: Determine node version (check .nvmrc existence)
+        id: check_nvmrc_existence
+        uses: andstor/file-existence-action@v3
+        with:
+          fail: true
+          files: '.nvmrc'
+
+      - name: Determine node version (read from .nvmrc)
+        if: steps.check_nvmrc_existence.outputs.files_exists == 'true'
+        run: echo NODE_VERSION="$(cat ".nvmrc" | tr -d '\r' | sed 's/^v*//' | sed 's|[\"'\'\\t' ]||g')" >> ${GITHUB_ENV}
+
+      - name: Set env 'COMPONENT_NAME'
+        if: env.COMPONENT_NAME == 'auto'
+        run: echo COMPONENT_NAME="${GITHUB_REPOSITORY#*/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME'
+        if: github.event_name != 'repository_dispatch'
+        run: echo BRANCH_NAME="${GITHUB_REF#refs/heads/}" >> ${GITHUB_ENV}
+
+      - name: Set env 'BRANCH_NAME' (for dispatched runs)
+        if: github.event_name == 'repository_dispatch'
+        run: echo BRANCH_NAME="${{ github.event.client_payload.branch }}" >> ${GITHUB_ENV}
+
+      - name: Get action system info
+        if: env.VERBOSE_LOGGING == 'true'
+        id: system-info
+        uses: kenchan0130/actions-system-info@v1.4.0
+
+      - name: Log dependency tracker context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "dependency.track.projectname: ${{ env.COMPONENT_NAME }}"
+          echo "dependency.track.projectversion: ${{ env.BRANCH_NAME }}"
+
+      - name: Log env context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(env) }}
+
+      - name: Log GitHub context
+        if: env.VERBOSE_LOGGING == 'true'
+        run: echo $JSON | jq
+        env:
+          JSON: ${{ toJSON(github) }}
+
+      - name: Log system details
+        if: env.VERBOSE_LOGGING == 'true'
+        run: |
+          echo "os: ${{ runner.os }}"
+          echo "host.cpu-model: ${{ steps.system-info.outputs.cpu-model }}"
+          echo "host.cpu-core: ${{ steps.system-info.outputs.cpu-core }}"
+          echo "host.name: ${{ steps.system-info.outputs.hostname }}"
+          echo "os.name: ${{ steps.system-info.outputs.name }}"
+          echo "os.kernel.release: ${{ steps.system-info.outputs.kernel-release }}"
+          echo "os.kernel.version: ${{ steps.system-info.outputs.kernel-version }}"
+          echo "os.platform: ${{ steps.system-info.outputs.platform }}"
+          echo "os.release: ${{ steps.system-info.outputs.release }}"
+
+  dependencyCheck:
+    name: 'Job: Dependency check'
+    needs: ['setup']
+    runs-on: [self-hosted-standard]
+    concurrency:
+      group: dependencyCheck_${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout git repository
+        uses: actions/checkout@v7
+        if: github.event_name != 'repository_dispatch'
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      - name: Checkout git repository (for dispatched runs)
+        uses: actions/checkout@v7
+        if: github.event_name == 'repository_dispatch'
+        with:
+          fetch-depth: 0
+          ref: '${{ github.event.client_payload.branch }}'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Prepare node.js ${{ needs.setup.outputs.node-version }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ needs.setup.outputs.node-version }}
+
+      - name: Add registry credentials
+        run: cat <<<${NPM_REGISTRY_AUTH} >> .npmrc; cat .npmrc
+        env:
+          NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
+
+      - name: Determine pnpm store path
+        id: pnpm-store-path
+        run: echo STORE_PATH=$(pnpm store path --silent) >> ${GITHUB_ENV}
+
+      - name: Create/restore cache for pnpm store
+        uses: actions/cache@v6
+        id: pnpm-cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install npm-audit-html report
+        if: needs.setup.outputs.verbose-artifact-upload == 'true'
+        run: pnpm add --save-dev --workspace-root pnpm-audit-html
+
+      - name: Perform audit
+        if: needs.setup.outputs.verbose-artifact-upload == 'true'
+        continue-on-error: true
+        run: pnpm audit --prod --audit-level ${SECURITY_LEVEL} --json | pnpm exec pnpm-audit-html
+
+      - name: Upload audit report artifact
+        if: needs.setup.outputs.verbose-artifact-upload == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: audit-report
+          path: npm-audit.html
+
+      - name: Install @cyclonedx/cdxgen
+        run: pnpm add --save-dev --workspace-root @cyclonedx/cdxgen@v8.6.3
+
+      - name: Create SBOM using cyclonedx
+        run: pnpm exec cdxgen --output bom.xml --required-only
+
+      - name: Revert lockfile changes (caused by cdxgen and npm-audit-html install)
+        run: git checkout -- package.json pnpm-lock.yaml
+
+      - name: Upload SBOM artifact
+        if: needs.setup.outputs.verbose-artifact-upload == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: SBOM
+          path: bom.xml
+
+      - name: Fetch repository topics
+        id: repository_topics
+        run: |
+          topics=$(curl -H "Accept: application/vnd.github.mercy-preview+json" \
+                        -H "Authorization: token ${{ secrets.CI_PAT }}" \
+                        https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/topics \
+                        | jq -r '.names | join(",")')
+          echo topics="$topics" >> ${GITHUB_OUTPUT}
+
+      - name: Publish dependency check result to tracker
+        uses: DependencyTrack/gh-upload-sbom@v4
+        with:
+          apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          autocreate: true
+          bomfilename: './bom.xml'
+          projectname: ${{ needs.setup.outputs.component-name }}
+          projectversion: ${{ needs.setup.outputs.branch-name }}
+          projecttags: '${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
+          serverhostname: ${{ secrets.DEPENDENCYTRACK_URL }}
+
+      - name: Wait for Dependency Track analysis and check policy violations
+        uses: myplant-io/github-actions/report-dependency-track@v1
+        with:
+          api-key: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
+          url: ${{ secrets.DEPENDENCYTRACK_URL }}
+          project-name: '${{ needs.setup.outputs.component-name }}'
+          project-version: '${{ needs.setup.outputs.branch-name }}'
+          allow-failure: true
