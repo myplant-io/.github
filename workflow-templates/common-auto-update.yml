@@ -118,6 +118,14 @@ jobs:
         if: steps.determine-type-yarn2.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=yarn2 >> ${GITHUB_ENV}
 
+      - name: Test project-type (for pnpm)
+        id: determine-type-pnpm
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'pnpm/action-setup' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Set project type to pnpm
+        if: steps.determine-type-pnpm.outputs.cnt_validations != '0'
+        run: echo PROJECT_TYPE=pnpm >> ${GITHUB_ENV}
+
       - name: Test project-type (for python)
         id: determine-type-python
         run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'actions/setup-python' | wc -l) >> ${GITHUB_OUTPUT}
