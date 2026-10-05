@@ -14,6 +14,7 @@ on:
           - 'dotnetFramework'
           - 'go'
           - 'gradle'
+          - 'npm'
           - 'pnpm'
           - 'python'
           - 'uat'
@@ -104,6 +105,9 @@ jobs:
           elif [[ -f "pnpm-lock.yaml" ]]; then
             echo "pnpm project detected"
             echo INPUT_TYPE=pnpm >> ${GITHUB_ENV}
+          elif [[ -f "package-lock.json" ]]; then
+            echo "npm project detected"
+            echo INPUT_TYPE=npm >> ${GITHUB_ENV}
           elif [[ -f "Program.cs" || $(ls -1 *.sln 2>/dev/null | wc -l) != 0 ]]; then
             echo "DotnetCore project detected"
             echo INPUT_TYPE=dotnetCore >> ${GITHUB_ENV}

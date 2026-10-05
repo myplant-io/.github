@@ -91,8 +91,8 @@ so please make sure that it contains everything that is needed.
 
 The following might also help during issue resolution:
 
-- Most docker deployment actions (docker-deploy.yaml, yarn/yarn2/pnpm-deploy) actions
+- Most docker deployment actions (docker-deploy.yaml, yarn/yarn2/pnpm/npm-deploy) actions
   require a DOCKER_REPOSITORY variable.
-- Yarn/Yarn2/pnpm projects will search for a node version in a .nvmrc file that
+- Yarn/Yarn2/pnpm/npm projects will search for a node version in a .nvmrc file that
   is located in the project's root folder.
-- Yarn/Yarn2/pnpm dependency checks need a SECURITY_LEVEL defined.
+- Yarn/Yarn2/pnpm/npm dependency checks need a SECURITY_LEVEL defined.

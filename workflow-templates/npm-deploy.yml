@@ -348,9 +348,6 @@ jobs:
             echo RETAG=true >> ${GITHUB_ENV}
           fi;
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
       - name: Prepare node.js ${{ needs.setup.outputs.node-version }}
         uses: actions/setup-node@v7
         with:
@@ -392,27 +389,27 @@ jobs:
         if: steps.check-docker-registry-retag.outputs.imageExists == 'false'
         run: echo RETAG=false >> ${GITHUB_ENV}
 
-      - name: Determine pnpm store path
-        id: pnpm-store-path
+      - name: Determine npm cache path
+        id: npm-cache-path
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: echo STORE_PATH=$(pnpm store path --silent) >> ${GITHUB_ENV}
+        run: echo CACHE_PATH=$(npm config get cache) >> ${GITHUB_ENV}
 
-      - name: Create/restore cache for pnpm store
+      - name: Create/restore cache for npm cache
         uses: actions/cache@v6
-        id: pnpm-cache
+        id: npm-cache
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-store-
+          path: ${{ env.CACHE_PATH }}
+          key: ${{ runner.os }}-npm-cache-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-npm-cache-
 
       - name: Install dependencies (if not previously cached)
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Build application
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        run: pnpm build
+        run: npm run build
 
       - name: Login to Amazon ECR
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'

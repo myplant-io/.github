@@ -17,7 +17,7 @@ on:
 
 jobs:
   validate:
-    name: 'Job: Validate '
+    name: 'Job: Validate'
     runs-on: [self-hosted-standard]
 
     steps:
@@ -93,9 +93,6 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
       - name: Prepare node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v7
         with:
@@ -106,26 +103,26 @@ jobs:
         env:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
-      - name: Determine pnpm store path
-        id: pnpm-store-path
-        run: echo STORE_PATH=$(pnpm store path --silent) >> ${GITHUB_ENV}
+      - name: Determine npm cache path
+        id: npm-cache-path
+        run: echo CACHE_PATH=$(npm config get cache) >> ${GITHUB_ENV}
 
-      - name: Create/restore cache for pnpm store
+      - name: Create/restore cache for npm cache
         uses: actions/cache@v6
-        id: pnpm-cache
+        id: npm-cache
         with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-store-
+          path: ${{ env.CACHE_PATH }}
+          key: ${{ runner.os }}-npm-cache-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-npm-cache-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Run validations
-        run: pnpm validate
+        run: npm run validate
 
   test:
-    name: 'Job: Test '
+    name: 'Job: Test'
     needs: ['validate']
     runs-on: [self-hosted-standard]
 
@@ -202,9 +199,6 @@ jobs:
           echo "os.platform: ${{ steps.system-info.outputs.platform }}"
           echo "os.release: ${{ steps.system-info.outputs.release }}"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
       - name: Prepare node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v7
         with:
@@ -215,20 +209,20 @@ jobs:
         env:
           NPM_REGISTRY_AUTH: ${{ secrets.NPM_REGISTRY_AUTH }}
 
-      - name: Determine pnpm store path
-        id: pnpm-store-path
-        run: echo STORE_PATH=$(pnpm store path --silent) >> ${GITHUB_ENV}
+      - name: Determine npm cache path
+        id: npm-cache-path
+        run: echo CACHE_PATH=$(npm config get cache) >> ${GITHUB_ENV}
 
-      - name: Create/restore cache for pnpm store
+      - name: Create/restore cache for npm cache
         uses: actions/cache@v6
-        id: pnpm-cache
+        id: npm-cache
         with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-store-
+          path: ${{ env.CACHE_PATH }}
+          key: ${{ runner.os }}-npm-cache-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-npm-cache-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Run tests
-        run: pnpm test
+        run: npm test
