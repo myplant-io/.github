@@ -173,14 +173,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install npm-audit-html report
-        if: needs.setup.outputs.verbose-artifact-upload == 'true'
-        run: npm install --save-dev npm-audit-html
-
       - name: Perform audit
         if: needs.setup.outputs.verbose-artifact-upload == 'true'
         continue-on-error: true
-        run: npm audit --omit=dev --audit-level ${SECURITY_LEVEL} --json | npx --no-install npm-audit-html
+        run: npm audit --omit=dev --audit-level ${SECURITY_LEVEL} --json | npx --yes npm-audit-html
 
       - name: Upload audit report artifact
         if: needs.setup.outputs.verbose-artifact-upload == 'true'
@@ -190,14 +186,8 @@ jobs:
           name: audit-report
           path: npm-audit.html
 
-      - name: Install @cyclonedx/cdxgen
-        run: npm install --save-dev @cyclonedx/cdxgen@v8.6.3
-
       - name: Create SBOM using cyclonedx
-        run: npx --no-install cdxgen --output bom.xml --required-only
-
-      - name: Revert lockfile changes (caused by cdxgen and npm-audit-html install)
-        run: git checkout -- package.json package-lock.json
+        run: npx --yes @cyclonedx/cdxgen@12.8.5 --output bom.json --spec-version 1.6 --required-only
 
       - name: Upload SBOM artifact
         if: needs.setup.outputs.verbose-artifact-upload == 'true'
@@ -205,7 +195,7 @@ jobs:
         with:
           if-no-files-found: error
           name: SBOM
-          path: bom.xml
+          path: bom.json
 
       - name: Fetch repository topics
         id: repository_topics
@@ -221,7 +211,7 @@ jobs:
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           autocreate: true
-          bomfilename: './bom.xml'
+          bomfilename: './bom.json'
           projectname: ${{ needs.setup.outputs.component-name }}
           projectversion: ${{ needs.setup.outputs.branch-name }}
           projecttags: '${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
