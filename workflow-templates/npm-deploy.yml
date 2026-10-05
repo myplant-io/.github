@@ -394,15 +394,6 @@ jobs:
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         run: echo CACHE_PATH=$(npm config get cache) >> ${GITHUB_ENV}
 
-      - name: Create/restore cache for webpack
-        uses: actions/cache@v6
-        id: webpack-cache
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        with:
-          path: '.cache'
-          key: ${{ runner.os }}-webpack-${{ needs.setup.output.version }}
-          restore-keys: ${{ runner.os }}-webpack-
-
       - name: Create/restore cache for npm cache
         uses: actions/cache@v6
         id: npm-cache

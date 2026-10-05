@@ -172,14 +172,6 @@ jobs:
         id: pnpm-store-path
         run: echo STORE_PATH=$(pnpm store path --silent) >> ${GITHUB_ENV}
 
-      - name: Create/restore cache for webpack
-        uses: actions/cache@v6
-        id: webpack-cache
-        with:
-          path: '.cache'
-          key: ${{ runner.os }}-webpack-${{ env.VERSION }}
-          restore-keys: ${{ runner.os }}-webpack-
-
       - name: Create/restore cache for pnpm store
         uses: actions/cache@v6
         id: pnpm-cache

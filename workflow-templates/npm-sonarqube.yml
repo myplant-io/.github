@@ -169,14 +169,6 @@ jobs:
         id: npm-cache-path
         run: echo CACHE_PATH=$(npm config get cache) >> ${GITHUB_ENV}
 
-      - name: Create/restore cache for webpack
-        uses: actions/cache@v6
-        id: webpack-cache
-        with:
-          path: '.cache'
-          key: ${{ runner.os }}-webpack-${{ env.VERSION }}
-          restore-keys: ${{ runner.os }}-webpack-
-
       - name: Create/restore cache for npm cache
         uses: actions/cache@v6
         id: npm-cache
