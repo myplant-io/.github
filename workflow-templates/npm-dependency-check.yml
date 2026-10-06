@@ -186,8 +186,12 @@ jobs:
           name: audit-report
           path: npm-audit.html
 
+      # Note: no "--required-only". In cdxgen >=12 transitive production
+      # dependencies carry scope "optional", so the flag reduces the SBOM to
+      # direct dependencies only. "--exclude-type github" keeps the workflow
+      # files in .github from being reported as SBOM components.
       - name: Create SBOM using cyclonedx
-        run: npx --yes @cyclonedx/cdxgen@12.8.5 --output bom.json --spec-version 1.6 --required-only
+        run: npx --yes @cyclonedx/cdxgen@12.8.5 --output bom.json --spec-version 1.6 --exclude-type github
 
       - name: Upload SBOM artifact
         if: needs.setup.outputs.verbose-artifact-upload == 'true'
