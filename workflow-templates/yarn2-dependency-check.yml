@@ -186,11 +186,8 @@ jobs:
           name: audit-report
           path: npm-audit.html
 
-      - name: Install @cyclonedx/cdxgen
-        run: yarn add --dev --ignore-workspace-root-check @cyclonedx/cdxgen@v12.8.5
-
       - name: Create SBOM using cyclonedx
-        run: yarn run --no-install cdxgen --output bom.json --spec-version 1.6 --exclude-type github
+        run: yarn dlx @cyclonedx/cdxgen@12.8.5 --output bom.json --spec-version 1.6 --exclude-type github
 
       - name: Revert lockfile changes (caused by cdxgen and npm-audit-html install)
         run: git checkout -- package.json yarn.lock
