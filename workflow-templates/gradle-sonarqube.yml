@@ -214,12 +214,12 @@ jobs:
 
       - name: Determine number of gradle (sub)projects
         id: gradle-project-stats
-        run: echo subproject-count="$(./gradlew -q projects | grep -- '--- Project' | cut -d ':' -f 2 | sed "s/'$//" | wc -l)" >> ${GITHUB_OUTPUT}
+        run: echo subproject-count="$(./gradlew -q projects | grep -- '--- Project' | cut -d ':' -f 2 | sed "s/'.*//" | wc -l)" >> ${GITHUB_OUTPUT}
 
       - name: Finding gradle subproject(s)
         id: gradle-projects
         if: steps.gradle-project-stats.outputs.subproject-count != '0'
-        run: echo subprojects="$(./gradlew -q projects | grep -- '--- Project' | cut -d ':' -f 2 | sed "s/'$//" | tr '\n' ' ' | xargs)" >> ${GITHUB_OUTPUT}
+        run: echo subprojects="$(./gradlew -q projects | grep -- '--- Project' | cut -d ':' -f 2 | sed "s/'.*//" | tr '\n' ' ' | xargs)" >> ${GITHUB_OUTPUT}
 
       - name: Prepare JSON meta information (single project)
         if: steps.gradle-project-stats.outputs.subproject-count == '0'
