@@ -397,15 +397,6 @@ jobs:
         if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
         run: echo STORE_PATH=$(pnpm store path --silent) >> ${GITHUB_ENV}
 
-      - name: Create/restore cache for webpack
-        uses: actions/cache@v6
-        id: webpack-cache
-        if: env.RETAG == 'false' && steps.check-docker-registry.outputs.imageExists == 'false'
-        with:
-          path: '.cache'
-          key: ${{ runner.os }}-webpack-${{ needs.setup.output.version }}
-          restore-keys: ${{ runner.os }}-webpack-
-
       - name: Create/restore cache for pnpm store
         uses: actions/cache@v6
         id: pnpm-cache

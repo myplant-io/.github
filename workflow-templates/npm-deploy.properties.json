@@ -1,0 +1,7 @@
+{
+  "name": "Build and deploy",
+  "description": "Build and deploy for JavaScript/npm projects (using a deployment repo)",
+  "iconName": "icon-npm",
+  "categories": ["Deployment", "JavaScript"],
+  "filePatterns": ["package-lock.json"]
+}

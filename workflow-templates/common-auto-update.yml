@@ -126,6 +126,14 @@ jobs:
         if: steps.determine-type-pnpm.outputs.cnt_validations != '0'
         run: echo PROJECT_TYPE=pnpm >> ${GITHUB_ENV}
 
+      - name: Test project-type (for npm)
+        id: determine-type-npm
+        run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'npm ci' | wc -l) >> ${GITHUB_OUTPUT}
+
+      - name: Set project type to npm
+        if: steps.determine-type-npm.outputs.cnt_validations != '0'
+        run: echo PROJECT_TYPE=npm >> ${GITHUB_ENV}
+
       - name: Test project-type (for python)
         id: determine-type-python
         run: echo cnt_validations=$(ls ${{ env.TARGET_DIR }}/deploy* | xargs grep -w 'actions/setup-python' | wc -l) >> ${GITHUB_OUTPUT}

@@ -1,0 +1,7 @@
+{
+  "name": "Dependency-track integration",
+  "description": "Integration with dependency-dev.myplant.io for JavaScript/npm projects",
+  "iconName": "icon-dependency-track",
+  "categories": ["JavaScript"],
+  "filePatterns": ["package-lock.json"]
+}

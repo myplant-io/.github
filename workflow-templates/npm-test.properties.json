@@ -1,0 +1,7 @@
+{
+  "name": "Test on PR",
+  "description": "Test pull requests for JavaScript/npm projects",
+  "iconName": "icon-npm",
+  "categories": ["JavaScript"],
+  "filePatterns": ["package-lock.json"]
+}
