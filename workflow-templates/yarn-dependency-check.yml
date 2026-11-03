@@ -185,10 +185,10 @@ jobs:
           path: yarn-audit.html
 
       - name: Install @cyclonedx/cdxgen
-        run: yarn add --dev --ignore-workspace-root-check @cyclonedx/cdxgen@v8.6.3
+        run: yarn add --dev --ignore-workspace-root-check @cyclonedx/cdxgen@v12.8.5
 
       - name: Create SBOM using cyclonedx
-        run: yarn run --no-install cdxgen --output bom.xml --required-only
+        run: yarn run --no-install cdxgen --output bom.json --spec-version 1.6 --exclude-type github
 
       - name: Revert lockfile changes (caused by cdxgen and yarn-audit-html install)
         run: git checkout -- package.json yarn.lock
@@ -199,7 +199,7 @@ jobs:
         with:
           if-no-files-found: error
           name: SBOM
-          path: bom.xml
+          path: bom.json
 
       - name: Fetch repository topics
         id: repository_topics
@@ -215,7 +215,7 @@ jobs:
         with:
           apikey: ${{ secrets.DEPENDENCYTRACK_APIKEY }}
           autocreate: true
-          bomfilename: './bom.xml'
+          bomfilename: './bom.json'
           projectname: ${{ needs.setup.outputs.component-name }}
           projectversion: ${{ needs.setup.outputs.branch-name }}
           projecttags: '${{ steps.repository_topics.outputs.topics }},githubowner-${{ github.repository_owner }},githubrepo-${{ github.event.repository.name }}'
