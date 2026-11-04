@@ -12,8 +12,8 @@ jobs:
 
     steps:
       - name: Run merge-gatekeeper
+        if: !(github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         uses: upsidr/merge-gatekeeper@v1
         with:
           token: ${{ secrets.CI_PAT }}
           timeout: 1200
-          ignored: 'gitStream.cm'
